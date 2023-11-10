@@ -17,8 +17,8 @@ window:
   # Window dimensions in character columns and lines
   # (changes require restart)
   dimensions:
-    columns: 160
-    lines: 80
+    columns: 120
+    lines: 30
 
   # Adds this many blank pixels of padding around the window
   # Units are physical pixels; this is not DPI aware.
@@ -61,7 +61,7 @@ font:
     # style: Regular
 
   # Point size of the font
-  size: 20
+  size: 13
 
   # Offset is the extra space around each character. offset.y can be thought of
   # as modifying the linespacing, and offset.x as modifying the letter spacing.
@@ -86,7 +86,8 @@ debug.render_timer: false
 colors:
   # Default colors
   primary:
-    background: '0x1E1D2F'
+    background: '0x1b1b1b'
+    #background: '0x1E1D2F'
     foreground: '0xD9E0EE'
 
   cursor:
