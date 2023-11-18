@@ -112,6 +112,7 @@ v() {
   nvim $1
 }
 
+alias vim='nvim'
 alias g='git'
 
 export NVM_DIR="$HOME/.nvm"
