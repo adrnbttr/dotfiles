@@ -1,9 +1,9 @@
 ---@type ChadrcConfig 
 local M = {}
 M.ui = {
-    theme = 'catppuccin',
+    theme = 'radium',
     changed_themes = {
-        catppuccin = {
+        radium = {
            base_16 = {
                 base00 = "#171B20", -- updated
                 base01 = "#21262e", -- updated
