@@ -8,3 +8,24 @@ I manage the various configuration files in this repo using [[https://www.gnu.or
 stow -t ~ zsh
 stow -t ~ config
 #+end_src
+
+##+SECRET 
+
+I know, it’s not the best options but ....
+
+###+ Create file
+#+begin_src sh
+nvim config/.config/nvim/lua/custom/secrets.lua
+#+end_src
+
+###+ Put your sensitive date inside
+#+begin_src sh
+-- secrets.lua
+local secrets = {
+  my_secret_password = 'yourpassword'
+
+return secrets
+#+end_src
+
+
+
