@@ -1,5 +1,14 @@
 local cmp = require "cmp"
 
+local function require_relative(module_name)
+  local script_path = debug.getinfo(2, 'S').source:sub(2):match("(.*/)")
+  script_path = script_path or "./"
+  local module_path = script_path .. module_name .. ".lua"
+  return dofile(module_path)
+end
+
+local secrets = require_relative("secrets")
+
 local plugins = {
   {
     "christoomey/vim-tmux-navigator",
@@ -29,6 +38,10 @@ local plugins = {
         "gopls",
         "rust-analyzer",
         "python-lsp-server",
+        "eslint-lsp",
+        "js-debug-adapter",
+        "prettier",
+        "typescript-language-server"
       },
     },
   },
@@ -111,6 +124,34 @@ local plugins = {
       table.insert(M.sources, {name = "crates"})
       return M
     end,
+  },
+  {
+    "jackMort/ChatGPT.nvim",
+      event = "VeryLazy",
+      config = function()
+        require("chatgpt").setup({
+          api_key_cmd = "echo " .. secrets.my_secret_password .. "",
+        })
+      end,
+      dependencies = {
+        "MunifTanjim/nui.nvim",
+        "nvim-lua/plenary.nvim",
+        "nvim-telescope/telescope.nvim"
+      }
+  },
+  {
+    "mhartington/formatter.nvim",
+    event = "VeryLazy",
+    opts = function()
+      return require "custom.configs.formatter"
+    end
+  },
+  {
+    "mfussenegger/nvim-lint",
+    event = "VeryLazy",
+    config = function()
+      require "custom.configs.lint"
+    end
   },
 }
 return plugins
