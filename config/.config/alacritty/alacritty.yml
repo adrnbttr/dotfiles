@@ -166,6 +166,9 @@ window.opacity: 1.0
 mouse_bindings:
   - { mouse: Middle, action: PasteSelection }
 
+key_bindings:
+  - { key: G, mods: Alt, chars: "_" }
+
 mouse:
   # Click settings
   #
