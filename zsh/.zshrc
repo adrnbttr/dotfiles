@@ -123,6 +123,11 @@ v() {
   nvim $1
 }
 
+marvin_session() {
+    nohup kitty --session ~/.config/kitty/marvin-session.conf & disown
+    exit
+}
+
 alias vim='nvim'
 alias g='git'
 
