@@ -7,6 +7,7 @@ I manage the various configuration files in this repo using [[https://www.gnu.or
 #+begin_src sh
 stow -t ~ zsh
 stow -t ~ config
+stow -t ~ oh-my-zsh
 #+end_src
 
 ##+SECRET 

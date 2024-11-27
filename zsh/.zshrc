@@ -72,9 +72,20 @@ ZSH_THEME="agnoster"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git)
+plugins=(git autojump jump fzf)
 
 source $ZSH/oh-my-zsh.sh
+
+export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border'
+
+fzf_edit() {
+  local file
+  file=$(fzf --preview="bat --style=numbers --color=always --line-range=:500 {}" --height 40%)
+  if [[ -n "$file" ]]; then
+    nvim "$file"
+  fi
+}
+alias fe='fzf_edit'
 
 # User configuration
 
@@ -121,3 +132,16 @@ alias gd='git diff'
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# >>> mamba initialize >>>
+# !! Contents within this block are managed by 'mamba init' !!
+export MAMBA_EXE='/Users/adrien/.micromamba/bin/micromamba';
+export MAMBA_ROOT_PREFIX='/Users/adrien/micromamba';
+__mamba_setup="$("$MAMBA_EXE" shell hook --shell zsh --root-prefix "$MAMBA_ROOT_PREFIX" 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__mamba_setup"
+else
+    alias micromamba="$MAMBA_EXE"  # Fallback on help from mamba activate
+fi
+unset __mamba_setup
+# <<< mamba initialize <<<
