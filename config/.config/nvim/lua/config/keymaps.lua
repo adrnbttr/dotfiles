@@ -16,3 +16,5 @@ end, { noremap = true, silent = true, desc = "Save file and exit insert mode wit
 vim.keymap.set("n", "à", function()
 	save_file()
 end, { noremap = true, silent = true, desc = "Save file with 'à' in normal mode" })
+
+vim.keymap.set("n", "<leader>/", "<cmd>Telescope current_buffer_fuzzy_find<cr>", { desc = "Fuzzy find in current buffer" })
