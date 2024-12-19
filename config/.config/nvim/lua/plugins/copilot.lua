@@ -7,4 +7,8 @@ return {
       vim.api.nvim_set_keymap("i", "<C-l>", 'copilot#Accept("<CR>")', { silent = true, expr = true })
     end,
   },
+  {
+    "lukas-reineke/indent-blankline.nvim",
+    enabled = false
+  }
 }
