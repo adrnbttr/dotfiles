@@ -1,0 +1,41 @@
+[353 21:53:07.142967] Ignoring unknown config key: window_padding_height
+[353 21:53:07.142998] Ignoring unknown config key: remember_window_position
+[353 21:53:07.143006] Ignoring unknown config key: window_position
+[353 21:53:07.557000] Traceback (most recent call last):
+  File "/usr/bin/../lib/kitty/kitty/launch.py", line 179, in parse_launch_args
+    opts, args = parse_args(result_class=LaunchCLIOptions, args=args, ospec=options_spec)
+  File "/usr/bin/../lib/kitty/kitty/cli.py", line 748, in parse_args
+    return ans, parse_cmdline(oc, disabled, ans, args=args)
+  File "/usr/bin/../lib/kitty/kitty/cli.py", line 517, in parse_cmdline
+    needs_arg = oc.needs_arg(parts[0])
+  File "/usr/bin/../lib/kitty/kitty/cli.py", line 466, in needs_arg
+    opt = self.opt_for_alias(alias)
+  File "/usr/bin/../lib/kitty/kitty/cli.py", line 459, in opt_for_alias
+    raise SystemExit('Unknown option: {}'.format(emph(alias)))
+SystemExit: Unknown option: --bias
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/bin/../lib/kitty/kitty/main.py", line 344, in main
+    _main()
+  File "/usr/bin/../lib/kitty/kitty/main.py", line 337, in _main
+    run_app(opts, cli_opts, bad_lines)
+  File "/usr/bin/../lib/kitty/kitty/main.py", line 183, in __call__
+    _run_app(opts, args, bad_lines)
+  File "/usr/bin/../lib/kitty/kitty/main.py", line 162, in _run_app
+    boss.start(window_id)
+  File "/usr/bin/../lib/kitty/kitty/boss.py", line 533, in start
+    self.startup_first_child(first_os_window_id)
+  File "/usr/bin/../lib/kitty/kitty/boss.py", line 188, in startup_first_child
+    for startup_session in startup_sessions:
+  File "/usr/bin/../lib/kitty/kitty/session.py", line 167, in create_sessions
+    yield from parse_session(session_data, opts, getattr(args, 'title', None))
+  File "/usr/bin/../lib/kitty/kitty/session.py", line 122, in parse_session
+    ans.add_window(rest)
+  File "/usr/bin/../lib/kitty/kitty/session.py", line 67, in add_window
+    spec = parse_launch_args(cmd)
+  File "/usr/bin/../lib/kitty/kitty/launch.py", line 181, in parse_launch_args
+    raise ValueError from e
+ValueError
+
