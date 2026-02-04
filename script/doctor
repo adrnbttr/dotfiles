@@ -50,21 +50,13 @@ zsh_plugin_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
 
 echo
 echo "cli tools (recommended)"
-for cmd in fzf rg fd bat tmux kitty nvim opencode; do
+for cmd in fzf rg fd bat kitty nvim opencode; do
   if have "$cmd"; then
     ok "$cmd"
   else
     warn "$cmd"
   fi
 done
-
-echo
-echo "tmux"
-if [[ -d "$HOME/.tmux/plugins/tpm" ]]; then
-  ok "TPM installed"
-else
-  warn "TPM missing (run ./script/bootstrap)"
-fi
 
 echo
 echo "neovim"
@@ -101,13 +93,13 @@ echo
 echo "install hints"
 case "$os" in
   linux)
-    echo "- Debian/Ubuntu: sudo apt install -y stow git zsh fzf ripgrep fd-find bat tmux"
+    echo "- Debian/Ubuntu: sudo apt install -y stow git zsh fzf ripgrep fd-find bat"
     echo "  (fd may be 'fdfind', bat may be 'batcat')"
     ;;
   darwin)
-    echo "- macOS (Homebrew): brew install stow git zsh fzf ripgrep fd bat tmux"
+    echo "- macOS (Homebrew): brew install stow git zsh fzf ripgrep fd bat"
     ;;
   *)
-    echo "- install: stow git zsh fzf ripgrep fd bat tmux"
+    echo "- install: stow git zsh fzf ripgrep fd bat"
     ;;
 esac

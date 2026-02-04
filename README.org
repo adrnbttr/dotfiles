@@ -45,34 +45,31 @@ Keyboard hints:
 - fzf-tab: use TAB completion then pick in the fzf UI
 
 Terminal tip:
-- Ctrl-S is enabled for Neovim/tmux (XON/XOFF disabled via `stty -ixon` in `zsh/.zshrc`).
+- Ctrl-S is enabled for Neovim/Kitty (XON/XOFF disabled via `stty -ixon` in `zsh/.zshrc`).
 
-** tmux
+** Kitty
 
-- TPM is installed by `./script/bootstrap`.
-- Install/update tmux plugins: press `prefix` + I (capital i)
-
-Key cheatsheet (from `config/.config/tmux/tmux.conf`):
+Key cheatsheet (from `config/.config/kitty/kitty.conf`):
 
 #+begin_src text
-prefix: C-a
-
 splits:
-  prefix + %    split right
-  prefix + "    split bottom
+  Ctrl+Alt+Shift+Right   vertical split (cwd=current)
+  Ctrl+Alt+Shift+Down    horizontal split (cwd=current)
 
-move between panes:
-  prefix + h/j/k/l
-  Alt + Arrow keys
+focus split:
+  Ctrl+Alt+Arrow keys
 
-move between windows:
-  Shift + Left/Right
-  Alt + H/L
+resize:
+  Ctrl+Alt+r             resize mode
 
-copy mode (vi):
-  v      start selection
-  C-v    rectangle
-  y      yank + exit
+tabs:
+  Ctrl+Alt+t             new tab (cwd=current)
+  Ctrl+Tab               next tab
+  Ctrl+Shift+Tab         previous tab
+  Ctrl+Alt+w             close tab
+
+zoom:
+  Ctrl+Alt+z             toggle stack layout
 #+end_src
 
 ** Neovim
@@ -141,6 +138,23 @@ fast iterative replace:
 
 UI replace:
   <leader>sr         opens grug-far (if installed)
+#+end_src
+
+IDE-like workflow tips (LazyVim):
+
+#+begin_src text
+discover keymaps:
+  <leader>            shows which-key menu
+
+common LSP:
+  K                   hover docs
+  gd                  go to definition
+  gr                  references
+  <leader>rn          rename
+  <leader>ca          code action
+
+diagnostics:
+  <leader>xx          diagnostics list (Trouble)
 #+end_src
 
 * Oh My Zsh

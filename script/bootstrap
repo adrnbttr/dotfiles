@@ -121,11 +121,6 @@ if need_cmd git; then
   clone_if_missing https://github.com/zdharma-continuum/fast-syntax-highlighting.git "$zsh_plugin_dir/fast-syntax-highlighting"
   clone_if_missing https://github.com/Aloxaf/fzf-tab.git "$zsh_plugin_dir/fzf-tab"
 
-  # tmux plugin manager (TPM)
-  if [[ ! -d "$HOME/.tmux/plugins/tpm" ]]; then
-    mkdir -p "$HOME/.tmux/plugins"
-    clone_if_missing https://github.com/tmux-plugins/tpm.git "$HOME/.tmux/plugins/tpm"
-  fi
 else
   echo "warn: 'git' not found, skipping optional plugin clones" >&2
 fi
