@@ -1,0 +1,8 @@
+# Local-only Zsh config (not tracked).
+#
+# Copy to ~/.zshrc.local and put machine-specific paths / secrets here.
+#
+# Examples:
+# export GITHUB_TOKEN="..."
+# export PATH="$HOME/.local/opt/something/bin:$PATH"
+# alias workvpn="..."

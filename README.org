@@ -7,6 +7,45 @@ I manage the various configuration files in this repo using [[https://www.gnu.or
 #+begin_src sh
 stow -t ~ zsh
 stow -t ~ config
-stow -t ~ oh-my-zsh
+stow -t ~ oh-my-zsh-custom
 #+end_src
 
+Optional: one-shot bootstrap (clones Oh My Zsh if missing + runs stow):
+
+#+begin_src sh
+./script/bootstrap
+#+end_src
+
+* Oh My Zsh
+
+This repo does *not* stow into =~/.oh-my-zsh= anymore.
+
+- Keep =~/.oh-my-zsh= as a clean git checkout so =omz update= works.
+- Put custom themes/plugins under =$ZSH_CUSTOM= (defaults to =~/.config/oh-my-zsh= in =zsh/.zshrc=).
+
+Install Oh My Zsh (git clone):
+
+#+begin_src sh
+git clone https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh
+#+end_src
+
+Custom theme is shipped by this repo here:
+- `oh-my-zsh-custom/.config/oh-my-zsh/themes/adrien-agnoster.zsh-theme`
+
+* Local (per-machine) config
+
+If you need machine-specific paths or secrets, put them in =~/.zshrc.local=.
+
+Example template:
+- `zsh/.zshrc.local.example`
+
+* Migration note
+
+If you previously stowed the old =oh-my-zsh= package (theme override inside =~/.oh-my-zsh=), remove that symlink so OMZ can update.
+
+Typical fix:
+
+#+begin_src sh
+rm -f ~/.oh-my-zsh/themes/agnoster.zsh-theme
+cd ~/.oh-my-zsh && git checkout -- themes/agnoster.zsh-theme
+#+end_src

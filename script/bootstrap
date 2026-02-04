@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+if ! need_cmd stow; then
+  echo "error: 'stow' is required (GNU Stow)" >&2
+  exit 1
+fi
+
+if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
+  if ! need_cmd git; then
+    echo "error: 'git' is required to clone Oh My Zsh" >&2
+    exit 1
+  fi
+  git clone https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
+fi
+
+stow -d "$repo_root" -t "$HOME" zsh config oh-my-zsh-custom
+
+if [[ ! -f "$HOME/.zshrc.local" && -f "$repo_root/zsh/.zshrc.local.example" ]]; then
+  echo "note: you can create ~/.zshrc.local from zsh/.zshrc.local.example" >&2
+fi

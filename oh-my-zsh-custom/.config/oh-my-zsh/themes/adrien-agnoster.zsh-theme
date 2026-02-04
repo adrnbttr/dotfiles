@@ -3,6 +3,8 @@
 # agnoster's Theme - https://gist.github.com/3712874
 # A Powerline-inspired theme for ZSH
 #
+# Stored under $ZSH_CUSTOM so Oh My Zsh can update cleanly.
+#
 # # README
 #
 # In order for this theme to render correctly, you will need a
@@ -201,7 +203,7 @@ prompt_hg() {
       st=""
       rev=$(command hg id -n 2>/dev/null | sed 's/[^-0-9]//g')
       branch=$(command hg id -b 2>/dev/null)
-      if command hg st | command grep -q "^\?"; then
+      if command hg st | command grep -q "^\\?"; then
         prompt_segment red black
         st='±'
       elif command hg st | command grep -q "^[MA]"; then
