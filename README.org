@@ -49,6 +49,29 @@ Keyboard hints:
 - TPM is installed by `./script/bootstrap`.
 - Install/update tmux plugins: press `prefix` + I (capital i)
 
+Key cheatsheet (from `config/.config/tmux/tmux.conf`):
+
+#+begin_src text
+prefix: C-a
+
+splits:
+  prefix + %    split right
+  prefix + "    split bottom
+
+move between panes:
+  prefix + h/j/k/l
+  Alt + Arrow keys
+
+move between windows:
+  Shift + Left/Right
+  Alt + H/L
+
+copy mode (vi):
+  v      start selection
+  C-v    rectangle
+  y      yank + exit
+#+end_src
+
 ** Neovim
 
 - This repo commits `config/.config/nvim/lazy-lock.json` so plugin versions are reproducible across machines.
@@ -59,6 +82,26 @@ Use the repo lockfile on a machine that already has a local one:
 #+begin_src sh
 mv ~/.config/nvim/lazy-lock.json ~/.config/nvim/lazy-lock.json.bak
 ./script/bootstrap
+#+end_src
+
+Key cheatsheet (custom additions in this repo):
+
+#+begin_src text
+save:
+  à (insert)    save + exit insert
+  à (normal)    save
+
+telescope:
+  <leader>«     fuzzy find in current buffer
+
+copilot:
+  <C-l>         accept suggestion
+
+opencode.nvim:
+  <C-a>         ask (@this)
+  <C-x>         select action
+  <C-.>         toggle
+  go / goo      send selection/line
 #+end_src
 
 * Oh My Zsh
