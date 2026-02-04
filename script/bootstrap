@@ -15,6 +15,43 @@ clone_if_missing() {
   git clone --depth=1 "$repo" "$dest"
 }
 
+json_equal() {
+  local a="$1" b="$2"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$a" "$b" <<'PY'
+import json
+import sys
+
+def load(path: str):
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+try:
+    sys.exit(0 if load(sys.argv[1]) == load(sys.argv[2]) else 1)
+except Exception:
+    sys.exit(2)
+PY
+    return $?
+  fi
+  if command -v python >/dev/null 2>&1; then
+    python - "$a" "$b" <<'PY'
+import json
+import sys
+
+def load(path):
+    with open(path, 'r') as f:
+        return json.load(f)
+
+try:
+    sys.exit(0 if load(sys.argv[1]) == load(sys.argv[2]) else 1)
+except Exception:
+    sys.exit(2)
+PY
+    return $?
+  fi
+  return 2
+}
+
 if ! need_cmd stow; then
   echo "error: 'stow' is required (GNU Stow)" >&2
   exit 1
@@ -38,6 +75,42 @@ if [[ -f "$lock_src" && ! -e "$lock_dst" ]]; then
   ln -s "$lock_src" "$lock_dst"
 elif [[ -f "$lock_src" && -f "$lock_dst" && ! -L "$lock_dst" ]]; then
   echo "note: $lock_dst exists; leaving it untouched" >&2
+fi
+
+# opencode state: keep it versioned without overwriting local files.
+opencode_state_dir="$HOME/.local/state/opencode"
+mkdir -p "$opencode_state_dir"
+
+opencode_kv_src="$repo_root/opencode-state/.local/state/opencode/kv.json"
+opencode_kv_dst="$opencode_state_dir/kv.json"
+if [[ -f "$opencode_kv_src" && ! -e "$opencode_kv_dst" ]]; then
+  ln -s "$opencode_kv_src" "$opencode_kv_dst"
+elif [[ -f "$opencode_kv_src" && -f "$opencode_kv_dst" && ! -L "$opencode_kv_dst" ]]; then
+  if json_equal "$opencode_kv_src" "$opencode_kv_dst"; then
+    rm -f "$opencode_kv_dst"
+    ln -s "$opencode_kv_src" "$opencode_kv_dst"
+  elif command -v cmp >/dev/null 2>&1 && cmp -s "$opencode_kv_src" "$opencode_kv_dst"; then
+    rm -f "$opencode_kv_dst"
+    ln -s "$opencode_kv_src" "$opencode_kv_dst"
+  else
+    echo "note: $opencode_kv_dst exists; leaving it untouched" >&2
+  fi
+fi
+
+opencode_model_src="$repo_root/opencode-state/.local/state/opencode/model.json"
+opencode_model_dst="$opencode_state_dir/model.json"
+if [[ -f "$opencode_model_src" && ! -e "$opencode_model_dst" ]]; then
+  ln -s "$opencode_model_src" "$opencode_model_dst"
+elif [[ -f "$opencode_model_src" && -f "$opencode_model_dst" && ! -L "$opencode_model_dst" ]]; then
+  if json_equal "$opencode_model_src" "$opencode_model_dst"; then
+    rm -f "$opencode_model_dst"
+    ln -s "$opencode_model_src" "$opencode_model_dst"
+  elif command -v cmp >/dev/null 2>&1 && cmp -s "$opencode_model_src" "$opencode_model_dst"; then
+    rm -f "$opencode_model_dst"
+    ln -s "$opencode_model_src" "$opencode_model_dst"
+  else
+    echo "note: $opencode_model_dst exists; leaving it untouched" >&2
+  fi
 fi
 
 if need_cmd git; then

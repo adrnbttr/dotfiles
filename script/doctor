@@ -50,7 +50,7 @@ zsh_plugin_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
 
 echo
 echo "cli tools (recommended)"
-for cmd in fzf rg fd bat tmux kitty nvim; do
+for cmd in fzf rg fd bat tmux kitty nvim opencode; do
   if have "$cmd"; then
     ok "$cmd"
   else
@@ -72,6 +72,29 @@ if [[ -f "$repo_root/config/.config/nvim/lazy-lock.json" ]]; then
   ok "lazy-lock.json committed"
 else
   warn "lazy-lock.json missing"
+fi
+
+echo
+echo "opencode"
+opencode_state_dir="$HOME/.local/state/opencode"
+if [[ -f "$repo_root/opencode-state/.local/state/opencode/kv.json" ]]; then
+  if [[ -L "$opencode_state_dir/kv.json" ]]; then
+    ok "kv.json linked"
+  elif [[ -f "$opencode_state_dir/kv.json" ]]; then
+    warn "kv.json exists (not linked)"
+  else
+    warn "kv.json missing (run ./script/bootstrap)"
+  fi
+fi
+
+if [[ -f "$repo_root/opencode-state/.local/state/opencode/model.json" ]]; then
+  if [[ -L "$opencode_state_dir/model.json" ]]; then
+    ok "model.json linked"
+  elif [[ -f "$opencode_state_dir/model.json" ]]; then
+    warn "model.json exists (not linked)"
+  else
+    warn "model.json missing (run ./script/bootstrap)"
+  fi
 fi
 
 echo

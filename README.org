@@ -87,6 +87,24 @@ mv ~/.config/nvim/lazy-lock.json ~/.config/nvim/lazy-lock.json.bak
 ./script/bootstrap
 #+end_src
 
+** opencode
+
+This repo can sync a small, safe subset of opencode state:
+- UI preferences: `opencode-state/.local/state/opencode/kv.json`
+- Recent models: `opencode-state/.local/state/opencode/model.json`
+
+It intentionally does *not* sync:
+- prompt history (`prompt-history.jsonl`)
+- usage/frecency stats (`frecency.jsonl`)
+
+If you already have local state on a machine and want to adopt the repo defaults:
+
+#+begin_src sh
+mv ~/.local/state/opencode/kv.json ~/.local/state/opencode/kv.json.bak
+mv ~/.local/state/opencode/model.json ~/.local/state/opencode/model.json.bak
+./script/bootstrap
+#+end_src
+
 Key cheatsheet (custom additions in this repo):
 
 #+begin_src text
