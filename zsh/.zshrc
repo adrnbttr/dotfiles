@@ -1,6 +1,11 @@
 # If you come from bash you might have to change your $PATH.
 export PATH="$HOME/bin:/usr/local/bin:$HOME/.local/bin:$PATH"
 
+# Allow using Ctrl-S in terminal apps (disable XON/XOFF flow control).
+if [[ -t 0 ]] && command -v stty >/dev/null 2>&1; then
+  stty -ixon 2>/dev/null || true
+fi
+
 # Path to your oh-my-zsh installation.
 : "${ZSH:=$HOME/.oh-my-zsh}"
 

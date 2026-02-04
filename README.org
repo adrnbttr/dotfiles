@@ -44,6 +44,9 @@ Keyboard hints:
 - autosuggestions: accept suggestion with Right Arrow
 - fzf-tab: use TAB completion then pick in the fzf UI
 
+Terminal tip:
+- Ctrl-S is enabled for Neovim/tmux (XON/XOFF disabled via `stty -ixon` in `zsh/.zshrc`).
+
 ** tmux
 
 - TPM is installed by `./script/bootstrap`.
@@ -90,9 +93,12 @@ Key cheatsheet (custom additions in this repo):
 save:
   à (insert)    save + exit insert
   à (normal)    save
+  <C-s>         save (layout-agnostic)
+  <leader>w     save (layout-agnostic)
 
 telescope:
   <leader>«     fuzzy find in current buffer
+  <leader>sb    fuzzy find in current buffer (layout-agnostic)
 
 copilot:
   <C-l>         accept suggestion
@@ -102,6 +108,21 @@ opencode.nvim:
   <C-x>         select action
   <C-.>         toggle
   go / goo      send selection/line
+#+end_src
+
+Search/replace tips:
+
+#+begin_src text
+in file:
+  :%s/old/new/gc     replace with confirmation
+
+fast iterative replace:
+  /pattern
+  cgn                change match
+  n + .              next + repeat
+
+UI replace:
+  <leader>sr         opens grug-far (if installed)
 #+end_src
 
 * Oh My Zsh

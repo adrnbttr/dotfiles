@@ -18,3 +18,22 @@ vim.keymap.set("n", "à", function()
 end, { noremap = true, silent = true, desc = "Save file with 'à' in normal mode" })
 
 vim.keymap.set("n", "<leader>«", "<cmd>Telescope current_buffer_fuzzy_find<cr>", { desc = "Fuzzy find in current buffer" })
+
+-- Layout-agnostic alternatives (works across BEPO/AZERTY)
+vim.keymap.set({ "n", "i", "v" }, "<C-s>", function()
+  vim.cmd("write")
+end, { silent = true, desc = "Save file" })
+
+vim.keymap.set("n", "<leader>w", function()
+  vim.cmd("write")
+end, { silent = true, desc = "Save file" })
+
+vim.keymap.set("n", "<leader>sb", "<cmd>Telescope current_buffer_fuzzy_find<cr>", { desc = "Search in current buffer" })
+
+vim.keymap.set("n", "<leader>sr", function()
+  if vim.fn.exists(":GrugFar") == 2 then
+    vim.cmd("GrugFar")
+  else
+    vim.notify("GrugFar not available", vim.log.levels.WARN)
+  end
+end, { desc = "Search/replace (grug-far)" })
