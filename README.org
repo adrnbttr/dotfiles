@@ -16,6 +16,51 @@ Optional: one-shot bootstrap (clones Oh My Zsh if missing + runs stow):
 ./script/bootstrap
 #+end_src
 
+* Features / memo
+
+** Zsh
+
+- Custom theme lives in =$ZSH_CUSTOM= (default: =~/.config/oh-my-zsh=), so =omz update= works.
+- Optional extras installed by `./script/bootstrap`:
+  - zsh-autosuggestions
+  - fast-syntax-highlighting
+  - fzf-tab
+- History is shared across shells and stored under XDG state (default: =~/.local/state/zsh/history=).
+
+Quick examples:
+
+#+begin_src sh
+# Update Oh My Zsh
+omz update
+
+# Run dotfiles health checks
+./script/doctor
+
+# fzf helper (defined in zsh/.zshrc)
+fe
+#+end_src
+
+Keyboard hints:
+- autosuggestions: accept suggestion with Right Arrow
+- fzf-tab: use TAB completion then pick in the fzf UI
+
+** tmux
+
+- TPM is installed by `./script/bootstrap`.
+- Install/update tmux plugins: press `prefix` + I (capital i)
+
+** Neovim
+
+- This repo commits `config/.config/nvim/lazy-lock.json` so plugin versions are reproducible across machines.
+- By default, `./script/bootstrap` will *not* overwrite an existing =~/.config/nvim/lazy-lock.json=.
+
+Use the repo lockfile on a machine that already has a local one:
+
+#+begin_src sh
+mv ~/.config/nvim/lazy-lock.json ~/.config/nvim/lazy-lock.json.bak
+./script/bootstrap
+#+end_src
+
 * Oh My Zsh
 
 This repo does *not* stow into =~/.oh-my-zsh= anymore.
@@ -41,7 +86,7 @@ Example template:
 
 * Migration note
 
-If you previously stowed the old =oh-my-zsh= package (theme override inside =~/.oh-my-zsh=), remove that symlink so OMZ can update.
+If you previously overrode the theme inside =~/.oh-my-zsh=, remove that symlink so OMZ can update.
 
 Typical fix:
 

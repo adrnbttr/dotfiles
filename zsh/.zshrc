@@ -7,7 +7,24 @@ export PATH="$HOME/bin:/usr/local/bin:$HOME/.local/bin:$PATH"
 # Keep all customizations out of the OMZ git repo to allow `omz update`.
 : "${ZSH_CUSTOM:=${XDG_CONFIG_HOME:-$HOME/.config}/oh-my-zsh}"
 
+# Extra Zsh plugins live outside this repo (installed by ./script/bootstrap).
+ZSH_PLUGIN_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
+
 DEFAULT_USER="adrien"
+
+# History (portable + shared)
+export HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
+mkdir -p "${HISTFILE:h}" 2>/dev/null || true
+HISTSIZE=100000
+SAVEHIST=100000
+setopt APPEND_HISTORY
+setopt SHARE_HISTORY
+setopt EXTENDED_HISTORY
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_REDUCE_BLANKS
+setopt HIST_VERIFY
+setopt INC_APPEND_HISTORY
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -180,6 +197,19 @@ export PATH="$FLYCTL_INSTALL/bin:$PATH"
 
 # opencode
 export PATH="$HOME/.opencode/bin:$PATH"
+
+# Optional Zsh enhancements (installed by ./script/bootstrap)
+if [[ -f "$ZSH_PLUGIN_DIR/fzf-tab/fzf-tab.plugin.zsh" ]]; then
+  source "$ZSH_PLUGIN_DIR/fzf-tab/fzf-tab.plugin.zsh"
+fi
+
+if [[ -f "$ZSH_PLUGIN_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
+  source "$ZSH_PLUGIN_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh"
+fi
+
+if [[ -f "$ZSH_PLUGIN_DIR/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh" ]]; then
+  source "$ZSH_PLUGIN_DIR/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh"
+fi
 
 # Per-machine overrides (not tracked)
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"

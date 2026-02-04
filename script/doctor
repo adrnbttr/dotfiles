@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+
+ok() { printf "ok   %s\n" "$*"; }
+warn() { printf "warn %s\n" "$*"; }
+bad() { printf "bad  %s\n" "$*"; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+echo "dotfiles doctor"
+echo "- repo: $repo_root"
+echo "- os:   $os"
+
+echo
+echo "core"
+have git && ok "git" || bad "git (required)"
+have stow && ok "stow" || bad "stow (required)"
+
+echo
+echo "oh-my-zsh"
+if [[ -d "$HOME/.oh-my-zsh" ]]; then
+  ok "~/.oh-my-zsh exists"
+else
+  warn "~/.oh-my-zsh missing (run ./script/bootstrap)"
+fi
+
+zsh_custom="${XDG_CONFIG_HOME:-$HOME/.config}/oh-my-zsh"
+if [[ -d "$zsh_custom" ]]; then
+  ok "ZSH_CUSTOM dir: $zsh_custom"
+else
+  warn "ZSH_CUSTOM dir missing: $zsh_custom (run ./script/bootstrap)"
+fi
+
+if [[ -f "$zsh_custom/themes/adrien-agnoster.zsh-theme" ]]; then
+  ok "custom theme installed"
+else
+  warn "custom theme missing (stow oh-my-zsh-custom)"
+fi
+
+echo
+echo "zsh extras (optional)"
+zsh_plugin_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
+[[ -d "$zsh_plugin_dir/zsh-autosuggestions" ]] && ok "zsh-autosuggestions" || warn "zsh-autosuggestions (run ./script/bootstrap)"
+[[ -d "$zsh_plugin_dir/fast-syntax-highlighting" ]] && ok "fast-syntax-highlighting" || warn "fast-syntax-highlighting (run ./script/bootstrap)"
+[[ -d "$zsh_plugin_dir/fzf-tab" ]] && ok "fzf-tab" || warn "fzf-tab (run ./script/bootstrap)"
+
+echo
+echo "cli tools (recommended)"
+for cmd in fzf rg fd bat tmux kitty nvim; do
+  if have "$cmd"; then
+    ok "$cmd"
+  else
+    warn "$cmd"
+  fi
+done
+
+echo
+echo "tmux"
+if [[ -d "$HOME/.tmux/plugins/tpm" ]]; then
+  ok "TPM installed"
+else
+  warn "TPM missing (run ./script/bootstrap)"
+fi
+
+echo
+echo "neovim"
+if [[ -f "$repo_root/config/.config/nvim/lazy-lock.json" ]]; then
+  ok "lazy-lock.json committed"
+else
+  warn "lazy-lock.json missing"
+fi
+
+echo
+echo "install hints"
+case "$os" in
+  linux)
+    echo "- Debian/Ubuntu: sudo apt install -y stow git zsh fzf ripgrep fd-find bat tmux"
+    echo "  (fd may be 'fdfind', bat may be 'batcat')"
+    ;;
+  darwin)
+    echo "- macOS (Homebrew): brew install stow git zsh fzf ripgrep fd bat tmux"
+    ;;
+  *)
+    echo "- install: stow git zsh fzf ripgrep fd bat tmux"
+    ;;
+esac

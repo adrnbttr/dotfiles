@@ -7,6 +7,14 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+clone_if_missing() {
+  local repo="$1" dest="$2"
+  if [[ -d "$dest" ]]; then
+    return 0
+  fi
+  git clone --depth=1 "$repo" "$dest"
+}
+
 if ! need_cmd stow; then
   echo "error: 'stow' is required (GNU Stow)" >&2
   exit 1
@@ -21,6 +29,33 @@ if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
 fi
 
 stow -d "$repo_root" -t "$HOME" zsh config oh-my-zsh-custom
+
+# Neovim lockfile: keep it versioned without overwriting local files.
+lock_src="$repo_root/config/.config/nvim/lazy-lock.json"
+lock_dst="$HOME/.config/nvim/lazy-lock.json"
+if [[ -f "$lock_src" && ! -e "$lock_dst" ]]; then
+  mkdir -p "$HOME/.config/nvim"
+  ln -s "$lock_src" "$lock_dst"
+elif [[ -f "$lock_src" && -f "$lock_dst" && ! -L "$lock_dst" ]]; then
+  echo "note: $lock_dst exists; leaving it untouched" >&2
+fi
+
+if need_cmd git; then
+  # Extra zsh plugins (optional, safe to re-run)
+  zsh_plugin_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
+  mkdir -p "$zsh_plugin_dir"
+  clone_if_missing https://github.com/zsh-users/zsh-autosuggestions.git "$zsh_plugin_dir/zsh-autosuggestions"
+  clone_if_missing https://github.com/zdharma-continuum/fast-syntax-highlighting.git "$zsh_plugin_dir/fast-syntax-highlighting"
+  clone_if_missing https://github.com/Aloxaf/fzf-tab.git "$zsh_plugin_dir/fzf-tab"
+
+  # tmux plugin manager (TPM)
+  if [[ ! -d "$HOME/.tmux/plugins/tpm" ]]; then
+    mkdir -p "$HOME/.tmux/plugins"
+    clone_if_missing https://github.com/tmux-plugins/tpm.git "$HOME/.tmux/plugins/tpm"
+  fi
+else
+  echo "warn: 'git' not found, skipping optional plugin clones" >&2
+fi
 
 if [[ ! -f "$HOME/.zshrc.local" && -f "$repo_root/zsh/.zshrc.local.example" ]]; then
   echo "note: you can create ~/.zshrc.local from zsh/.zshrc.local.example" >&2
