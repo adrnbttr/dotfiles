@@ -16,6 +16,12 @@ Optional: one-shot bootstrap (clones Oh My Zsh if missing + runs stow):
 ./script/bootstrap
 #+end_src
 
+Full install (recommended on new machines): installs packages (macOS/Homebrew or Linux/apt), installs opencode, then runs bootstrap:
+
+#+begin_src sh
+./script/install
+#+end_src
+
 * Features / memo
 
 ** Zsh
@@ -86,7 +92,7 @@ mv ~/.config/nvim/lazy-lock.json ~/.config/nvim/lazy-lock.json.bak
 
 ** opencode
 
-This repo can sync a small, safe subset of opencode state:
+This repo ships a small, safe subset of opencode state as *templates*:
 - UI preferences: `opencode-state/.local/state/opencode/kv.json`
 - Recent models: `opencode-state/.local/state/opencode/model.json`
 
@@ -100,6 +106,12 @@ If you already have local state on a machine and want to adopt the repo defaults
 mv ~/.local/state/opencode/kv.json ~/.local/state/opencode/kv.json.bak
 mv ~/.local/state/opencode/model.json ~/.local/state/opencode/model.json.bak
 ./script/bootstrap
+#+end_src
+
+If you want to explicitly sync your current (safe) local state back into the repo templates:
+
+#+begin_src sh
+./script/opencode-sync push
 #+end_src
 
 Key cheatsheet (custom additions in this repo):

@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+info() { printf "%s\n" "$*"; }
+warn() { printf "warn %s\n" "$*" >&2; }
+err() { printf "error %s\n" "$*" >&2; }
+
+os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+
+brew_install_if_missing() {
+  local pkg="$1"
+  if brew list --versions "$pkg" >/dev/null 2>&1; then
+    return 0
+  fi
+  brew install "$pkg"
+}
+
+brew_cask_install_if_missing() {
+  local pkg="$1"
+  if brew list --cask "$pkg" >/dev/null 2>&1; then
+    return 0
+  fi
+  brew install --cask "$pkg"
+}
+
+sudo_cmd=""
+if [[ ${EUID:-0} -ne 0 ]]; then
+  if have sudo; then
+    sudo_cmd="sudo"
+  else
+    err "need root privileges (install sudo or run as root)"
+    exit 1
+  fi
+fi
+
+install_opencode() {
+  if have opencode; then
+    return 0
+  fi
+  if ! have curl; then
+    err "curl is required to install opencode"
+    exit 1
+  fi
+  info "installing opencode (official installer)"
+  curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+}
+
+ensure_pyenv_virtualenv_plugin() {
+  local pyenv_root=""
+  if have pyenv; then
+    pyenv_root="$(pyenv root 2>/dev/null || true)"
+  fi
+  if [[ -z "$pyenv_root" && -d "$HOME/.pyenv" ]]; then
+    pyenv_root="$HOME/.pyenv"
+  fi
+  if [[ -z "$pyenv_root" ]]; then
+    return 0
+  fi
+
+  local plugin_dir="$pyenv_root/plugins/pyenv-virtualenv"
+  if [[ -d "$plugin_dir" ]]; then
+    return 0
+  fi
+  if ! have git; then
+    warn "git not found; cannot install pyenv-virtualenv plugin"
+    return 0
+  fi
+
+  info "installing pyenv-virtualenv plugin"
+  mkdir -p "$(dirname "$plugin_dir")"
+  git clone --depth=1 https://github.com/pyenv/pyenv-virtualenv.git "$plugin_dir"
+}
+
+case "$os" in
+  darwin)
+    if ! have brew; then
+      err "Homebrew not found. Install it from https://brew.sh and re-run."
+      exit 1
+    fi
+
+    info "installing packages (macOS/Homebrew)"
+
+    # Only install missing packages (avoid surprise upgrades).
+    brew_install_if_missing git
+    brew_install_if_missing stow
+    brew_install_if_missing zsh
+    brew_install_if_missing fzf
+    brew_install_if_missing ripgrep
+    brew_install_if_missing fd
+    brew_install_if_missing bat
+    brew_install_if_missing autojump
+    brew_install_if_missing neovim
+    brew_install_if_missing pyenv
+
+    # kitty is a cask; it may already exist outside brew management.
+    if ! brew_cask_install_if_missing kitty >/dev/null 2>&1; then
+      warn "kitty cask install skipped (kitty.app already present?)"
+    fi
+
+    ensure_pyenv_virtualenv_plugin
+    install_opencode
+    ;;
+
+  linux)
+    if ! have apt-get; then
+      err "apt-get not found (this installer currently supports apt-based distros)"
+      exit 1
+    fi
+
+    info "installing packages (Linux/apt)"
+    ${sudo_cmd} apt-get update
+    ${sudo_cmd} apt-get install -y \
+      ca-certificates \
+      curl \
+      git \
+      stow \
+      zsh \
+      fzf \
+      ripgrep \
+      fd-find \
+      bat \
+      autojump \
+      neovim \
+      kitty
+
+    ensure_pyenv_virtualenv_plugin
+    install_opencode
+    ;;
+
+  *)
+    err "unsupported OS: $os"
+    exit 1
+    ;;
+esac
+
+info "running bootstrap (stow + config)"
+"$repo_root/script/bootstrap"
+
+info "done"

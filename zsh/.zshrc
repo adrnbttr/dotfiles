@@ -112,7 +112,18 @@ export FZF_DEFAULT_OPTS='--height 40% --layout=reverse --border'
 
 fzf_edit() {
   local file
-  file=$(fzf --preview="bat --style=numbers --color=always --line-range=:500 {}" --height 40%)
+  local bat_cmd=""
+  if command -v bat >/dev/null 2>&1; then
+    bat_cmd="bat"
+  elif command -v batcat >/dev/null 2>&1; then
+    bat_cmd="batcat"
+  fi
+
+  if [[ -n "$bat_cmd" ]]; then
+    file=$(fzf --preview="$bat_cmd --style=numbers --color=always --line-range=:500 {}" --height 40%)
+  else
+    file=$(fzf --height 40%)
+  fi
   if [[ -n "$file" ]]; then
     nvim "$file"
   fi
@@ -173,6 +184,15 @@ alias g='git'
 alias gs='git status'
 alias gd='git diff'
 
+# Debian/Ubuntu-style command names
+if command -v fdfind >/dev/null 2>&1 && ! command -v fd >/dev/null 2>&1; then
+  alias fd='fdfind'
+fi
+
+if command -v batcat >/dev/null 2>&1 && ! command -v bat >/dev/null 2>&1; then
+  alias bat='batcat'
+fi
+
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
@@ -193,7 +213,9 @@ if command -v pyenv >/dev/null 2>&1; then
   export PATH="$HOME/.pyenv/bin:$PATH"
   eval "$(pyenv init --path)"
   eval "$(pyenv init -)"
-  eval "$(pyenv virtualenv-init -)"
+  if pyenv commands 2>/dev/null | command grep -qx "virtualenv-init"; then
+    eval "$(pyenv virtualenv-init -)"
+  fi
 fi
 
 # Added by flyctl installer
@@ -201,7 +223,10 @@ export FLYCTL_INSTALL="$HOME/.fly"
 export PATH="$FLYCTL_INSTALL/bin:$PATH"
 
 # opencode
-export PATH="$HOME/.opencode/bin:$PATH"
+opencode_bin="$HOME/.opencode/bin"
+if [[ -d "$opencode_bin" && ":$PATH:" != *":$opencode_bin:"* ]]; then
+  export PATH="$opencode_bin:$PATH"
+fi
 
 # Optional Zsh enhancements (installed by ./script/bootstrap)
 if [[ -f "$ZSH_PLUGIN_DIR/fzf-tab/fzf-tab.plugin.zsh" ]]; then
