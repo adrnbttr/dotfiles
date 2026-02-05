@@ -17,15 +17,24 @@ echo "- os:   $os"
 
 echo
 echo "core"
-have git && ok "git" || bad "git (required)"
-have stow && ok "stow" || bad "stow (required)"
+if have git; then
+  ok "git"
+else
+  bad "git (required)"
+fi
+
+if have stow; then
+  ok "stow"
+else
+  bad "stow (required)"
+fi
 
 echo
 echo "oh-my-zsh"
 if [[ -d "$HOME/.oh-my-zsh" ]]; then
-  ok "~/.oh-my-zsh exists"
+  ok "$HOME/.oh-my-zsh exists"
 else
-  warn "~/.oh-my-zsh missing (run ./script/bootstrap)"
+  warn "$HOME/.oh-my-zsh missing (run ./script/bootstrap)"
 fi
 
 zsh_custom="${XDG_CONFIG_HOME:-$HOME/.config}/oh-my-zsh"
@@ -44,9 +53,23 @@ fi
 echo
 echo "zsh extras (optional)"
 zsh_plugin_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
-[[ -d "$zsh_plugin_dir/zsh-autosuggestions" ]] && ok "zsh-autosuggestions" || warn "zsh-autosuggestions (run ./script/bootstrap)"
-[[ -d "$zsh_plugin_dir/fast-syntax-highlighting" ]] && ok "fast-syntax-highlighting" || warn "fast-syntax-highlighting (run ./script/bootstrap)"
-[[ -d "$zsh_plugin_dir/fzf-tab" ]] && ok "fzf-tab" || warn "fzf-tab (run ./script/bootstrap)"
+if [[ -d "$zsh_plugin_dir/zsh-autosuggestions" ]]; then
+  ok "zsh-autosuggestions"
+else
+  warn "zsh-autosuggestions (run ./script/bootstrap)"
+fi
+
+if [[ -d "$zsh_plugin_dir/fast-syntax-highlighting" ]]; then
+  ok "fast-syntax-highlighting"
+else
+  warn "fast-syntax-highlighting (run ./script/bootstrap)"
+fi
+
+if [[ -d "$zsh_plugin_dir/fzf-tab" ]]; then
+  ok "fzf-tab"
+else
+  warn "fzf-tab (run ./script/bootstrap)"
+fi
 
 echo
 echo "python (optional)"
@@ -81,7 +104,11 @@ fi
 echo
 echo "opencode"
 opencode_state_dir="$HOME/.local/state/opencode"
-have opencode && ok "opencode" || warn "opencode (run ./script/install)"
+if have opencode; then
+  ok "opencode"
+else
+  warn "opencode (run ./script/install)"
+fi
 
 if [[ -f "$repo_root/opencode-state/.local/state/opencode/kv.json" ]]; then
   if [[ -L "$opencode_state_dir/kv.json" ]]; then
