@@ -22,6 +22,19 @@ Full install (recommended on new machines): installs packages (macOS/Homebrew or
 ./script/install
 #+end_src
 
+Common options:
+
+#+begin_src sh
+# core CLI only
+./script/install --minimal
+
+# skip GUI apps
+./script/install --no-gui
+
+# install a specific opencode version
+OPENCODE_VERSION=1.1.50 ./script/install
+#+end_src
+
 * Features / memo
 
 ** Zsh

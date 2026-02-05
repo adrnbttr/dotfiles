@@ -108,7 +108,7 @@ echo "install hints"
 echo "- dotfiles: $repo_root/script/install"
 case "$os" in
   linux)
-    echo "- Debian/Ubuntu: sudo apt install -y stow git zsh fzf ripgrep fd-find bat"
+    echo "- Debian/Ubuntu/Mint: sudo apt install -y stow git zsh fzf ripgrep fd-find bat"
     echo "  (fd may be 'fdfind', bat may be 'batcat')"
     ;;
   darwin)

@@ -11,6 +11,50 @@ err() { printf "error %s\n" "$*" >&2; }
 
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 
+usage() {
+  cat <<'EOF'
+Usage:
+  ./script/install [options]
+
+Options:
+  --minimal           Install core CLI deps only
+  --no-gui            Skip GUI apps (kitty)
+  --no-opencode       Skip installing opencode
+  --upgrade           Upgrade already-installed Homebrew packages (macOS only)
+  --opencode-version <version>  Install a specific opencode version
+  -h, --help          Show this help
+EOF
+}
+
+minimal=false
+no_gui=false
+no_opencode=false
+upgrade=false
+opencode_version="${OPENCODE_VERSION:-}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --minimal) minimal=true; shift ;;
+    --no-gui) no_gui=true; shift ;;
+    --no-opencode) no_opencode=true; shift ;;
+    --upgrade) upgrade=true; shift ;;
+    --opencode-version)
+      opencode_version="${2:-}"
+      if [[ -z "$opencode_version" ]]; then
+        err "--opencode-version requires a value"
+        exit 2
+      fi
+      shift 2
+      ;;
+    -h|--help) usage; exit 0 ;;
+    *)
+      err "unknown option: $1"
+      usage
+      exit 2
+      ;;
+  esac
+done
+
 brew_install_if_missing() {
   local pkg="$1"
   if brew list --versions "$pkg" >/dev/null 2>&1; then
@@ -38,6 +82,9 @@ if [[ ${EUID:-0} -ne 0 ]]; then
 fi
 
 install_opencode() {
+  if [[ "$no_opencode" == "true" ]]; then
+    return 0
+  fi
   if have opencode; then
     return 0
   fi
@@ -46,7 +93,11 @@ install_opencode() {
     exit 1
   fi
   info "installing opencode (official installer)"
-  curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+  if [[ -n "$opencode_version" ]]; then
+    curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path --version "$opencode_version"
+  else
+    curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+  fi
 }
 
 ensure_pyenv_virtualenv_plugin() {
@@ -82,6 +133,8 @@ case "$os" in
       exit 1
     fi
 
+    export HOMEBREW_NO_AUTO_UPDATE=1
+
     info "installing packages (macOS/Homebrew)"
 
     # Only install missing packages (avoid surprise upgrades).
@@ -92,13 +145,26 @@ case "$os" in
     brew_install_if_missing ripgrep
     brew_install_if_missing fd
     brew_install_if_missing bat
-    brew_install_if_missing autojump
-    brew_install_if_missing neovim
     brew_install_if_missing pyenv
 
+    if [[ "$minimal" != "true" ]]; then
+      brew_install_if_missing autojump
+      brew_install_if_missing neovim
+    fi
+
+    if [[ "$upgrade" == "true" ]]; then
+      info "upgrading packages (macOS/Homebrew)"
+      brew upgrade git stow zsh fzf ripgrep fd bat pyenv || true
+      if [[ "$minimal" != "true" ]]; then
+        brew upgrade autojump neovim || true
+      fi
+    fi
+
     # kitty is a cask; it may already exist outside brew management.
-    if ! brew_cask_install_if_missing kitty >/dev/null 2>&1; then
-      warn "kitty cask install skipped (kitty.app already present?)"
+    if [[ "$minimal" != "true" && "$no_gui" != "true" ]]; then
+      if ! brew_cask_install_if_missing kitty >/dev/null 2>&1; then
+        warn "kitty cask install skipped (kitty.app already present?)"
+      fi
     fi
 
     ensure_pyenv_virtualenv_plugin
@@ -113,19 +179,32 @@ case "$os" in
 
     info "installing packages (Linux/apt)"
     ${sudo_cmd} apt-get update
-    ${sudo_cmd} apt-get install -y \
-      ca-certificates \
-      curl \
-      git \
-      stow \
-      zsh \
-      fzf \
-      ripgrep \
-      fd-find \
-      bat \
-      autojump \
-      neovim \
-      kitty
+
+    required_pkgs=(
+      ca-certificates
+      curl
+      git
+      stow
+      zsh
+      fzf
+      ripgrep
+      fd-find
+      bat
+      tar
+    )
+
+    ${sudo_cmd} apt-get install -y "${required_pkgs[@]}"
+
+    if [[ "$minimal" != "true" ]]; then
+      optional_pkgs=(autojump neovim)
+      if [[ "$no_gui" != "true" ]]; then
+        optional_pkgs+=(kitty)
+      fi
+
+      if ! ${sudo_cmd} apt-get install -y "${optional_pkgs[@]}"; then
+        warn "some optional packages failed to install: ${optional_pkgs[*]}"
+      fi
+    fi
 
     ensure_pyenv_virtualenv_plugin
     install_opencode

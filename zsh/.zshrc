@@ -209,8 +209,11 @@ if [[ -x "$HOME/.micromamba/bin/micromamba" ]]; then
 fi
 
 # pyenv (only if installed)
-if command -v pyenv >/dev/null 2>&1; then
+if [[ -x "$HOME/.pyenv/bin/pyenv" && ":$PATH:" != *":$HOME/.pyenv/bin:"* ]]; then
   export PATH="$HOME/.pyenv/bin:$PATH"
+fi
+
+if command -v pyenv >/dev/null 2>&1; then
   eval "$(pyenv init --path)"
   eval "$(pyenv init -)"
   if pyenv commands 2>/dev/null | command grep -qx "virtualenv-init"; then
