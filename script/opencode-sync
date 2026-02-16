@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./script/opencode-sync push        Copy local opencode state into the repo templates
+  ./script/opencode-sync pull        Copy repo templates into local state (only if missing)
+  ./script/opencode-sync pull --force  Overwrite local state from repo templates
+EOF
+}
+
+cmd="${1:-}"
+force="${2:-}"
+
+state_dir="$HOME/.local/state/opencode"
+repo_dir="$repo_root/opencode-state/.local/state/opencode"
+
+ensure_newline() {
+  local file="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$file" <<'PY'
+import pathlib
+import sys
+
+p = pathlib.Path(sys.argv[1])
+if not p.exists():
+    raise SystemExit(0)
+b = p.read_bytes()
+if b and not b.endswith(b"\n"):
+    p.write_bytes(b + b"\n")
+PY
+  fi
+}
+
+copy_if_missing() {
+  local src="$1" dst="$2"
+  if [[ ! -e "$dst" ]]; then
+    mkdir -p "$(dirname "$dst")"
+    cp -f "$src" "$dst"
+  fi
+}
+
+copy_force() {
+  local src="$1" dst="$2"
+  mkdir -p "$(dirname "$dst")"
+  cp -f "$src" "$dst"
+}
+
+case "$cmd" in
+  push)
+    mkdir -p "$repo_dir"
+    if [[ -f "$state_dir/kv.json" ]]; then
+      cp -f "$state_dir/kv.json" "$repo_dir/kv.json"
+      ensure_newline "$repo_dir/kv.json"
+    fi
+    if [[ -f "$state_dir/model.json" ]]; then
+      cp -f "$state_dir/model.json" "$repo_dir/model.json"
+      ensure_newline "$repo_dir/model.json"
+    fi
+    ;;
+
+  pull)
+    mkdir -p "$state_dir"
+    if [[ "$force" == "--force" ]]; then
+      copy_force "$repo_dir/kv.json" "$state_dir/kv.json"
+      copy_force "$repo_dir/model.json" "$state_dir/model.json"
+    else
+      copy_if_missing "$repo_dir/kv.json" "$state_dir/kv.json"
+      copy_if_missing "$repo_dir/model.json" "$state_dir/model.json"
+    fi
+    ;;
+
+  ""|-h|--help)
+    usage
+    ;;
+
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac

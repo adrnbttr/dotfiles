@@ -83,34 +83,34 @@ mkdir -p "$opencode_state_dir"
 
 opencode_kv_src="$repo_root/opencode-state/.local/state/opencode/kv.json"
 opencode_kv_dst="$opencode_state_dir/kv.json"
+if [[ -L "$opencode_kv_dst" ]]; then
+  # Migrate away from repo symlinks: keep current content but stop writing into git.
+  tmp="$(mktemp)"
+  cp -f "$opencode_kv_dst" "$tmp"
+  rm -f "$opencode_kv_dst"
+  mv -f "$tmp" "$opencode_kv_dst"
+fi
+
 if [[ -f "$opencode_kv_src" && ! -e "$opencode_kv_dst" ]]; then
-  ln -s "$opencode_kv_src" "$opencode_kv_dst"
-elif [[ -f "$opencode_kv_src" && -f "$opencode_kv_dst" && ! -L "$opencode_kv_dst" ]]; then
-  if json_equal "$opencode_kv_src" "$opencode_kv_dst"; then
-    rm -f "$opencode_kv_dst"
-    ln -s "$opencode_kv_src" "$opencode_kv_dst"
-  elif command -v cmp >/dev/null 2>&1 && cmp -s "$opencode_kv_src" "$opencode_kv_dst"; then
-    rm -f "$opencode_kv_dst"
-    ln -s "$opencode_kv_src" "$opencode_kv_dst"
-  else
-    echo "note: $opencode_kv_dst exists; leaving it untouched" >&2
-  fi
+  cp -f "$opencode_kv_src" "$opencode_kv_dst"
+elif [[ -f "$opencode_kv_src" && -e "$opencode_kv_dst" ]]; then
+  echo "note: $opencode_kv_dst exists; leaving it untouched" >&2
 fi
 
 opencode_model_src="$repo_root/opencode-state/.local/state/opencode/model.json"
 opencode_model_dst="$opencode_state_dir/model.json"
+if [[ -L "$opencode_model_dst" ]]; then
+  # Migrate away from repo symlinks: keep current content but stop writing into git.
+  tmp="$(mktemp)"
+  cp -f "$opencode_model_dst" "$tmp"
+  rm -f "$opencode_model_dst"
+  mv -f "$tmp" "$opencode_model_dst"
+fi
+
 if [[ -f "$opencode_model_src" && ! -e "$opencode_model_dst" ]]; then
-  ln -s "$opencode_model_src" "$opencode_model_dst"
-elif [[ -f "$opencode_model_src" && -f "$opencode_model_dst" && ! -L "$opencode_model_dst" ]]; then
-  if json_equal "$opencode_model_src" "$opencode_model_dst"; then
-    rm -f "$opencode_model_dst"
-    ln -s "$opencode_model_src" "$opencode_model_dst"
-  elif command -v cmp >/dev/null 2>&1 && cmp -s "$opencode_model_src" "$opencode_model_dst"; then
-    rm -f "$opencode_model_dst"
-    ln -s "$opencode_model_src" "$opencode_model_dst"
-  else
-    echo "note: $opencode_model_dst exists; leaving it untouched" >&2
-  fi
+  cp -f "$opencode_model_src" "$opencode_model_dst"
+elif [[ -f "$opencode_model_src" && -e "$opencode_model_dst" ]]; then
+  echo "note: $opencode_model_dst exists; leaving it untouched" >&2
 fi
 
 if need_cmd git; then

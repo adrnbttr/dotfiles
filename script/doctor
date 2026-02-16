@@ -17,15 +17,24 @@ echo "- os:   $os"
 
 echo
 echo "core"
-have git && ok "git" || bad "git (required)"
-have stow && ok "stow" || bad "stow (required)"
+if have git; then
+  ok "git"
+else
+  bad "git (required)"
+fi
+
+if have stow; then
+  ok "stow"
+else
+  bad "stow (required)"
+fi
 
 echo
 echo "oh-my-zsh"
 if [[ -d "$HOME/.oh-my-zsh" ]]; then
-  ok "~/.oh-my-zsh exists"
+  ok "$HOME/.oh-my-zsh exists"
 else
-  warn "~/.oh-my-zsh missing (run ./script/bootstrap)"
+  warn "$HOME/.oh-my-zsh missing (run ./script/bootstrap)"
 fi
 
 zsh_custom="${XDG_CONFIG_HOME:-$HOME/.config}/oh-my-zsh"
@@ -44,19 +53,45 @@ fi
 echo
 echo "zsh extras (optional)"
 zsh_plugin_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
-[[ -d "$zsh_plugin_dir/zsh-autosuggestions" ]] && ok "zsh-autosuggestions" || warn "zsh-autosuggestions (run ./script/bootstrap)"
-[[ -d "$zsh_plugin_dir/fast-syntax-highlighting" ]] && ok "fast-syntax-highlighting" || warn "fast-syntax-highlighting (run ./script/bootstrap)"
-[[ -d "$zsh_plugin_dir/fzf-tab" ]] && ok "fzf-tab" || warn "fzf-tab (run ./script/bootstrap)"
+if [[ -d "$zsh_plugin_dir/zsh-autosuggestions" ]]; then
+  ok "zsh-autosuggestions"
+else
+  warn "zsh-autosuggestions (run ./script/bootstrap)"
+fi
+
+if [[ -d "$zsh_plugin_dir/fast-syntax-highlighting" ]]; then
+  ok "fast-syntax-highlighting"
+else
+  warn "fast-syntax-highlighting (run ./script/bootstrap)"
+fi
+
+if [[ -d "$zsh_plugin_dir/fzf-tab" ]]; then
+  ok "fzf-tab"
+else
+  warn "fzf-tab (run ./script/bootstrap)"
+fi
+
+echo
+echo "python (optional)"
+if have pyenv; then
+  if pyenv commands 2>/dev/null | command grep -qx "virtualenv-init"; then
+    ok "pyenv-virtualenv available"
+  else
+    warn "pyenv-virtualenv missing (run ./script/install or install plugin)"
+  fi
+else
+  warn "pyenv"
+fi
 
 echo
 echo "cli tools (recommended)"
-for cmd in fzf rg fd bat kitty nvim opencode; do
-  if have "$cmd"; then
-    ok "$cmd"
-  else
-    warn "$cmd"
-  fi
-done
+if have fzf; then ok "fzf"; else warn "fzf"; fi
+if have rg; then ok "rg"; else warn "rg"; fi
+if have fd || have fdfind; then ok "fd"; else warn "fd"; fi
+if have bat || have batcat; then ok "bat"; else warn "bat"; fi
+if have kitty; then ok "kitty"; else warn "kitty"; fi
+if have nvim; then ok "nvim"; else warn "nvim"; fi
+if have opencode; then ok "opencode"; else warn "opencode"; fi
 
 echo
 echo "neovim"
@@ -69,11 +104,17 @@ fi
 echo
 echo "opencode"
 opencode_state_dir="$HOME/.local/state/opencode"
+if have opencode; then
+  ok "opencode"
+else
+  warn "opencode (run ./script/install)"
+fi
+
 if [[ -f "$repo_root/opencode-state/.local/state/opencode/kv.json" ]]; then
   if [[ -L "$opencode_state_dir/kv.json" ]]; then
-    ok "kv.json linked"
+    warn "kv.json is a symlink (run ./script/bootstrap to migrate)"
   elif [[ -f "$opencode_state_dir/kv.json" ]]; then
-    warn "kv.json exists (not linked)"
+    ok "kv.json present"
   else
     warn "kv.json missing (run ./script/bootstrap)"
   fi
@@ -81,9 +122,9 @@ fi
 
 if [[ -f "$repo_root/opencode-state/.local/state/opencode/model.json" ]]; then
   if [[ -L "$opencode_state_dir/model.json" ]]; then
-    ok "model.json linked"
+    warn "model.json is a symlink (run ./script/bootstrap to migrate)"
   elif [[ -f "$opencode_state_dir/model.json" ]]; then
-    warn "model.json exists (not linked)"
+    ok "model.json present"
   else
     warn "model.json missing (run ./script/bootstrap)"
   fi
@@ -91,9 +132,10 @@ fi
 
 echo
 echo "install hints"
+echo "- dotfiles: $repo_root/script/install"
 case "$os" in
   linux)
-    echo "- Debian/Ubuntu: sudo apt install -y stow git zsh fzf ripgrep fd-find bat"
+    echo "- Debian/Ubuntu/Mint: sudo apt install -y stow git zsh fzf ripgrep fd-find bat"
     echo "  (fd may be 'fdfind', bat may be 'batcat')"
     ;;
   darwin)
