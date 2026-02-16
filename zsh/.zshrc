@@ -174,8 +174,10 @@ v() {
 }
 
 marvin_session() {
-    nohup kitty --session ~/.config/kitty/marvin-session.conf & disown
-    exit
+  local session="$HOME/.config/kitty/marvin-session.conf"
+  nohup kitty --session "$session" >/dev/null 2>&1 &
+  disown
+  exit
 }
 
 alias vim='nvim'
