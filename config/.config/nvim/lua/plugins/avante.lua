@@ -97,6 +97,29 @@ return {
           code = "c",
           resp = "r",
           input = "i",
+          },
+      },
+
+      -- Comportement plus minimaliste : moins de blocs redondants,
+      -- appliquer directement les diffs et sauter au résultat.
+      behaviour = {
+        auto_apply_diff_after_generation = true,
+        minimize_diff = true,
+        jump_result_buffer_on_finish = true,
+      },
+
+      -- Layout plus discret : sidebar compacte, sans gros header,
+      -- et pas de wrap dans la zone Avante.
+      windows = {
+        position = "right",
+        width = 25,
+        wrap = false,
+        sidebar_header = {
+          enabled = false,
+          rounded = false,
+        },
+        input = {
+          height = 5,
         },
       },
 
