@@ -115,14 +115,32 @@ telescope:
   <leader>«     fuzzy find in current buffer
   <leader>sb    fuzzy find in current buffer (layout-agnostic)
 
-copilot:
-  <C-l>         accept suggestion
+codeium (ghost text):
+  <C-l>         accept suggestion (Codeium)
+  <M-Right>     next suggestion
+  <M-Left>      previous suggestion
+  <M-Down>      clear suggestion
 
 opencode.nvim:
   <C-a>         ask (@this)
   <C-x>         select action
   <C-.>         toggle
   go / goo      send selection/line
+
+avante.nvim:
+  <leader>aa    ask (chat on current context)
+  <leader>an    new chat
+  <leader>az    zen mode (CLI-like)
+  <leader>at    toggle sidebar
+  <leader>as    toggle inline suggestions
+  <leader>ac    add current buffer to context
+  <leader>aB    add all open buffers to context
+  <leader>aj    next prompt in sidebar
+  <leader>ak    previous prompt in sidebar
+  <M-l>         accept inline suggestion (Avante)
+  <M-j>         next inline suggestion (Avante)
+  <M-k>         previous inline suggestion (Avante)
+  <M-h>         dismiss inline suggestion (Avante)
 #+end_src
 
 Search/replace tips:

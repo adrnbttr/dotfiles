@@ -1,12 +1,54 @@
 return {
   {
-    "github/copilot.vim",
-    config = function()
-      -- Activer Copilot au démarrage
-      vim.g.copilot_no_tab_map = true
-      vim.api.nvim_set_keymap("i", "<C-l>", 'copilot#Accept("<CR>")', { silent = true, expr = true })
+    "Exafunction/codeium.nvim",
+    cmd = "Codeium",
+    event = "InsertEnter",
+    build = ":Codeium Auth",
+    opts = {
+      -- Ghost text (virtual_text) only. Keep the completion menu for LSP/snippets.
+      enable_cmp_source = false,
+      virtual_text = {
+        enabled = true,
+        key_bindings = {
+          -- Accept is handled by our <C-l> mapping and blink.cmp's <Tab> ai_accept action.
+          accept = false,
+          next = "<M-Right>",
+          prev = "<M-Left>",
+          clear = "<M-Down>",
+        },
+      },
+    },
+  },
+  {
+    "Exafunction/codeium.nvim",
+    opts = function()
+      local lv = rawget(_G, "LazyVim")
+      local function codeium_accept()
+        local ok, vt = pcall(require, "codeium.virtual_text")
+        if ok and vt.get_current_completion_item() then
+          if lv and lv.create_undo then
+            lv.create_undo()
+          end
+          vim.api.nvim_input(vt.accept())
+          return true
+        end
+      end
+
+      -- Provide LazyVim's ai_accept action so blink.cmp can accept Codeium suggestions on <Tab>.
+      if lv and lv.cmp and lv.cmp.actions then
+        lv.cmp.actions.ai_accept = codeium_accept
+      end
+
+      -- Keep your existing accept binding (previously Copilot) on <C-l>.
+      vim.keymap.set("i", "<C-l>", function()
+        codeium_accept()
+      end, { desc = "Accept AI suggestion" })
     end,
   },
+  -- Make sure Copilot doesn't load (avoid conflicting ghost text).
+  { "github/copilot.vim", enabled = false },
+  { "zbirenbaum/copilot.lua", enabled = false },
+  { "CopilotC-Nvim/CopilotChat.nvim", enabled = false },
   {
     "lukas-reineke/indent-blankline.nvim",
     enabled = false
