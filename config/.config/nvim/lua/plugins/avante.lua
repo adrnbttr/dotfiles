@@ -27,7 +27,64 @@ return {
       },
 
       -- Raccourcis adaptés pour un clavier bépo
+
+      -- Comportement plus minimaliste : moins de blocs redondants,
+      -- appliquer directement les diffs et sauter au résultat.
+      behaviour = {
+        auto_apply_diff_after_generation = true,
+        minimize_diff = true,
+        jump_result_buffer_on_finish = true,
+        -- Le hint "Tokens: ...; <key>: submit" prend beaucoup de place visuelle.
+        -- On garde l'UI plus clean en le desactivant.
+        enable_token_counting = false,
+      },
+
+      -- Layout plus agreable : plus large, wrap actif (pas de scroll horizontal),
+      -- input plus haut pour eviter l'effet "colle".
+      windows = {
+        position = "right",
+        width = 35,
+        wrap = true,
+        sidebar_header = {
+          enabled = false,
+          rounded = false,
+        },
+        input = {
+          height = 10,
+          padding = { 1, 1, 1, 1 }, -- padding top, right, bottom, left
+          border = {
+            style = "rounded",
+            padding = { 1, 1 },
+          },
+        },
+        layout = {
+          mode = "split",
+          preview = {
+            position = "top",
+            height = 0.4,
+          },
+          response = {
+            position = "bottom",
+            height = 0.4,
+          },
+        },
+        preview = {
+          enabled = true,
+        },
+        response = {
+          enabled = true,
+          show_code = true,
+        },
+      },
+
+      -- UX: "Enter" pour envoyer dans l'input Avante.
+      -- On mappe ensuite Shift-Enter / Ctrl-j pour inserer une nouvelle ligne.
       mappings = {
+        submit = {
+          normal = "<CR>",
+          insert = "<CR>",
+        },
+
         ask = "<leader>aa",
         new_ask = "<leader>an",
         zen_mode = "<leader>az",
@@ -44,7 +101,7 @@ return {
           repomap = "<leader>aR",
         },
 
-        -- Suggestions inline (touches dédiées, distinctes de Codeium)
+        -- Suggestions inline (touches dediees, distinctes de Codeium)
         suggestion = {
           accept = "<M-l>",
           next = "<M-j>",
@@ -70,7 +127,7 @@ return {
           toggle_code_window_from_input = nil,
         },
 
-        -- Sauts dans l'historique / éléments (évite ]] / [[)
+        -- Sauts dans l'historique / elements (evite ]] / [[)
         jump = {
           next = "<leader>jn",
           prev = "<leader>jp",
@@ -97,29 +154,6 @@ return {
           code = "c",
           resp = "r",
           input = "i",
-          },
-      },
-
-      -- Comportement plus minimaliste : moins de blocs redondants,
-      -- appliquer directement les diffs et sauter au résultat.
-      behaviour = {
-        auto_apply_diff_after_generation = true,
-        minimize_diff = true,
-        jump_result_buffer_on_finish = true,
-      },
-
-      -- Layout plus discret : sidebar compacte, sans gros header,
-      -- et pas de wrap dans la zone Avante.
-      windows = {
-        position = "right",
-        width = 25,
-        wrap = false,
-        sidebar_header = {
-          enabled = false,
-          rounded = false,
-        },
-        input = {
-          height = 5,
         },
       },
 
