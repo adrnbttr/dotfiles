@@ -3,6 +3,31 @@
 
 local M = {}
 
+-- Find kitten executable in common locations
+local function find_kitten()
+  -- Try common paths where kitten might be installed
+  local paths = {
+    vim.fn.expand("~/.local/bin/kitten"),
+    vim.fn.expand("~/.local/kitty.app/bin/kitten"),
+    "/usr/local/bin/kitten",
+    "/usr/bin/kitten",
+    "/opt/kitty/bin/kitten",
+  }
+  
+  for _, path in ipairs(paths) do
+    if vim.fn.executable(path) == 1 then
+      return path
+    end
+  end
+  
+  -- Try to find in PATH
+  if vim.fn.executable("kitten") == 1 then
+    return "kitten"
+  end
+  
+  return nil
+end
+
 -- Find the project root (where pyproject.toml is)
 local function find_project_root()
   local current_file = vim.fn.expand("%:p")
@@ -27,6 +52,13 @@ end
 
 -- Execute the current Python file via poetry in kitty terminal
 function M.run()
+  local kitten = find_kitten()
+  if not kitten then
+    vim.notify("kitten executable not found. Please ensure kitty is installed and kitten is in your PATH.\n" ..
+               "Common locations: ~/.local/bin/kitten, ~/.local/kitty.app/bin/kitten", vim.log.levels.ERROR)
+    return
+  end
+  
   local project_root = find_project_root()
   if not project_root then
     vim.notify("No pyproject.toml found in project tree", vim.log.levels.ERROR)
@@ -41,14 +73,14 @@ function M.run()
   
   -- Send to kitty terminal using kitten @
   -- This assumes the terminal is in the same kitty instance
-  local kitty_cmd = string.format("kitten @ send-text --match=num:1 '%s\n'", cmd:gsub("'", "'\"'\"'"))
+  local kitty_cmd = string.format("%s @ send-text --match=num:1 '%s\n'", kitten, cmd:gsub("'", "'\"'\"'"))
   
   local handle = io.popen(kitty_cmd .. " 2>&1")
   if handle then
     local result = handle:read("*a")
     handle:close()
     
-    if result == "" then
+    if result == "" or result:match("^$") then
       vim.notify("Sent to kitty: " .. cmd, vim.log.levels.INFO)
     else
       vim.notify("Error sending to kitty: " .. result, vim.log.levels.ERROR)
