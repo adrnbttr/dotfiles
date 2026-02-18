@@ -98,7 +98,7 @@ selection (rectangle mode, respects pane boundaries):
 
 - This repo commits `config/.config/nvim/lazy-lock.json` so plugin versions are reproducible across machines.
 - By default, `./script/bootstrap` will *not* overwrite an existing =~/.config/nvim/lazy-lock.json=.
-- Recent edits are briefly highlighted (10s) so you can spot changes from tools like opencode/avante.
+- Recent edits are briefly highlighted (10s) so you can spot changes from tools like opencode.
 
 Use the repo lockfile on a machine that already has a local one:
 
@@ -155,21 +155,6 @@ opencode.nvim:
   <C-x>         select action
   <C-.>         toggle
   go / goo      send selection/line
-
-avante.nvim:
-  <leader>aa    ask (chat on current context)
-  <leader>an    new chat
-  <leader>az    zen mode (CLI-like)
-  <leader>at    toggle sidebar
-  <leader>as    toggle inline suggestions
-  <leader>ac    add current buffer to context
-  <leader>aB    add all open buffers to context
-  <leader>aj    next prompt in sidebar
-  <leader>ak    previous prompt in sidebar
-  <M-l>         accept inline suggestion (Avante)
-  <M-j>         next inline suggestion (Avante)
-  <M-k>         previous inline suggestion (Avante)
-  <M-h>         dismiss inline suggestion (Avante)
 #+end_src
 
 Search/replace tips:
