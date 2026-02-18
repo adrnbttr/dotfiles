@@ -150,11 +150,39 @@ codeium (ghost text):
   <M-Left>      previous suggestion
   <M-Down>      clear suggestion
 
-opencode.nvim:
-  <C-a>         ask (@this)
-  <C-x>         select action
-  <C-.>         toggle
-  go / goo      send selection/line
+opencode.nvim (<leader>a menu):
+  Session management:
+    <leader>aa    Ask (@this)
+    <leader>an    New session
+    <leader>au    Undo last action
+    <leader>ar    Redo
+    <leader>ac    Compact session
+    <leader>as    Select session
+    <leader>aS    Share session
+    <leader>at    Toggle opencode
+    <leader>ax    Execute action
+
+  Prompts (<leader>ap):
+    <leader>ape   Explain @this
+    <leader>apf   Fix @diagnostics
+    <leader>apr   Review @this
+    <leader>apd   Document @this
+    <leader>apo   Optimize @this
+    <leader>apt   Add tests
+
+  Context/Buffers (<leader>ab):
+    <leader>abb   Send current buffer
+    <leader>aba   Send all buffers
+    <leader>abv   Send visible text
+    <leader>abd   Send diagnostics
+
+  Navigation:
+    <S-C-u>       Half page up
+    <S-C-d>       Half page down
+
+  Operator (go + motion):
+    go<motion>    Send range (ex: goip, gow, go$)
+    goo           Send current line
 #+end_src
 
 Search/replace tips:
