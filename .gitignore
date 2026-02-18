@@ -1,3 +1,6 @@
 secrets.lua
 .DS_Store
 **/.DS_Store
+
+# LazyVim local state
+**/lazyvim.json

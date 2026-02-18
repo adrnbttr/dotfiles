@@ -11,6 +11,13 @@ bad() { printf "bad  %s\n" "$*"; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+version_ge() {
+  # usage: version_ge <have> <want>
+  # returns 0 if have >= want (sort -V)
+  local have_ver="$1" want_ver="$2"
+  [[ "$(printf '%s\n%s\n' "$have_ver" "$want_ver" | sort -V | head -n 1)" == "$want_ver" ]]
+}
+
 echo "dotfiles doctor"
 echo "- repo: $repo_root"
 echo "- os:   $os"
@@ -85,7 +92,16 @@ fi
 
 echo
 echo "cli tools (recommended)"
-if have fzf; then ok "fzf"; else warn "fzf"; fi
+if have fzf; then
+  fzf_ver="$(fzf --version 2>/dev/null | awk '{print $1}' || true)"
+  if [[ -n "$fzf_ver" ]] && version_ge "$fzf_ver" "0.36.0"; then
+    ok "fzf $fzf_ver"
+  else
+    warn "fzf ${fzf_ver:-unknown} (need >= 0.36 for Neovim fzf-lua)"
+  fi
+else
+  warn "fzf"
+fi
 if have rg; then ok "rg"; else warn "rg"; fi
 if have fd || have fdfind; then ok "fd"; else warn "fd"; fi
 if have bat || have batcat; then ok "bat"; else warn "bat"; fi
@@ -135,8 +151,9 @@ echo "install hints"
 echo "- dotfiles: $repo_root/script/install"
 case "$os" in
   linux)
-    echo "- Debian/Ubuntu/Mint: sudo apt install -y stow git zsh fzf ripgrep fd-find bat"
+    echo "- Debian/Ubuntu/Mint: sudo apt install -y stow git zsh ripgrep fd-find bat"
     echo "  (fd may be 'fdfind', bat may be 'batcat')"
+    echo "- fzf: Ubuntu jammy ships an old fzf; use ./script/install to install a recent fzf in ~/.local/bin"
     ;;
   darwin)
     echo "- macOS (Homebrew): brew install stow git zsh fzf ripgrep fd bat"

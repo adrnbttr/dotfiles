@@ -5,6 +5,13 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+version_ge() {
+  # usage: version_ge <have> <want>
+  # returns 0 if have >= want (sort -V)
+  local have_ver="$1" want_ver="$2"
+  [[ "$(printf '%s\n%s\n' "$have_ver" "$want_ver" | sort -V | head -n 1)" == "$want_ver" ]]
+}
+
 info() { printf "%s\n" "$*"; }
 warn() { printf "warn %s\n" "$*" >&2; }
 err() { printf "error %s\n" "$*" >&2; }
@@ -98,6 +105,73 @@ install_opencode() {
   else
     curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
   fi
+}
+
+install_fzf_release_linux() {
+  local ver="${1:-}"
+  if [[ -z "$ver" ]]; then
+    err "install_fzf_release_linux requires a version"
+    exit 2
+  fi
+  if ! have curl; then
+    err "curl is required to install fzf"
+    exit 1
+  fi
+  if ! have tar; then
+    err "tar is required to install fzf"
+    exit 1
+  fi
+  if ! have sha256sum; then
+    err "sha256sum is required to install fzf"
+    exit 1
+  fi
+
+  local arch
+  case "$(uname -m)" in
+    x86_64) arch="linux_amd64" ;;
+    aarch64|arm64) arch="linux_arm64" ;;
+    *)
+      err "unsupported architecture for fzf install: $(uname -m)"
+      exit 1
+      ;;
+  esac
+
+  local url_base="https://github.com/junegunn/fzf/releases/download/v${ver}"
+  local file="fzf-${ver}-${arch}.tar.gz"
+
+  info "installing fzf ${ver} (${arch}) to ~/.local/bin/fzf"
+  mkdir -p "$HOME/.local/bin"
+
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  ( set -euo pipefail
+    trap 'rm -rf "$tmpdir"' EXIT
+    cd "$tmpdir"
+    curl -fsSL -o "$file" "$url_base/$file"
+    curl -fsSL -o checksums.txt "$url_base/fzf_${ver}_checksums.txt"
+    grep "$file" checksums.txt > expected.txt
+    sha256sum -c expected.txt
+    tar -xzf "$file"
+    install -m 0755 -D ./fzf "$HOME/.local/bin/fzf"
+  )
+}
+
+ensure_fzf_recent_linux() {
+  local min="0.36.0"
+  local desired="${FZF_VERSION:-0.67.0}"
+
+  if have fzf; then
+    local current
+    current="$(fzf --version 2>/dev/null | awk '{print $1}' || true)"
+    if [[ -n "$current" ]] && version_ge "$current" "$min"; then
+      return 0
+    fi
+    warn "fzf ${current:-unknown} is too old for fzf-lua (need >= ${min}); installing ${desired}"
+  else
+    warn "fzf missing; installing ${desired}"
+  fi
+
+  install_fzf_release_linux "$desired"
 }
 
 ensure_pyenv_virtualenv_plugin() {
@@ -194,6 +268,9 @@ case "$os" in
     )
 
     ${sudo_cmd} apt-get install -y "${required_pkgs[@]}"
+
+    # fzf-lua (Neovim) requires fzf >= 0.36, but Ubuntu jammy ships 0.29.
+    ensure_fzf_recent_linux
 
     if [[ "$minimal" != "true" ]]; then
       optional_pkgs=(autojump neovim)
