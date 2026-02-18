@@ -72,18 +72,27 @@ function M.run()
   local cmd = string.format("cd %s && poetry run python3 %s", project_root, relative_path)
   
   -- Send to kitty terminal using kitten @
-  -- This assumes the terminal is in the same kitty instance
-  local kitty_cmd = string.format("%s @ send-text --match=num:1 '%s\n'", kitten, cmd:gsub("'", "'\"'\"'"))
+  -- Use script to provide a fake TTY and redirect stdin from /dev/null
+  local kitty_cmd = string.format("script -q -c \"%s @ send-text --match=num:1 '%s'\" /dev/null < /dev/null 2>&1", 
+    kitten, cmd:gsub("'", "'\"'\"'"))
   
-  local handle = io.popen(kitty_cmd .. " 2>&1")
+  local handle = io.popen(kitty_cmd)
   if handle then
     local result = handle:read("*a")
     handle:close()
     
-    if result == "" or result:match("^$") then
+    if result == "" or result:match("^%s*$") then
       vim.notify("Sent to kitty: " .. cmd, vim.log.levels.INFO)
     else
-      vim.notify("Error sending to kitty: " .. result, vim.log.levels.ERROR)
+      -- Check if it's the common "no such device" error
+      if result:match("open /dev/tty") then
+        vim.notify("Poetry command ready (copy to terminal): " .. cmd, vim.log.levels.INFO)
+        -- Copy to clipboard as fallback
+        vim.fn.setreg("+", cmd)
+        vim.fn.setreg("*", cmd)
+      else
+        vim.notify("Error sending to kitty: " .. result, vim.log.levels.ERROR)
+      end
     end
   else
     vim.notify("Failed to execute kitty command", vim.log.levels.ERROR)
