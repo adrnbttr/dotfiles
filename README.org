@@ -89,12 +89,16 @@ tabs:
 
 zoom:
   Ctrl+Alt+z             toggle stack layout
+
+selection (rectangle mode, respects pane boundaries):
+  Ctrl+Alt+left drag     select text in opencode without crossing to nvim
 #+end_src
 
 ** Neovim
 
 - This repo commits `config/.config/nvim/lazy-lock.json` so plugin versions are reproducible across machines.
 - By default, `./script/bootstrap` will *not* overwrite an existing =~/.config/nvim/lazy-lock.json=.
+- Recent edits are briefly highlighted (10s) so you can spot changes from tools like opencode/avante.
 
 Use the repo lockfile on a machine that already has a local one:
 
