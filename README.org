@@ -183,6 +183,10 @@ opencode.nvim (<leader>a menu):
   Operator (go + motion):
     go<motion>    Send range (ex: goip, gow, go$)
     goo           Send current line
+
+poetry runner (Python projects):
+  <leader>pr    Run current Python file via poetry in kitty terminal
+  :PoetryRun    Execute current file (auto-detects project root from pyproject.toml)
 #+end_src
 
 Search/replace tips:
