@@ -185,8 +185,54 @@ opencode.nvim (<leader>a menu):
     goo           Send current line
 
 poetry runner (Python projects):
-  <leader>pr    Run current Python file via poetry in kitty terminal
+  <leader>pr    Run current Python file via poetry in toggleterm
   :PoetryRun    Execute current file (auto-detects project root from pyproject.toml)
+
+ToggleTerm (terminal management):
+  <C-t>         Toggle terminal (from any mode, including terminal insert)
+  <leader>tt    Toggle terminal (float)
+  <Esc>         Exit terminal insert mode (then use <leader>tt or <C-t>)
+  <leader>tf    Floating terminal
+  <leader>th    Horizontal terminal
+  <leader>tv    Vertical terminal
+  <leader>t1    Terminal 1
+  <leader>t2    Terminal 2
+  <leader>t3    Terminal 3
+  <leader>ts    Select terminal
+  <leader>tg    Lazygit
+
+nvim-dap (Node.js debugging in Docker):
+  Prerequisites:
+    - Docker container with Node.js running in debug mode (port 567xx)
+    - Auto-detection scans ports 56700-56800
+
+  Debug controls:
+    <leader>dc    Start/Continue debugging (auto-detects port or shows menu)
+    <leader>db    Toggle breakpoint on current line
+    <leader>ds    Step over (execute current line, move to next)
+    <leader>di    Step into (enter function call)
+    <leader>do    Step out (exit current function)
+    <leader>dx    Stop debugging session
+    <leader>dr    Open REPL console
+    <leader>dl    Run last debug configuration
+    <leader>dt    Toggle DAP UI (scopes, stack, watches)
+
+  Workflow:
+    1. Start Docker container with Node.js debug port exposed (e.g., 56745)
+    2. In nvim, place breakpoint: <leader>db on desired line
+    3. Start debugging: <leader>dc (auto-detects port or asks)
+    4. Navigate: <leader>ds (step over), <leader>di (step into)
+    5. Inspect: Hover variables or toggle UI with <leader>dt
+    6. Stop: <leader>dx when done
+
+  Features:
+    - Virtual text: Variable values displayed inline
+    - Auto-detection: Scans for Node.js debug ports automatically
+    - Port selection: Menu when multiple containers detected
+    - Manual input: Enter port if auto-detection fails
+    - Scopes panel: View all variables in current context
+    - Call stack: Navigate through function calls
+    - REPL: Execute JavaScript expressions during debug
 #+end_src
 
 Search/replace tips:
