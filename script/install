@@ -220,6 +220,7 @@ case "$os" in
     brew_install_if_missing fd
     brew_install_if_missing bat
     brew_install_if_missing pyenv
+    brew_install_if_missing lazygit
 
     if [[ "$minimal" != "true" ]]; then
       brew_install_if_missing autojump
@@ -228,7 +229,7 @@ case "$os" in
 
     if [[ "$upgrade" == "true" ]]; then
       info "upgrading packages (macOS/Homebrew)"
-      brew upgrade git stow zsh fzf ripgrep fd bat pyenv || true
+      brew upgrade git stow zsh fzf ripgrep fd bat pyenv lazygit || true
       if [[ "$minimal" != "true" ]]; then
         brew upgrade autojump neovim || true
       fi
@@ -252,6 +253,13 @@ case "$os" in
     fi
 
     info "installing packages (Linux/apt)"
+    
+    # Add lazygit PPA if not already present
+    if ! have lazygit; then
+      info "adding lazygit PPA"
+      ${sudo_cmd} add-apt-repository -y ppa:lazygit-team/release
+    fi
+    
     ${sudo_cmd} apt-get update
 
     required_pkgs=(
@@ -265,6 +273,7 @@ case "$os" in
       fd-find
       bat
       tar
+      lazygit
     )
 
     ${sudo_cmd} apt-get install -y "${required_pkgs[@]}"

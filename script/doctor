@@ -108,6 +108,7 @@ if have bat || have batcat; then ok "bat"; else warn "bat"; fi
 if have kitty; then ok "kitty"; else warn "kitty"; fi
 if have nvim; then ok "nvim"; else warn "nvim"; fi
 if have opencode; then ok "opencode"; else warn "opencode"; fi
+if have lazygit; then ok "lazygit $(lazygit --version 2>/dev/null | head -1 | awk '{print $6}')"; else warn "lazygit"; fi
 
 echo
 echo "neovim"
