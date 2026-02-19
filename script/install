@@ -174,6 +174,30 @@ ensure_fzf_recent_linux() {
   install_fzf_release_linux "$desired"
 }
 
+install_lazygit_release_linux() {
+  local version="${1:-0.44.1}"
+  local url="https://github.com/jesseduffield/lazygit/releases/download/v${version}/lazygit_${version}_Linux_x86_64.tar.gz"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  (
+    cd "$tmpdir"
+    curl -fsSL -o lazygit.tar.gz "$url" || { err "failed to download lazygit ${version}"; exit 1; }
+    tar -xzf lazygit.tar.gz || { err "failed to extract lazygit"; exit 1; }
+    install -m 0755 -D ./lazygit "$HOME/.local/bin/lazygit"
+  )
+  rm -rf "$tmpdir"
+}
+
+ensure_lazygit_linux() {
+  if have lazygit; then
+    info "lazygit already installed"
+    return 0
+  fi
+  
+  info "lazygit not found; installing from GitHub release"
+  install_lazygit_release_linux
+}
+
 ensure_pyenv_virtualenv_plugin() {
   local pyenv_root=""
   if have pyenv; then
@@ -253,13 +277,6 @@ case "$os" in
     fi
 
     info "installing packages (Linux/apt)"
-    
-    # Add lazygit PPA if not already present
-    if ! have lazygit; then
-      info "adding lazygit PPA"
-      ${sudo_cmd} add-apt-repository -y ppa:lazygit-team/release
-    fi
-    
     ${sudo_cmd} apt-get update
 
     required_pkgs=(
@@ -273,10 +290,12 @@ case "$os" in
       fd-find
       bat
       tar
-      lazygit
     )
 
     ${sudo_cmd} apt-get install -y "${required_pkgs[@]}"
+    
+    # Install lazygit from GitHub release (PPA not available for jammy)
+    ensure_lazygit_linux
 
     # fzf-lua (Neovim) requires fzf >= 0.36, but Ubuntu jammy ships 0.29.
     ensure_fzf_recent_linux
