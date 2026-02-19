@@ -295,7 +295,7 @@ case "$os" in
     # Install lazygit first (before apt to avoid dependency on apt repositories)
     ensure_lazygit_linux
     
-    ${sudo_cmd} apt-get update
+    ${sudo_cmd} apt-get update || true
 
     required_pkgs=(
       ca-certificates
