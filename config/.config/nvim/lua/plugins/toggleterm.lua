@@ -23,6 +23,7 @@ return {
       
       -- Tools
       { "<leader>tg", "<cmd>lua _LAZYGIT_TOGGLE()<cr>", desc = "Lazygit" },
+      { "<leader>td", "<cmd>lua _LAZYDOCKER_TOGGLE()<cr>", desc = "LazyDocker" },
     },
     opts = {
       size = function(term)
@@ -76,6 +77,22 @@ return {
       
       _G._LAZYGIT_TOGGLE = function()
         lazygit:toggle()
+      end
+      
+      -- LazyDocker floating terminal
+      local lazydocker = Terminal:new({
+        cmd = "lazydocker",
+        hidden = true,
+        direction = "float",
+        float_opts = {
+          border = "curved",
+          width = math.floor(vim.o.columns * 0.9),
+          height = math.floor(vim.o.lines * 0.9),
+        },
+      })
+      
+      _G._LAZYDOCKER_TOGGLE = function()
+        lazydocker:toggle()
       end
     end,
   },
