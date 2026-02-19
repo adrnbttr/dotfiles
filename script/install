@@ -189,13 +189,27 @@ install_lazygit_release_linux() {
 }
 
 ensure_lazygit_linux() {
-  if have lazygit; then
-    info "lazygit already installed"
+  local version="${LAZYGIT_VERSION:-0.44.1}"
+  
+  # Check if force reinstall
+  if [[ "${LAZYGIT_FORCE:-}" == "1" ]]; then
+    info "LAZYGIT_FORCE=1: reinstalling lazygit ${version}"
+    rm -f "$HOME/.local/bin/lazygit"
+  elif have lazygit; then
+    info "lazygit already installed ($(lazygit --version 2>/dev/null | head -1 | awk '{print $6}'))"
     return 0
   fi
   
-  info "lazygit not found; installing from GitHub release"
-  install_lazygit_release_linux
+  info "installing lazygit ${version} from GitHub"
+  install_lazygit_release_linux "$version"
+  
+  # Verify installation
+  if have lazygit; then
+    ok "lazygit ${version} installed successfully"
+  else
+    err "lazygit installation failed"
+    return 1
+  fi
 }
 
 ensure_pyenv_virtualenv_plugin() {
@@ -277,6 +291,10 @@ case "$os" in
     fi
 
     info "installing packages (Linux/apt)"
+    
+    # Install lazygit first (before apt to avoid dependency on apt repositories)
+    ensure_lazygit_linux
+    
     ${sudo_cmd} apt-get update
 
     required_pkgs=(
@@ -293,9 +311,6 @@ case "$os" in
     )
 
     ${sudo_cmd} apt-get install -y "${required_pkgs[@]}"
-    
-    # Install lazygit from GitHub release (PPA not available for jammy)
-    ensure_lazygit_linux
 
     # fzf-lua (Neovim) requires fzf >= 0.36, but Ubuntu jammy ships 0.29.
     ensure_fzf_recent_linux
