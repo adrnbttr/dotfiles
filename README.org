@@ -235,6 +235,43 @@ nvim-dap (Node.js debugging in Docker):
     - REPL: Execute JavaScript expressions during debug
 #+end_src
 
+New plugins (diffview, dadbod, lazydocker, markdown-preview, undotree):
+
+#+begin_src text
+  diffview (git diff viewer):
+    <leader>gd    Open diff view (compare working tree)
+    <leader>gh    Open file history
+    <leader>gq    Close diff view
+    <tab>         Select next entry
+    <s-tab>       Select previous entry
+    s             Stage/unstage file
+    S             Stage all files
+    U             Unstage all files
+    X             Restore entry
+    gf            Go to file
+
+  vim-dadbod (database client):
+    <leader>du    Toggle DB UI (database explorer)
+    <leader>df    Find DB buffer
+    <leader>dr    Rename DB buffer
+    <leader>dl    Show last query info
+    Note: Configure connections in ~/.config/nvim/lua/plugins/dadbod.lua
+
+  lazydocker (Docker TUI in terminal):
+    <leader>td    Open LazyDocker (floating terminal)
+    Note: Requires lazydocker installed on system
+
+  markdown-preview (live preview in browser):
+    <leader>mp    Toggle markdown preview
+    Note: Opens in default browser, auto-updates on edit
+
+  undotree (visual undo history):
+    <leader>u     Toggle undotree panel
+    j/k           Navigate history tree
+    u             Undo to selected state
+    <CR>          Revert to selected state
+#+end_src
+
 Search/replace tips:
 
 #+begin_src text
