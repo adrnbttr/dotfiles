@@ -266,7 +266,7 @@ New plugins (diffview, dadbod, lazydocker, markdown-preview, undotree):
     Note: Opens in default browser, auto-updates on edit
 
   undotree (visual undo history):
-    <leader>u     Toggle undotree panel
+    <leader>tu    Toggle undotree panel
     j/k           Navigate history tree
     u             Undo to selected state
     <CR>          Revert to selected state
