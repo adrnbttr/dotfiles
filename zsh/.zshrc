@@ -248,3 +248,33 @@ fi
 
 # Per-machine overrides (not tracked)
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
+
+# Modern terminal tools configuration
+
+# eza: modern replacement for ls with icons and colors
+if command -v eza >/dev/null 2>&1; then
+  alias ls='eza --icons=auto'
+  alias ll='eza -l --icons=auto'
+  alias la='eza -la --icons=auto'
+  alias lt='eza --tree --icons=auto'
+  alias llt='eza -l --tree --icons=auto'
+fi
+
+# zoxide: smarter cd command with fuzzy matching
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+  alias cd='z'
+  alias cdi='zi'
+fi
+
+# delta: syntax-highlighting pager for git and diff output
+if command -v delta >/dev/null 2>&1; then
+  export GIT_PAGER=delta
+  export DELTA_FEATURES='side-by-side line-numbers decorations'
+fi
+
+# bottom: modern system monitor (btm)
+if command -v btm >/dev/null 2>&1; then
+  alias top='btm'
+  alias htop='btm'
+fi
