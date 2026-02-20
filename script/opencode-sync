@@ -60,6 +60,10 @@ case "$cmd" in
       cp -f "$state_dir/model.json" "$repo_dir/model.json"
       ensure_newline "$repo_dir/model.json"
     fi
+    if [[ -f "$state_dir/system_prompt.md" ]]; then
+      cp -f "$state_dir/system_prompt.md" "$repo_dir/system_prompt.md"
+      ensure_newline "$repo_dir/system_prompt.md"
+    fi
     ;;
 
   pull)
@@ -67,9 +71,11 @@ case "$cmd" in
     if [[ "$force" == "--force" ]]; then
       copy_force "$repo_dir/kv.json" "$state_dir/kv.json"
       copy_force "$repo_dir/model.json" "$state_dir/model.json"
+      copy_force "$repo_dir/system_prompt.md" "$state_dir/system_prompt.md"
     else
       copy_if_missing "$repo_dir/kv.json" "$state_dir/kv.json"
       copy_if_missing "$repo_dir/model.json" "$state_dir/model.json"
+      copy_if_missing "$repo_dir/system_prompt.md" "$state_dir/system_prompt.md"
     fi
     ;;
 
