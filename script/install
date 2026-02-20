@@ -190,7 +190,7 @@ install_lazygit_release_linux() {
 
 ensure_lazygit_linux() {
   local version="${LAZYGIT_VERSION:-0.44.1}"
-  
+
   # Check if force reinstall
   if [[ "${LAZYGIT_FORCE:-}" == "1" ]]; then
     info "LAZYGIT_FORCE=1: reinstalling lazygit ${version}"
@@ -199,15 +199,53 @@ ensure_lazygit_linux() {
     info "lazygit already installed ($(lazygit --version 2>/dev/null | head -1 | awk '{print $6}'))"
     return 0
   fi
-  
+
   info "installing lazygit ${version} from GitHub"
   install_lazygit_release_linux "$version"
-  
+
   # Verify installation
   if have lazygit; then
     ok "lazygit ${version} installed successfully"
   else
     err "lazygit installation failed"
+    return 1
+  fi
+}
+
+install_lazydocker_release_linux() {
+  local version="${1:-0.24.4}"
+  local url="https://github.com/jesseduffield/lazydocker/releases/download/v${version}/lazydocker_${version}_Linux_x86_64.tar.gz"
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  (
+    cd "$tmpdir"
+    curl -fsSL -o lazydocker.tar.gz "$url" || { err "failed to download lazydocker ${version}"; exit 1; }
+    tar -xzf lazydocker.tar.gz || { err "failed to extract lazydocker"; exit 1; }
+    install -m 0755 -D ./lazydocker "$HOME/.local/bin/lazydocker"
+  )
+  rm -rf "$tmpdir"
+}
+
+ensure_lazydocker_linux() {
+  local version="${LAZYDOCKER_VERSION:-0.24.4}"
+
+  # Check if force reinstall
+  if [[ "${LAZYDOCKER_FORCE:-}" == "1" ]]; then
+    info "LAZYDOCKER_FORCE=1: reinstalling lazydocker ${version}"
+    rm -f "$HOME/.local/bin/lazydocker"
+  elif have lazydocker; then
+    info "lazydocker already installed ($(lazydocker --version 2>/dev/null | head -1 | awk '{print $3}'))"
+    return 0
+  fi
+
+  info "installing lazydocker ${version} from GitHub"
+  install_lazydocker_release_linux "$version"
+
+  # Verify installation
+  if have lazydocker; then
+    info "lazydocker ${version} installed successfully"
+  else
+    err "lazydocker installation failed"
     return 1
   fi
 }
@@ -259,6 +297,7 @@ case "$os" in
     brew_install_if_missing bat
     brew_install_if_missing pyenv
     brew_install_if_missing lazygit
+    brew_install_if_missing lazydocker
 
     if [[ "$minimal" != "true" ]]; then
       brew_install_if_missing autojump
@@ -294,7 +333,8 @@ case "$os" in
     
     # Install lazygit first (before apt to avoid dependency on apt repositories)
     ensure_lazygit_linux
-    
+    ensure_lazydocker_linux
+
     ${sudo_cmd} apt-get update || true
 
     required_pkgs=(
