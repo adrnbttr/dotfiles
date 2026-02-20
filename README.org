@@ -304,6 +304,33 @@ diagnostics:
   <leader>xx          diagnostics list (Trouble)
 #+end_src
 
+** Modern terminal tools
+
+#+begin_src text
+  eza (modern ls replacement with icons):
+    ls            List files with icons and colors
+    ll            List files in long format with icons
+    la            List all files including hidden
+    lt            List files as a tree
+    llt           List files in long format as a tree
+
+  zoxide (smart cd command):
+    cd <dir>      Navigate to directory (with fuzzy matching)
+    cdi           Interactive directory selection with fzf
+    z <pattern>   Jump to directory matching pattern
+    zi            Interactive directory selection
+
+  delta (syntax-highlighting pager for git):
+    git diff      Shows colored side-by-side diff
+    git log       Shows colored log output
+    git show      Shows colored commit/diff output
+
+  bottom (modern system monitor):
+    btm           Launch interactive system monitor
+    top           Alias for btm
+    htop          Alias for btm
+#+end_src
+
 * Oh My Zsh
 
 This repo does *not* stow into =~/.oh-my-zsh= anymore.
