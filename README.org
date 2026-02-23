@@ -94,6 +94,21 @@ selection (rectangle mode, respects pane boundaries):
   Ctrl+Alt+left drag     select text in opencode without crossing to nvim
 #+end_src
 
+Quick session helpers (defined in `zsh/.zshrc`):
+
+#+begin_src sh
+# Open the static, curated kitty session (tabs + splits)
+marvin_session
+
+# Open a dynamic session with one tab per repo under ~/Documents/GitHub
+# - Tabs are sorted by most recent commit
+# - Inside kitty: uses remote control to populate current window
+# - Outside kitty: spawns a new kitty window using a generated session file
+#   (written to XDG state: ~/.local/state/kitty/github-session.conf)
+# - Each tab starts in nvim, then drops you into a shell when you quit nvim
+github-session
+#+end_src
+
 ** Neovim
 
 - This repo commits `config/.config/nvim/lazy-lock.json` so plugin versions are reproducible across machines.
