@@ -233,8 +233,8 @@ github_session() {
     local repo name
     for repo in $repos; do
       name="${repo:t}"
-      if kitty @ launch --type=tab --location=last --cwd "$repo" --tab-title "$name" --keep-focus --no-response \
-        zsh -lc 'nvim; exec zsh -l' >/dev/null 2>&1; then
+      if kitty @ launch --type=tab --location=last --cwd "$repo" --tab-title "$name" --keep-focus --no-response --copy-env \
+        zsh -ic 'nvim; exec zsh -i' >/dev/null 2>&1; then
         (( created++ ))
       fi
     done
@@ -259,7 +259,7 @@ github_session() {
       echo
       echo "new_tab \"$name\""
       echo "cd $repo"
-      echo "launch zsh -lc 'nvim; exec zsh -l'"
+      echo "launch --copy-env zsh -ic 'nvim; exec zsh -i'"
     done
   } >| "$session"
 
