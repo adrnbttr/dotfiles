@@ -114,6 +114,7 @@ github-session
 - This repo commits `config/.config/nvim/lazy-lock.json` so plugin versions are reproducible across machines.
 - By default, `./script/bootstrap` will *not* overwrite an existing =~/.config/nvim/lazy-lock.json=.
 - Recent edits are briefly highlighted (10s) so you can spot changes from tools like opencode.
+- File explorer (LazyVim / neo-tree) opens by default on startup (disable with `NVIM_NO_EXPLORER=1`).
 
 Use the repo lockfile on a machine that already has a local one:
 
