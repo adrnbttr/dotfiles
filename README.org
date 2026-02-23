@@ -251,11 +251,29 @@ New plugins (diffview, dadbod, lazydocker, markdown-preview, undotree):
     gf            Go to file
 
   vim-dadbod (database client):
-    <leader>du    Toggle DB UI (database explorer)
-    <leader>df    Find DB buffer
-    <leader>dr    Rename DB buffer
-    <leader>dl    Show last query info
-    Note: Configure connections in ~/.config/nvim/lua/plugins/dadbod.lua
+    UI (db explorer):
+      <leader>mu    Toggle DB UI
+      <leader>mf    Find DB buffer
+      <leader>mr    Rename DB buffer
+      <leader>ml    Show last query info
+
+    Marvin SQL workflow (project-specific auto-connection + runner):
+      <leader>ms    Execute SQL statement under cursor
+      <leader>mS    Execute whole buffer
+      <leader>mo    Toggle results output (bottom split)
+
+    Connection auto-resolution:
+      - Applies for files under app/entrypoints/postgres/clients/**/<client>/sql/**/*.sql
+      - Default dbname = <client> extracted from the path
+      - Optional override: first line "-- dbname: xxx"
+      - Credentials come from the shell / project .env (no secrets committed)
+        Vars (local): POSTGRES_LOCAL_USERNAME/PASSWORD/HOST/PORT
+        Vars (prod):  POSTGRES_USERNAME/PASSWORD/HOST/PORT
+      - Password is URL-encoded when building the DSN
+
+    Switch env without restarting:
+      :MarvinDbMode local
+      :MarvinDbMode prod
 
   lazydocker (Docker TUI in terminal):
     <leader>td    Open LazyDocker (floating terminal)
