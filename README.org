@@ -273,6 +273,17 @@ New plugins (diffview, dadbod, lazydocker, markdown-preview, undotree):
       <leader>mr    Rename DB buffer
       <leader>ml    Show last query info
 
+     DBUI navigation:
+       <CR>/o        Open/expand (table helpers, buffers, etc.)
+       S             Open in vertical split
+       R             Redraw
+       H             Toggle connection details
+
+     Results navigation (wide tables):
+       zl/zh         Scroll right/left
+       zL/zH         Scroll right/left faster
+       Shift+wheel   Scroll right/left (in db output)
+
     Marvin SQL workflow (project-specific auto-connection + runner):
       <leader>ms    Execute SQL statement under cursor
       <leader>mS    Execute whole buffer
