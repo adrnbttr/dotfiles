@@ -111,6 +111,10 @@ if have opencode; then ok "opencode"; else warn "opencode"; fi
 if have lazygit; then ok "lazygit $(lazygit --version 2>/dev/null | head -1 | awk '{print $6}')"; else warn "lazygit"; fi
 
 echo
+echo "databases (optional)"
+if have psql; then ok "psql"; else warn "psql (needed for vim-dadbod Postgres)"; fi
+
+echo
 echo "neovim"
 if [[ -f "$repo_root/config/.config/nvim/lazy-lock.json" ]]; then
   ok "lazy-lock.json committed"

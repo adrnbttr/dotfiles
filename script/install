@@ -298,6 +298,8 @@ case "$os" in
     brew_install_if_missing pyenv
     brew_install_if_missing lazygit
     brew_install_if_missing lazydocker
+    # Needed by vim-dadbod for PostgreSQL queries
+    brew_install_if_missing libpq
 
     if [[ "$minimal" != "true" ]]; then
       brew_install_if_missing autojump
@@ -356,6 +358,8 @@ case "$os" in
       fd-find
       bat
       tar
+      # Needed by vim-dadbod for PostgreSQL queries
+      postgresql-client
     )
 
     ${sudo_cmd} apt-get install -y "${required_pkgs[@]}"
