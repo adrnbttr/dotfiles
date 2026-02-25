@@ -2,6 +2,7 @@
 return {
   {
     "tpope/vim-dadbod",
+    ft = { "sql", "mysql", "plsql" },
     dependencies = {
       "kristijanhusak/vim-dadbod-ui",
       "kristijanhusak/vim-dadbod-completion",
@@ -12,6 +13,42 @@ return {
       { "<leader>mf", "<cmd>DBUIFindBuffer<cr>", desc = "DB: Find buffer" },
       { "<leader>mr", "<cmd>DBUIRenameBuffer<cr>", desc = "DB: Rename buffer" },
       { "<leader>ml", "<cmd>DBUILastQueryInfo<cr>", desc = "DB: Last query info" },
+
+      -- Marvin SQL runner (declare keys here so lazy.nvim creates them
+      -- even before dadbod is loaded).
+      {
+        "<leader>ms",
+        function()
+          local md = require("config.marvin_dadbod")
+          local path = vim.api.nvim_buf_get_name(0)
+          if not md.is_target_path(path) then
+            vim.notify("marvin-dadbod: SQL runner only applies to project SQL paths", vim.log.levels.WARN)
+            return
+          end
+          require("config.marvin_sql_runner").execute_statement()
+        end,
+        desc = "DB: Execute statement",
+      },
+      {
+        "<leader>mS",
+        function()
+          local md = require("config.marvin_dadbod")
+          local path = vim.api.nvim_buf_get_name(0)
+          if not md.is_target_path(path) then
+            vim.notify("marvin-dadbod: SQL runner only applies to project SQL paths", vim.log.levels.WARN)
+            return
+          end
+          require("config.marvin_sql_runner").execute_buffer()
+        end,
+        desc = "DB: Execute buffer",
+      },
+      {
+        "<leader>mo",
+        function()
+          require("config.marvin_sql_runner").toggle_output()
+        end,
+        desc = "DB: Toggle output",
+      },
     },
     config = function()
       -- Database connections configuration
@@ -21,6 +58,7 @@ return {
       vim.g.db_ui_use_nerd_fonts = 1
       vim.g.db_ui_win_position = "left"
       vim.g.db_ui_winwidth = 30
+      vim.g.db_ui_auto_execute_table_helpers = 1
 
       -- Marvin: default mode (user requested prod by default)
       vim.g.marvin_db_mode = vim.g.marvin_db_mode or "prod"
@@ -49,6 +87,30 @@ return {
         pattern = "*.sql",
         callback = function(args)
           require("config.marvin_dadbod").maybe_apply(args.buf, { silent = true })
+        end,
+      })
+
+      -- Ensure dbout buffers always have Marvin navigation helpers.
+      vim.api.nvim_create_autocmd({ "FileType", "BufWinEnter" }, {
+        group = group,
+        pattern = { "dbout", "*.dbout" },
+        callback = function(args)
+          if vim.bo[args.buf].filetype ~= "dbout" then
+            return
+          end
+          pcall(function()
+            vim.wo.wrap = false
+          end)
+          pcall(require("config.marvin_sql_runner").setup_dbout, args.buf)
+        end,
+      })
+
+      -- Mirror dadbod output into the Marvin bottom split.
+      vim.api.nvim_create_autocmd("User", {
+        group = group,
+        pattern = "*/DBExecutePost",
+        callback = function(args)
+          pcall(require("config.marvin_sql_runner").capture_dbout, args.match)
         end,
       })
 

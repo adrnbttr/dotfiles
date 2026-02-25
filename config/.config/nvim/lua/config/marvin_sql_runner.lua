@@ -92,6 +92,10 @@ local function capture_preview_to_output(return_win)
     vim.api.nvim_win_set_buf(state.out_win, pbuf)
   end
 
+  if vim.bo[pbuf].filetype == "dbout" then
+    M.setup_dbout(pbuf)
+  end
+
   if is_valid_win(pwin) then
     vim.api.nvim_win_close(pwin, true)
   end
@@ -99,6 +103,112 @@ local function capture_preview_to_output(return_win)
   if is_valid_win(return_win) then
     vim.api.nvim_set_current_win(return_win)
   end
+end
+
+local function dbout_path_from_user_match(match)
+  if type(match) ~= "string" or match == "" then
+    return nil
+  end
+  -- dadbod triggers doautocmd User {output}/DBExecutePost
+  local p = match:gsub("/DBExecutePost$", "")
+  p = p:gsub("DBExecutePost$", "")
+  p = p:gsub("/+$", "")
+  if p:match("%.dbout$") then
+    return p
+  end
+  return nil
+end
+
+function M.capture_dbout(match)
+  local return_win = vim.api.nvim_get_current_win()
+
+  local path = dbout_path_from_user_match(match)
+  if path then
+    local bufnr = vim.fn.bufnr(path)
+    if bufnr == -1 then
+      bufnr = vim.fn.bufadd(path)
+    end
+    pcall(vim.fn.bufload, bufnr)
+
+    open_output_win()
+    state.out_buf = bufnr
+    if is_valid_win(state.out_win) then
+      vim.api.nvim_win_set_buf(state.out_win, bufnr)
+    end
+
+    if vim.bo[bufnr].filetype == "dbout" then
+      M.setup_dbout(bufnr)
+    end
+
+    -- Close any preview window displaying this dbout.
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+      if vim.wo[win].previewwindow then
+        local b = vim.api.nvim_win_get_buf(win)
+        if b == bufnr and is_valid_win(win) then
+          pcall(vim.api.nvim_win_close, win, true)
+        end
+      end
+    end
+
+    if is_valid_win(return_win) then
+      vim.api.nvim_set_current_win(return_win)
+    end
+    return true
+  end
+
+  capture_preview_to_output(return_win)
+  return true
+end
+
+function M.setup_dbout(bufnr)
+  if not bufnr or bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  if vim.bo[bufnr].filetype ~= "dbout" then
+    return
+  end
+
+  -- Ensure horizontal scrolling works (requires nowrap in the window).
+  pcall(function()
+    vim.wo.wrap = false
+  end)
+
+  if vim.b[bufnr].marvin_shift_wheel_horizontal then
+    return
+  end
+  vim.b[bufnr].marvin_shift_wheel_horizontal = true
+
+  -- Map multiple variants since some terminals don't encode modifiers.
+  local function left()
+    vim.cmd("normal! zH")
+  end
+  local function right()
+    vim.cmd("normal! zL")
+  end
+
+  vim.keymap.set("n", "<S-ScrollWheelUp>", left, {
+    buffer = bufnr,
+    silent = true,
+    desc = "DB: Scroll left (Shift+wheel)",
+  })
+  vim.keymap.set("n", "<S-ScrollWheelDown>", right, {
+    buffer = bufnr,
+    silent = true,
+    desc = "DB: Scroll right (Shift+wheel)",
+  })
+  vim.keymap.set("n", "<ScrollWheelLeft>", left, {
+    buffer = bufnr,
+    silent = true,
+    desc = "DB: Scroll left (wheel)",
+  })
+  vim.keymap.set("n", "<ScrollWheelRight>", right, {
+    buffer = bufnr,
+    silent = true,
+    desc = "DB: Scroll right (wheel)",
+  })
 end
 
 local function buf_line_count(bufnr)
@@ -168,7 +278,7 @@ function M.execute_buffer()
   end
 
   local return_win = vim.api.nvim_get_current_win()
-  vim.cmd(":%DB")
+  vim.cmd("%DB")
   vim.defer_fn(function()
     capture_preview_to_output(return_win)
   end, 60)

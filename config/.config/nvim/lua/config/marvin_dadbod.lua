@@ -140,6 +140,19 @@ function M.maybe_apply(bufnr, opts)
   vim.b[bufnr].db = dsn
   vim.b[bufnr].marvin_dbname = dbname
   vim.b[bufnr].marvin_db_mode = mode
+
+  -- Export to DBUI (connections list) via g:dbs.
+  -- DBUI reads connections from g:dbs / env / .env (DB_UI_*). Our project
+  -- already derives the DSN from POSTGRES_* vars, so we mirror it here.
+  local dbs = vim.g.dbs or {}
+  local key = string.format("marvin_%s_%s", mode, dbname)
+  dbs[key] = dsn
+  vim.g.dbs = dbs
+
+  -- If DBUI is already loaded, reset its cached state so the new connection
+  -- appears when toggling/opening.
+  pcall(vim.fn["db_ui#reset_state"])
+
   return dsn
 end
 
