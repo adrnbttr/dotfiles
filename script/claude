@@ -102,11 +102,11 @@ show_status() {
 
   echo ""
   echo "Repo templates (claude-state/):"
-  local repo_prompt="$repo_root/claude-state/system_prompt.md"
+  local repo_prompt="$repo_root/claude-state/CLAUDE.md"
   if [[ -f "$repo_prompt" ]]; then
-    echo "  ✓ system_prompt.md"
+    echo "  ✓ CLAUDE.md (system prompt)"
   else
-    echo "  ✗ system_prompt.md missing"
+    echo "  ✗ CLAUDE.md missing"
   fi
 
   echo ""

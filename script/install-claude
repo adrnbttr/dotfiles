@@ -130,71 +130,9 @@ setup_claude_configuration() {
     info "Skipping configuration setup (--skip-config)"
     return 0
   fi
-  
-  info "Setting up Claude Code configuration..."
-  
-  # Create directories
-  mkdir -p "$HOME/.config/claude"
-  mkdir -p "$HOME/.local/state/claude"
-  
-  # Copy configuration templates
-  local repo_config_dir="$repo_root/claude-state/.config/claude"
-  local repo_state_dir="$repo_root/claude-state/.local/state/claude"
-  
-  if [[ -f "$repo_config_dir/claude.json" ]]; then
-    cp -f "$repo_config_dir/claude.json" "$HOME/.config/claude/claude.json"
-    info "✓ Applied main configuration"
-  fi
-  
-  if [[ -f "$repo_config_dir/tui.json" ]]; then
-    cp -f "$repo_config_dir/tui.json" "$HOME/.config/claude/tui.json"
-    info "✓ Applied TUI configuration"
-  fi
-  
-  if [[ -f "$repo_config_dir/env.sh" ]]; then
-    cp -f "$repo_config_dir/env.sh" "$HOME/.config/claude/env.sh"
-    chmod +x "$HOME/.config/claude/env.sh"
-    info "✓ Applied environment optimizations"
-  fi
-  
-  # Copy state templates (only if missing)
-  if [[ ! -f "$HOME/.local/state/claude/kv.json" ]] && \
-     [[ -f "$repo_state_dir/kv.json" ]]; then
-    cp -f "$repo_state_dir/kv.json" "$HOME/.local/state/claude/kv.json"
-    info "✓ Applied UI preferences template"
-  fi
-  
-  if [[ ! -f "$HOME/.local/state/claude/model.json" ]] && \
-     [[ -f "$repo_state_dir/model.json" ]]; then
-    cp -f "$repo_state_dir/model.json" "$HOME/.local/state/claude/model.json"
-    info "✓ Applied model preferences template"
-  fi
-  
-  if [[ ! -f "$HOME/.local/state/claude/system_prompt.md" ]] && \
-     [[ -f "$repo_state_dir/system_prompt.md" ]]; then
-    cp -f "$repo_state_dir/system_prompt.md" "$HOME/.local/state/claude/system_prompt.md"
-    info "✓ Applied system prompt template"
-  fi
-  
-  # Set up symbolic link for easy access (optional)
-  # if [[ ! -L "$HOME/.config/opencode-claude" ]]; then
-  #   ln -sf "$HOME/.config/claude" "$HOME/.config/opencode-claude"
-  #   info "✓ Created config symlink"
-  # fi
-  
-  info ""
-  info "Claude Code configuration complete!"
-  info "Next steps:"
-  info "1. Set your Anthropic API key:"
-  info "   export ANTHROPIC_API_KEY='your-key-here'"
-  info "   (Add to ~/.zshrc or ~/.bashrc)"
-  info ""
-  info "2. Apply environment optimizations:"
-  info "   source ~/.config/claude/env.sh"
-  info ""
-  info "3. Test installation:"
-  info "   claude --version  # Should show Claude Code version"
-  info "   claude --help     # View available commands"
+
+  info "Applying Claude Code config templates..."
+  "$repo_root/script/claude-sync" pull
 }
 
 setup_claude_alias() {

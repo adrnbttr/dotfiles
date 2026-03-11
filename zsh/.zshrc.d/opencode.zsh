@@ -1,70 +1,40 @@
 # OpenCode dotfiles management aliases
-# Add convenient shortcuts for managing opencode configuration
 
 alias ochelp='() { cd ~/Documents/GitHub/dotfiles && ./script/opencode help }'
 alias ocstatus='() { cd ~/Documents/GitHub/dotfiles && ./script/opencode status }'
 alias ocdoctor='() { cd ~/Documents/GitHub/dotfiles && ./script/opencode doctor }'
-
-# Quick memory check
 alias ocmem='() { cd ~/Documents/GitHub/dotfiles && ./script/opencode memory monitor }'
-
-# Setup shortcuts
 alias ocsetup='() { cd ~/Documents/GitHub/dotfiles && ./script/opencode setup apply }'
 alias ocenv='() { cd ~/Documents/GitHub/dotfiles && ./script/opencode setup env }'
-
-# Sync shortcuts
 alias ocpush='() { cd ~/Documents/GitHub/dotfiles && ./script/opencode sync push }'
 alias ocpull='() { cd ~/Documents/GitHub/dotfiles && ./script/opencode sync pull }'
 
-# Complete command with auto-completion
+# Full command shorthand (runs from repo root)
 oc() {
   local repo_root="$HOME/Documents/GitHub/dotfiles"
   cd "$repo_root" && ./script/opencode "$@"
 }
 
-# Auto-completion for oc command
-_oc_completion() {
-  local cur prev opts
-  COMPREPLY=()
-  cur="${COMP_WORDS[COMP_CWORD]}"
-  prev="${COMP_WORDS[COMP_CWORD-1]}"
-  
-  main_commands="setup memory sync status doctor help"
-  setup_commands="apply reset env help"
-  memory_commands="monitor cleanup restart stats optimize help"
-  sync_commands="push pull help"
-  
-  case "${prev}" in
-    oc)
-      COMPREPLY=( $(compgen -W "${main_commands}" -- "${cur}") )
-      return 0
-      ;;
-    setup)
-      COMPREPLY=( $(compgen -W "${setup_commands}" -- "${cur}") )
-      return 0
-      ;;
-    memory)
-      COMPREPLY=( $(compgen -W "${memory_commands}" -- "${cur}") )
-      return 0
-      ;;
-    sync)
-      COMPREPLY=( $(compgen -W "${sync_commands}" -- "${cur}") )
-      return 0
-      ;;
-    *)
-      ;;
-  esac
-}
-
-# Register completion if available
+# Zsh completion for oc()
 if [[ -n ${ZSH_VERSION-} ]]; then
-  autoload -U +X compinit && compinit
-  compdef _gnu_generic oc 2>/dev/null || true
-elif [[ -n ${BASH_VERSION-} ]]; then
-  complete -F oc oc
+  _oc() {
+    local -a main_cmds setup_cmds memory_cmds sync_cmds
+    main_cmds=(setup memory sync status doctor help)
+    setup_cmds=(apply reset env help)
+    memory_cmds=(monitor cleanup restart stats optimize help)
+    sync_cmds=(push pull help)
+
+    case "$words[2]" in
+      setup)  compadd -a setup_cmds ;;
+      memory) compadd -a memory_cmds ;;
+      sync)   compadd -a sync_cmds ;;
+      *)      compadd -a main_cmds ;;
+    esac
+  }
+  compdef _oc oc
 fi
 
-# Export environment variables if env.sh exists
+# Source env.sh if it has content
 if [[ -f "$HOME/.config/opencode/env.sh" ]]; then
   source "$HOME/.config/opencode/env.sh"
 fi

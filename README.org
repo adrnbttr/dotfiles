@@ -231,7 +231,7 @@ ccpull            # Apply templates
 
 | Feature | OpenCode | Claude Code |
 |---------|----------|-------------|
-| **Default Model** | claude-4.6-sonnet (via opencode) | claude-4.6-sonnet (direct) |
+| **Default Model** | user-chosen (model.json) | claude-4.6-sonnet (direct) |
 | **Auth** | API key / OpenRouter | Browser login (Claude Pro/Max) |
 | **Architecture** | Local server (long-running) | CLI tool (per-invocation) |
 | **Neovim Prefix** | =<leader>a= | =<leader>z= |
@@ -278,39 +278,20 @@ OpenCode (prefix: <leader>a)     Claude Code (prefix: <leader>z)
 <leader>abb Send current buffer  <leader>zb  Send buffer
                                  <leader>zp  Paste selection (visual)
                                  <leader>zh  Focus split (insert)
-<leader>an  Navigation           <leader>zn  Navigation
 
-Operators:
-go<motion> Send range to opencode
-gl<motion> Send range to claude
+Operators (OpenCode only):
+go<motion> Send range to opencode (e.g. goip, gow)
 #+end_src
-
-*** Configured Limits
-
-| Setting | OpenCode | Claude Code |
-|---------|----------|-------------|
-| Max session messages | 200 | 180 |
-| Max total messages | 1000 | 900 |
-| Memory warning | 500MB | 450MB |
-| Auto-restart | 800MB | 700MB |
-| Context window | 128K tokens | 200K tokens |
-| Provider timeout | 5 minutes | 5.8 minutes |
-| Streaming timeout | 2 minutes | 3 minutes |
-| Cache cleanup | 30 minutes | 35 minutes |
 
 *** Example Workflow
 
 #+begin_src sh
-# See detailed examples
-./examples/opencode-workflow.sh
-
 # Quick start commands
-ocsetup && ccsetup          # Configure both
-ocmem && ccmem              # Monitor both
 ocpush && ccpush            # Sync both to dotfiles
+ocpull && ccpull            # Apply templates on new machine
 
 # AI assistant summary
-ai-summary                  # Shows comparison table
+ai-summary                  # Shows side-by-side overview
 #+end_src
 
 Key cheatsheet (custom additions in this repo):

@@ -117,14 +117,10 @@ apply_optimizations() {
     source "$env_file"
   fi
   
-  # Set Node.js memory limits
-  export NODE_OPTIONS="--max-old-space-size=4096 --max-semi-space-size=256"
-  
   # Optimize system limits
   ulimit -n 65536 2>/dev/null || true
   
   echo "Optimizations applied"
-  echo "NODE_OPTIONS: $NODE_OPTIONS"
 }
 
 case "$cmd" in

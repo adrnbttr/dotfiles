@@ -95,15 +95,10 @@ run_doctor_checks() {
   # Check 5: Environment
   echo "5. Environment"
   if [[ -f "$HOME/.config/opencode/env.sh" ]]; then
-    if grep -q "source.*env.sh" "$HOME/.zshrc" 2>/dev/null || \
-       grep -q "source.*env.sh" "$HOME/.bashrc" 2>/dev/null; then
-      echo "   ✓ Environment configured in shell"
-    else
-      echo "   ⚠️  Environment not sourced in shell"
-      echo "   → Run: ./script/opencode setup env"
-    fi
+    echo "   ✓ env.sh present"
   else
-    echo "   ✗ Environment file missing"
+    echo "   - env.sh not found (optional)"
+    echo "   → Run: ./script/opencode sync pull  to install from repo"
   fi
   
   echo ""
@@ -337,11 +332,6 @@ case "$main_command" in
         ;;
       ""|-h|--help|help)
         setup_usage
-        ;;
-      *)
-        echo "Unknown setup command: $sub_command"
-        setup_usage >&2
-        exit 2
         ;;
       *)
         echo "Unknown setup command: $sub_command"
