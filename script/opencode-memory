@@ -32,8 +32,8 @@ opencode_memory_stats() {
   echo ""
   
   # RSS in MB
-  local rss_mb=$(ps -p "$pid" -o rss= | awk '{print int($1/1024)}')
-  local vsz_gb=$(ps -p "$pid" -o vsz= | awk '{print int($1/1024/1024)}')
+  local rss_mb; rss_mb=$(ps -p "$pid" -o rss= | awk '{print int($1/1024)}')
+  local vsz_gb; vsz_gb=$(ps -p "$pid" -o vsz= | awk '{print int($1/1024/1024)}')
   
   echo "RSS: ${rss_mb}MB, VSZ: ${vsz_gb}GB"
   
@@ -59,7 +59,7 @@ cleanup_cache() {
   # Clean up session files (keep last 50)
   local sessions_file="$state_dir/prompt-history.jsonl"
   if [[ -f "$sessions_file" ]]; then
-    local line_count=$(wc -l < "$sessions_file")
+    local line_count; line_count=$(wc -l < "$sessions_file")
     if [[ "$line_count" -gt 1000 ]]; then
       echo "Trimming session history from $line_count to 500 lines..."
       tail -n 500 "$sessions_file" > "${sessions_file}.tmp"
@@ -70,7 +70,7 @@ cleanup_cache() {
   # Clean up frecency stats
   local frecency_file="$state_dir/frecency.jsonl"
   if [[ -f "$frecency_file" ]]; then
-    local fcount=$(wc -l < "$frecency_file")
+    local fcount; fcount=$(wc -l < "$frecency_file")
     if [[ "$fcount" -gt 500 ]]; then
       echo "Trimming frecency stats from $fcount to 300 lines..."
       tail -n 300 "$frecency_file" > "${frecency_file}.tmp"
@@ -82,13 +82,13 @@ cleanup_cache() {
 }
 
 restart_if_needed() {
-  local pid=$(opencode_pids | head -1)
+  local pid; pid=$(opencode_pids | head -1)
   if [[ -z "$pid" ]]; then
     echo "No opencode process to restart"
     return 0
   fi
-  
-  local rss_mb=$(ps -p "$pid" -o rss= | awk '{print int($1/1024)}')
+
+  local rss_mb; rss_mb=$(ps -p "$pid" -o rss= | awk '{print int($1/1024)}')
   
   if [[ "$rss_mb" -gt 800 ]]; then
     echo "Restarting opencode (RSS: ${rss_mb}MB > 800MB threshold)..."
@@ -101,7 +101,7 @@ restart_if_needed() {
       sleep 1
     fi
     
-    echo "Opencode restarted"
+    echo "Opencode stopped — restart it manually (e.g. open a new session in Neovim)"
   else
     echo "Memory usage ${rss_mb}MB is below restart threshold (800MB)"
   fi
@@ -147,7 +147,7 @@ case "$cmd" in
       opencode_memory_stats "$pid"
       echo ""
       echo "=== System Memory ==="
-      free -h
+      if command -v free >/dev/null 2>&1; then free -h; else vm_stat 2>/dev/null || true; fi
       echo ""
       echo "=== Top memory processes ==="
       ps aux --sort=-%mem | head -10
