@@ -31,8 +31,13 @@ Common options:
 # skip GUI apps
 ./script/install --no-gui
 
-# install a specific opencode version
+# skip installing one of the AI tools
+./script/install --no-opencode
+./script/install --no-claude
+
+# install a specific version
 OPENCODE_VERSION=1.1.50 ./script/install
+./script/install --claude-version 2.1.72
 #+end_src
 
 * Features / memo
@@ -351,7 +356,7 @@ opencode.nvim (<leader>a menu):
     - Memory issues: Use `./script/opencode memory monitor` to check usage
     - High memory: Run `./script/opencode memory cleanup` to clear cache
     - Stuck models: Check timeout settings in `opencode-state/.config/opencode/opencode.json`
-    - Context limits: 128K tokens max, 200 messages per session
+    - Context limits: 200K tokens max, 200 messages per session
 
 claude.lua (<leader>z):
   <leader>zt    Toggle Claude split
