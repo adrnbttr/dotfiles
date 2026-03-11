@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./script/claude-sync push            Copy local Claude config into the repo templates
+  ./script/claude-sync pull            Copy repo templates into local Claude config (skip if exists)
+  ./script/claude-sync pull --force    Overwrite local Claude config from repo templates
+EOF
+}
+
+ensure_newline() {
+  local file="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$file" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+if not p.exists():
+    raise SystemExit(0)
+b = p.read_bytes()
+if b and not b.endswith(b"\n"):
+    p.write_bytes(b + b"\n")
+PY
+  fi
+}
+
+copy_if_missing() {
+  local src="$1" dst="$2"
+  if [[ ! -e "$dst" ]]; then
+    mkdir -p "$(dirname "$dst")"
+    cp -f "$src" "$dst"
+  fi
+}
+
+copy_force() {
+  local src="$1" dst="$2"
+  mkdir -p "$(dirname "$dst")"
+  cp -f "$src" "$dst"
+}
+
+# ---------------------------------------------------------------------------
+# Paths
+# Claude Code stores its data under ~/.claude/
+# We only track settings.json and CLAUDE.md (global system prompt)
+# ---------------------------------------------------------------------------
+
+claude_dir="$HOME/.claude"
+repo_state_dir="$repo_root/claude-state"
+
+cmd="${1:-}"
+force="${2:-}"
+
+case "$cmd" in
+  push)
+    echo "Syncing local Claude config to dotfiles..."
+    mkdir -p "$repo_state_dir"
+
+    # Global system prompt (CLAUDE.md)
+    if [[ -f "$claude_dir/CLAUDE.md" ]]; then
+      cp -f "$claude_dir/CLAUDE.md" "$repo_state_dir/CLAUDE.md"
+      ensure_newline "$repo_state_dir/CLAUDE.md"
+      echo "  ✓ Synced CLAUDE.md (global system prompt)"
+    else
+      echo "  - CLAUDE.md not found at $claude_dir/CLAUDE.md (skipped)"
+    fi
+
+    # Settings file (~/.claude.json)
+    if [[ -f "$HOME/.claude.json" ]]; then
+      cp -f "$HOME/.claude.json" "$repo_state_dir/settings.json"
+      ensure_newline "$repo_state_dir/settings.json"
+      echo "  ✓ Synced settings.json"
+    else
+      echo "  - ~/.claude.json not found (skipped)"
+    fi
+
+    echo ""
+    echo "Done. Remember to commit: git add claude-state/"
+    ;;
+
+  pull)
+    echo "Applying Claude templates from dotfiles..."
+    mkdir -p "$claude_dir"
+
+    if [[ "$force" == "--force" ]]; then
+      echo "(--force: overwriting existing files)"
+
+      if [[ -f "$repo_state_dir/CLAUDE.md" ]]; then
+        copy_force "$repo_state_dir/CLAUDE.md" "$claude_dir/CLAUDE.md"
+        echo "  ✓ Applied CLAUDE.md"
+      fi
+
+      if [[ -f "$repo_state_dir/settings.json" ]]; then
+        copy_force "$repo_state_dir/settings.json" "$HOME/.claude.json"
+        echo "  ✓ Applied settings.json → ~/.claude.json"
+      fi
+
+    else
+      if [[ -f "$repo_state_dir/CLAUDE.md" ]]; then
+        copy_if_missing "$repo_state_dir/CLAUDE.md" "$claude_dir/CLAUDE.md"
+        echo "  ✓ CLAUDE.md (applied if missing)"
+      fi
+
+      if [[ -f "$repo_state_dir/settings.json" ]]; then
+        copy_if_missing "$repo_state_dir/settings.json" "$HOME/.claude.json"
+        echo "  ✓ settings.json → ~/.claude.json (applied if missing)"
+      fi
+    fi
+
+    echo ""
+    echo "Done. Local config: $claude_dir/"
+    ;;
+
+  ""|-h|--help)
+    usage
+    ;;
+
+  *)
+    echo "Unknown command: $cmd" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

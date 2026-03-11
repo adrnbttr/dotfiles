@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+show_logo() {
+  cat <<'EOF'
+   ____ _                   _      ___          _
+  / ___| | __ _ ___ ___  __| |    / _ \___   __| |
+ | |   | |/ _` / __/ __|/ _` |   | | | | \ \ / / |
+ | |___| | (_| \__ \__ \ (_| |   | |_| | |\ V /|_|
+  \____|_|\__,_|___/___/\__,_|    \___/|_| \_/ (_)
+  Claude Code Manager v1.0
+EOF
+}
+
+usage() {
+  show_logo
+  cat <<'EOF'
+
+Usage:
+  ./script/claude <command> [options]
+
+Commands:
+  sync         Synchronize configuration with dotfiles
+  status       Show current configuration and status
+  doctor       Run health checks and diagnostics
+  help         Show this help message
+
+Quick reference:
+  ./script/claude sync push        # Save config to dotfiles
+  ./script/claude sync pull        # Apply templates
+  ./script/claude status           # Show current status
+  ./script/claude doctor           # Run health checks
+
+For detailed help on a command:
+  ./script/claude <command> --help
+EOF
+}
+
+sync_usage() {
+  cat <<'EOF'
+Claude Code Configuration Synchronizer
+
+Usage:
+  ./script/claude sync <command> [options]
+
+Commands:
+  push         Copy local config into repo templates
+  pull         Copy repo templates into local config
+  help         Show this help
+
+Options:
+  --force      Force overwrite local config (with pull)
+
+Examples:
+  ./script/claude sync push             # Save config to dotfiles
+  ./script/claude sync pull             # Apply templates
+  ./script/claude sync pull --force     # Overwrite local config
+EOF
+}
+
+show_status() {
+  echo "=== Claude Code Status ==="
+  echo ""
+
+  # Check if the claude CLI is installed
+  if command -v claude >/dev/null 2>&1; then
+    claude_version=$(claude --version 2>/dev/null | head -1 || echo "unknown")
+    echo "  claude CLI: installed ($claude_version)"
+  else
+    echo "  claude CLI: NOT INSTALLED"
+    echo "  → Run: ./script/install-claude"
+    echo ""
+  fi
+
+  # Check auth (Claude stores sessions under ~/.claude/)
+  if [[ -d "$HOME/.claude" ]]; then
+    session_count=$(find "$HOME/.claude/projects" -name "*.jsonl" 2>/dev/null | wc -l | xargs)
+    echo "  Sessions:   $session_count conversation(s) in ~/.claude/projects/"
+  else
+    echo "  Sessions:   no ~/.claude/ directory — run 'claude --login'"
+  fi
+
+  echo ""
+
+  # Check system prompt
+  echo "Config files:"
+  local system_prompt="$HOME/.claude/CLAUDE.md"
+  if [[ -f "$system_prompt" ]]; then
+    echo "  ✓ CLAUDE.md (global system prompt)"
+  else
+    echo "  - CLAUDE.md not found (optional)"
+  fi
+
+  local settings="$HOME/.claude.json"
+  if [[ -f "$settings" ]]; then
+    echo "  ✓ ~/.claude.json (settings)"
+  else
+    echo "  - ~/.claude.json not found (optional)"
+  fi
+
+  echo ""
+  echo "Repo templates (claude-state/):"
+  local repo_prompt="$repo_root/claude-state/system_prompt.md"
+  if [[ -f "$repo_prompt" ]]; then
+    echo "  ✓ system_prompt.md"
+  else
+    echo "  ✗ system_prompt.md missing"
+  fi
+
+  echo ""
+  echo "Use './script/claude sync pull' to apply repo templates"
+}
+
+run_doctor_checks() {
+  echo "Claude Code Doctor — running health checks..."
+  echo ""
+  local ok=true
+
+  # 1. CLI installed
+  echo "1. Claude CLI installation"
+  if command -v claude >/dev/null 2>&1; then
+    claude_version=$(claude --version 2>/dev/null | head -1 || echo "unknown")
+    echo "   ✓ Installed: $claude_version"
+  else
+    echo "   ✗ NOT INSTALLED"
+    echo "   → Run: ./script/install-claude"
+    ok=false
+  fi
+  echo ""
+
+  # 2. Auth / session directory
+  echo "2. Authentication"
+  if [[ -d "$HOME/.claude" ]]; then
+    echo "   ✓ ~/.claude/ exists (authenticated)"
+    if [[ -d "$HOME/.claude/projects" ]]; then
+      session_count=$(find "$HOME/.claude/projects" -name "*.jsonl" 2>/dev/null | wc -l | xargs)
+      echo "   ✓ $session_count conversation file(s) found"
+    fi
+  else
+    echo "   ✗ ~/.claude/ not found — not authenticated"
+    echo "   → Run: claude --login"
+    ok=false
+  fi
+  echo ""
+
+  # 3. Global system prompt
+  echo "3. Global system prompt (CLAUDE.md)"
+  if [[ -f "$HOME/.claude/CLAUDE.md" ]]; then
+    echo "   ✓ Present"
+  else
+    echo "   - Not present (optional)"
+    echo "   → Run: ./script/claude sync pull  to install from repo"
+  fi
+  echo ""
+
+  # 4. Neovim integration
+  echo "4. Neovim integration"
+  local nvim_plugin="$repo_root/config/.config/nvim/lua/config/claude.lua"
+  if [[ -f "$nvim_plugin" ]]; then
+    echo "   ✓ config/claude.lua present"
+  else
+    echo "   ✗ config/claude.lua missing"
+    ok=false
+  fi
+  echo ""
+
+  # Summary
+  if [[ "$ok" == "true" ]]; then
+    echo "All checks passed."
+  else
+    echo "Some checks failed — see above for fix instructions."
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Main command routing
+# ---------------------------------------------------------------------------
+
+main_command="${1:-}"
+sub_command="${2:-}"
+
+case "$main_command" in
+  sync)
+    if [[ ! -f "$repo_root/script/claude-sync" ]]; then
+      echo "Error: script/claude-sync not found" >&2
+      exit 1
+    fi
+    case "$sub_command" in
+      push)
+        "$repo_root/script/claude-sync" push
+        ;;
+      pull)
+        force="${3:-}"
+        "$repo_root/script/claude-sync" pull $force
+        ;;
+      ""|-h|--help|help)
+        sync_usage
+        ;;
+      *)
+        echo "Unknown sync command: $sub_command" >&2
+        sync_usage >&2
+        exit 2
+        ;;
+    esac
+    ;;
+
+  status)
+    show_status
+    ;;
+
+  doctor)
+    run_doctor_checks
+    ;;
+
+  ""|-h|--help|help)
+    usage
+    ;;
+
+  *)
+    echo "Unknown command: $main_command" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

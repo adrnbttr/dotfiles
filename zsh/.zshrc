@@ -336,6 +336,10 @@ if [[ -f "$ZSH_PLUGIN_DIR/fast-syntax-highlighting/fast-syntax-highlighting.plug
   source "$ZSH_PLUGIN_DIR/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh"
 fi
 
+# Shell extensions from dotfiles (aliases for opencode, claude, etc.)
+for _f in "$HOME/.zshrc.d"/*.zsh; do [[ -r "$_f" ]] && source "$_f"; done
+unset _f
+
 # Per-machine overrides (not tracked)
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
 

@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Claude Code CLI Installation Script for dotfiles
+# Supports macOS (Homebrew), Linux (curl), Windows (WinGet/PowerShell)
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+info() { printf "%s\n" "$*"; }
+warn() { printf "warn %s\n" "$*" >&2; }
+err() { printf "error %s\n" "$*" >&2; }
+
+os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./script/install-claude [options]
+
+Options:
+  --skip-config         Skip applying configuration templates
+  --no-deps             Skip installing dependencies check
+  --version <version>   Install specific Claude Code version
+  -h, --help            Show this help
+
+Notes:
+  Installs the official Claude Code CLI from Anthropic (https://code.claude.com)
+  Requires Claude subscription or Anthropic Console account for full features
+EOF
+}
+
+skip_config=false
+no_deps=false
+
+claude_version=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --skip-config) skip_config=true; shift ;;
+    --no-deps) no_deps=true; shift ;;
+    --version)
+      claude_version="${2:-}"
+      if [[ -z "$claude_version" ]]; then
+        err "--version requires a value"
+        usage
+        exit 2
+      fi
+      shift 2
+      ;;
+    -h|--help) usage; exit 0 ;;
+    *)
+      err "unknown option: $1"
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+check_prerequisites() {
+  if ! have curl; then
+    err "curl is required to install Claude Code"
+    exit 1
+  fi
+  
+  # Claude Code requires Git for Windows on Windows
+  if [[ "$os" == "mingw"* ]] || [[ "$os" == "cygwin"* ]]; then
+    if ! have git; then
+      err "Git for Windows is required for Claude Code on Windows"
+      err "Install from: https://git-scm.com/downloads/win"
+      exit 1
+    fi
+  fi
+}
+
+install_claude_code_cli() {
+  info "Installing Claude Code CLI (official Anthropic installer)..."
+  
+  if [[ -n "$claude_version" ]]; then
+    warn "Note: Claude Code installer doesn't support specific versions via command line"
+    warn "Will install latest version available"
+  fi
+  
+  case "$os" in
+    linux*)
+      info "Linux installation via curl"
+      curl -fsSL https://claude.ai/install.sh | bash
+      ;;
+      
+    darwin*)
+      info "macOS installation - you can use Homebrew or curl"
+      info "Using curl method (recommended for auto-updates)"
+      curl -fsSL https://claude.ai/install.sh | bash
+      ;;
+      
+    mingw*|cygwin*|msys*)
+      warn "Windows detected - multiple installation methods available:"
+      warn "1. PowerShell: irm https://claude.ai/install.ps1 | iex"
+      warn "2. CMD: curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd"
+      warn "3. WinGet: winget install Anthropic.ClaudeCode"
+      err "Please install Claude Code manually on Windows"
+      err "See: https://code.claude.com/docs/en/overview"
+      exit 1
+      ;;
+      
+    *)
+      err "Unsupported OS: $os"
+      exit 1
+      ;;
+  esac
+  
+  if have claude; then
+    info "✓ Claude Code CLI installed successfully"
+    
+    # Try to get version
+    if claude --version >/dev/null 2>&1; then
+      local version=$(claude --version 2>/dev/null || echo "unknown")
+      info "  Version: $version"
+    fi
+  else
+    warn "Claude Code installation may need PATH configuration"
+    warn "Check if ~/.local/bin or /usr/local/bin is in your PATH"
+    warn "Or run: export PATH=\"\$PATH:\$HOME/.local/bin\""
+  fi
+}
+
+setup_claude_configuration() {
+  if [[ "$skip_config" == "true" ]]; then
+    info "Skipping configuration setup (--skip-config)"
+    return 0
+  fi
+  
+  info "Setting up Claude Code configuration..."
+  
+  # Create directories
+  mkdir -p "$HOME/.config/claude"
+  mkdir -p "$HOME/.local/state/claude"
+  
+  # Copy configuration templates
+  local repo_config_dir="$repo_root/claude-state/.config/claude"
+  local repo_state_dir="$repo_root/claude-state/.local/state/claude"
+  
+  if [[ -f "$repo_config_dir/claude.json" ]]; then
+    cp -f "$repo_config_dir/claude.json" "$HOME/.config/claude/claude.json"
+    info "✓ Applied main configuration"
+  fi
+  
+  if [[ -f "$repo_config_dir/tui.json" ]]; then
+    cp -f "$repo_config_dir/tui.json" "$HOME/.config/claude/tui.json"
+    info "✓ Applied TUI configuration"
+  fi
+  
+  if [[ -f "$repo_config_dir/env.sh" ]]; then
+    cp -f "$repo_config_dir/env.sh" "$HOME/.config/claude/env.sh"
+    chmod +x "$HOME/.config/claude/env.sh"
+    info "✓ Applied environment optimizations"
+  fi
+  
+  # Copy state templates (only if missing)
+  if [[ ! -f "$HOME/.local/state/claude/kv.json" ]] && \
+     [[ -f "$repo_state_dir/kv.json" ]]; then
+    cp -f "$repo_state_dir/kv.json" "$HOME/.local/state/claude/kv.json"
+    info "✓ Applied UI preferences template"
+  fi
+  
+  if [[ ! -f "$HOME/.local/state/claude/model.json" ]] && \
+     [[ -f "$repo_state_dir/model.json" ]]; then
+    cp -f "$repo_state_dir/model.json" "$HOME/.local/state/claude/model.json"
+    info "✓ Applied model preferences template"
+  fi
+  
+  if [[ ! -f "$HOME/.local/state/claude/system_prompt.md" ]] && \
+     [[ -f "$repo_state_dir/system_prompt.md" ]]; then
+    cp -f "$repo_state_dir/system_prompt.md" "$HOME/.local/state/claude/system_prompt.md"
+    info "✓ Applied system prompt template"
+  fi
+  
+  # Set up symbolic link for easy access (optional)
+  # if [[ ! -L "$HOME/.config/opencode-claude" ]]; then
+  #   ln -sf "$HOME/.config/claude" "$HOME/.config/opencode-claude"
+  #   info "✓ Created config symlink"
+  # fi
+  
+  info ""
+  info "Claude Code configuration complete!"
+  info "Next steps:"
+  info "1. Set your Anthropic API key:"
+  info "   export ANTHROPIC_API_KEY='your-key-here'"
+  info "   (Add to ~/.zshrc or ~/.bashrc)"
+  info ""
+  info "2. Apply environment optimizations:"
+  info "   source ~/.config/claude/env.sh"
+  info ""
+  info "3. Test installation:"
+  info "   claude --version  # Should show Claude Code version"
+  info "   claude --help     # View available commands"
+}
+
+setup_claude_alias() {
+  info "Skipping wrapper creation - using real Claude Code CLI"
+  info "If needed, add ~/.local/bin to PATH: export PATH=\"\$PATH:\$HOME/.local/bin\""
+}
+
+check_authentication() {
+  info "✓ Claude Code uses browser authentication"
+  info "Run 'claude --login' if you need to authenticate"
+  info ""
+  info "Note: Claude Code authenticates via browser"
+  info "No API key needed when using Claude subscription"
+}
+
+main() {
+  info "🚀 Installing Claude Code..."
+  info "System: $os"
+  info ""
+  
+  check_prerequisites
+  install_claude_code_cli
+  setup_claude_configuration
+  check_authentication
+  
+  info ""
+  info "✅ Claude Code installation complete!"
+  info ""
+  info "Quick test:"
+  info "  claude --version"
+  info "  claude --help"
+  info ""
+  info "To start Claude Code:"
+  info "  claude                     # Interactive mode"
+  info "  claude 'fix my code'       # One-shot command"
+  info ""
+  info "If not authenticated, run: claude --login"
+}
+
+main "$@"
