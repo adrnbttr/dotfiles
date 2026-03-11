@@ -27,8 +27,10 @@ Options:
   --minimal           Install core CLI deps only
   --no-gui            Skip GUI apps (kitty)
   --no-opencode       Skip installing opencode
+  --no-claude         Skip installing Claude Code
   --upgrade           Upgrade already-installed Homebrew packages (macOS only)
   --opencode-version <version>  Install a specific opencode version
+  --claude-version <version>    Install a specific Claude Code version
   -h, --help          Show this help
 EOF
 }
@@ -36,19 +38,30 @@ EOF
 minimal=false
 no_gui=false
 no_opencode=false
+no_claude=false
 upgrade=false
 opencode_version="${OPENCODE_VERSION:-}"
+claude_version="${CLAUDE_VERSION:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --minimal) minimal=true; shift ;;
     --no-gui) no_gui=true; shift ;;
     --no-opencode) no_opencode=true; shift ;;
+    --no-claude) no_claude=true; shift ;;
     --upgrade) upgrade=true; shift ;;
     --opencode-version)
       opencode_version="${2:-}"
       if [[ -z "$opencode_version" ]]; then
         err "--opencode-version requires a value"
+        exit 2
+      fi
+      shift 2
+      ;;
+    --claude-version)
+      claude_version="${2:-}"
+      if [[ -z "$claude_version" ]]; then
+        err "--claude-version requires a value"
         exit 2
       fi
       shift 2
@@ -104,6 +117,37 @@ install_opencode() {
     curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path --version "$opencode_version"
   else
     curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+  fi
+}
+
+install_claude() {
+  if [[ "$no_claude" == "true" ]]; then
+    return 0
+  fi
+  if have claude; then
+    info "Claude Code already installed"
+    return 0
+  fi
+  if ! have curl; then
+    err "curl is required to install Claude Code"
+    exit 1
+  fi
+  info "installing Claude Code..."
+  
+  # Use the dedicated installation script
+  local install_args=""
+  if [[ -n "$claude_version" ]]; then
+    install_args="--version \"$claude_version\""
+  fi
+  
+  # Run the Claude installation script
+  "$repo_root/script/install-claude" $install_args
+  
+  if have claude; then
+    info "✓ Claude Code installed successfully"
+  else
+    warn "Claude Code installation may need manual setup"
+    warn "Check: ./script/install-claude --help"
   fi
 }
 
@@ -323,6 +367,7 @@ case "$os" in
 
     ensure_pyenv_virtualenv_plugin
     install_opencode
+    install_claude
 
     # Install modern terminal tools (via Homebrew)
     if [[ "$minimal" != "true" ]]; then
@@ -386,6 +431,7 @@ case "$os" in
 
     ensure_pyenv_virtualenv_plugin
     install_opencode
+    install_claude
     ;;
 
   *)
