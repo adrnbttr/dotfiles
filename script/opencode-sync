@@ -17,6 +17,8 @@ force="${2:-}"
 
 state_dir="$HOME/.local/state/opencode"
 repo_dir="$repo_root/opencode-state/.local/state/opencode"
+config_dir="$HOME/.config/opencode"
+repo_config_dir="$repo_root/opencode-state/.config/opencode"
 
 ensure_newline() {
   local file="$1"
@@ -64,18 +66,45 @@ case "$cmd" in
       cp -f "$state_dir/system_prompt.md" "$repo_dir/system_prompt.md"
       ensure_newline "$repo_dir/system_prompt.md"
     fi
+    
+    # Also sync config files
+    mkdir -p "$repo_config_dir"
+    if [[ -f "$config_dir/opencode.json" ]]; then
+      cp -f "$config_dir/opencode.json" "$repo_config_dir/opencode.json"
+      ensure_newline "$repo_config_dir/opencode.json"
+    fi
+    if [[ -f "$config_dir/tui.json" ]]; then
+      cp -f "$config_dir/tui.json" "$repo_config_dir/tui.json"
+      ensure_newline "$repo_config_dir/tui.json"
+    fi
+    if [[ -f "$config_dir/env.sh" ]]; then
+      cp -f "$config_dir/env.sh" "$repo_config_dir/env.sh"
+      ensure_newline "$repo_config_dir/env.sh"
+    fi
     ;;
 
   pull)
     mkdir -p "$state_dir"
+    mkdir -p "$config_dir"
+    
     if [[ "$force" == "--force" ]]; then
       copy_force "$repo_dir/kv.json" "$state_dir/kv.json"
       copy_force "$repo_dir/model.json" "$state_dir/model.json"
       copy_force "$repo_dir/system_prompt.md" "$state_dir/system_prompt.md"
+      
+      # Also copy config files
+      copy_force "$repo_config_dir/opencode.json" "$config_dir/opencode.json"
+      copy_force "$repo_config_dir/tui.json" "$config_dir/tui.json"
+      copy_force "$repo_config_dir/env.sh" "$config_dir/env.sh"
     else
       copy_if_missing "$repo_dir/kv.json" "$state_dir/kv.json"
       copy_if_missing "$repo_dir/model.json" "$state_dir/model.json"
       copy_if_missing "$repo_dir/system_prompt.md" "$state_dir/system_prompt.md"
+      
+      # Also copy config files if missing
+      copy_if_missing "$repo_config_dir/opencode.json" "$config_dir/opencode.json"
+      copy_if_missing "$repo_config_dir/tui.json" "$config_dir/tui.json"
+      copy_if_missing "$repo_config_dir/env.sh" "$config_dir/env.sh"
     fi
     ;;
 

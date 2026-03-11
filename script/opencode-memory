@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./script/opencode-memory monitor      Monitor opencode memory usage
+  ./script/opencode-memory cleanup      Clean up old sessions and cache
+  ./script/opencode-memory restart      Restart opencode if memory is high
+  ./script/opencode-memory stats        Show memory statistics
+  ./script/opencode-memory optimize     Apply memory optimizations
+EOF
+}
+
+cmd="${1:-}"
+
+opencode_pids() {
+  pgrep -f "opencode.*--port" || true
+}
+
+opencode_memory_stats() {
+  local pid="$1"
+  if [[ -z "$pid" ]]; then
+    echo "No opencode process found"
+    return 1
+  fi
+  
+  echo "=== OpenCode Memory Stats (PID: $pid) ==="
+  ps -p "$pid" -o pid,rss,vsz,pcpu,pmem,etime,cmd --no-headers
+  echo ""
+  
+  # RSS in MB
+  local rss_mb=$(ps -p "$pid" -o rss= | awk '{print int($1/1024)}')
+  local vsz_gb=$(ps -p "$pid" -o vsz= | awk '{print int($1/1024/1024)}')
+  
+  echo "RSS: ${rss_mb}MB, VSZ: ${vsz_gb}GB"
+  
+  if [[ "$rss_mb" -gt 500 ]]; then
+    echo "⚠️  WARNING: High memory usage (>500MB)"
+  fi
+  
+  if [[ "$rss_mb" -gt 800 ]]; then
+    echo "🚨 CRITICAL: Very high memory usage (>800MB)"
+  fi
+}
+
+cleanup_cache() {
+  local cache_dir="$HOME/.cache/opencode"
+  local state_dir="$HOME/.local/state/opencode"
+  
+  echo "Cleaning up opencode cache..."
+  
+  # Remove cache files older than 7 days
+  find "$cache_dir" -type f -name "*.json" -mtime +7 -delete 2>/dev/null || true
+  find "$cache_dir" -type f -name "*.log" -mtime +7 -delete 2>/dev/null || true
+  
+  # Clean up session files (keep last 50)
+  local sessions_file="$state_dir/prompt-history.jsonl"
+  if [[ -f "$sessions_file" ]]; then
+    local line_count=$(wc -l < "$sessions_file")
+    if [[ "$line_count" -gt 1000 ]]; then
+      echo "Trimming session history from $line_count to 500 lines..."
+      tail -n 500 "$sessions_file" > "${sessions_file}.tmp"
+      mv "${sessions_file}.tmp" "$sessions_file"
+    fi
+  fi
+  
+  # Clean up frecency stats
+  local frecency_file="$state_dir/frecency.jsonl"
+  if [[ -f "$frecency_file" ]]; then
+    local fcount=$(wc -l < "$frecency_file")
+    if [[ "$fcount" -gt 500 ]]; then
+      echo "Trimming frecency stats from $fcount to 300 lines..."
+      tail -n 300 "$frecency_file" > "${frecency_file}.tmp"
+      mv "${frecency_file}.tmp" "$frecency_file"
+    fi
+  fi
+  
+  echo "Cleanup completed"
+}
+
+restart_if_needed() {
+  local pid=$(opencode_pids | head -1)
+  if [[ -z "$pid" ]]; then
+    echo "No opencode process to restart"
+    return 0
+  fi
+  
+  local rss_mb=$(ps -p "$pid" -o rss= | awk '{print int($1/1024)}')
+  
+  if [[ "$rss_mb" -gt 800 ]]; then
+    echo "Restarting opencode (RSS: ${rss_mb}MB > 800MB threshold)..."
+    kill "$pid"
+    sleep 2
+    
+    # Check if it's really dead
+    if ps -p "$pid" >/dev/null 2>&1; then
+      kill -9 "$pid"
+      sleep 1
+    fi
+    
+    echo "Opencode restarted"
+  else
+    echo "Memory usage ${rss_mb}MB is below restart threshold (800MB)"
+  fi
+}
+
+apply_optimizations() {
+  echo "Applying opencode memory optimizations..."
+  
+  # Source environment file if it exists
+  local env_file="$repo_root/opencode-state/.config/opencode/env.sh"
+  if [[ -f "$env_file" ]]; then
+    echo "Sourcing environment optimizations..."
+    source "$env_file"
+  fi
+  
+  # Set Node.js memory limits
+  export NODE_OPTIONS="--max-old-space-size=4096 --max-semi-space-size=256"
+  
+  # Optimize system limits
+  ulimit -n 65536 2>/dev/null || true
+  
+  echo "Optimizations applied"
+  echo "NODE_OPTIONS: $NODE_OPTIONS"
+}
+
+case "$cmd" in
+  monitor)
+    pid=$(opencode_pids | head -1)
+    if [[ -n "$pid" ]]; then
+      opencode_memory_stats "$pid"
+    else
+      echo "No opencode process found"
+    fi
+    ;;
+    
+  cleanup)
+    cleanup_cache
+    ;;
+    
+  restart)
+    restart_if_needed
+    ;;
+    
+  stats)
+    pid=$(opencode_pids | head -1)
+    if [[ -n "$pid" ]]; then
+      opencode_memory_stats "$pid"
+      echo ""
+      echo "=== System Memory ==="
+      free -h
+      echo ""
+      echo "=== Top memory processes ==="
+      ps aux --sort=-%mem | head -10
+    else
+      echo "No opencode process found"
+    fi
+    ;;
+    
+  optimize)
+    apply_optimizations
+    ;;
+    
+  ""|-h|--help)
+    usage
+    ;;
+    
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac

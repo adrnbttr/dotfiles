@@ -1,0 +1,271 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./script/opencode-setup [options]
+
+Options:
+  --apply        Apply performance optimizations
+  --reset        Reset to default configuration
+  --status       Show current configuration status
+  --env          Update shell environment
+  --help         Show this help
+
+This script configures opencode with performance optimizations
+including memory limits, timeouts, and cache management.
+EOF
+}
+
+apply_optimizations() {
+  echo "Applying opencode performance optimizations..."
+  
+  # Ensure directories exist
+  mkdir -p "$HOME/.config/opencode"
+  mkdir -p "$HOME/.local/state/opencode"
+  
+  # Apply configuration from dotfiles
+  if [[ -f "$repo_root/opencode-state/.config/opencode/opencode.json" ]]; then
+    cp -f "$repo_root/opencode-state/.config/opencode/opencode.json" \
+          "$HOME/.config/opencode/opencode.json"
+    echo "✓ Updated opencode.json"
+  fi
+  
+  if [[ -f "$repo_root/opencode-state/.config/opencode/tui.json" ]]; then
+    cp -f "$repo_root/opencode-state/.config/opencode/tui.json" \
+          "$HOME/.config/opencode/tui.json"
+    echo "✓ Updated tui.json"
+  fi
+  
+  if [[ -f "$repo_root/opencode-state/.config/opencode/env.sh" ]]; then
+    cp -f "$repo_root/opencode-state/.config/opencode/env.sh" \
+          "$HOME/.config/opencode/env.sh"
+    echo "✓ Updated env.sh"
+    
+    # Source environment file
+    if [[ -f "$HOME/.config/opencode/env.sh" ]]; then
+      echo "To apply environment variables, run:"
+      echo "  source ~/.config/opencode/env.sh"
+      echo "Or add to your shell profile:"
+      echo "  echo 'source ~/.config/opencode/env.sh' >> ~/.zshrc"
+    fi
+  fi
+  
+  # Apply state templates if missing
+  if [[ ! -f "$HOME/.local/state/opencode/kv.json" ]] && \
+     [[ -f "$repo_root/opencode-state/.local/state/opencode/kv.json" ]]; then
+    cp -f "$repo_root/opencode-state/.local/state/opencode/kv.json" \
+          "$HOME/.local/state/opencode/kv.json"
+    echo "✓ Applied UI preferences template"
+  fi
+  
+  if [[ ! -f "$HOME/.local/state/opencode/model.json" ]] && \
+     [[ -f "$repo_root/opencode-state/.local/state/opencode/model.json" ]]; then
+    cp -f "$repo_root/opencode-state/.local/state/opencode/model.json" \
+          "$HOME/.local/state/opencode/model.json"
+    echo "✓ Applied model preferences template"
+  fi
+  
+  if [[ ! -f "$HOME/.local/state/opencode/system_prompt.md" ]] && \
+     [[ -f "$repo_root/opencode-state/.local/state/opencode/system_prompt.md" ]]; then
+    cp -f "$repo_root/opencode-state/.local/state/opencode/system_prompt.md" \
+          "$HOME/.local/state/opencode/system_prompt.md"
+    echo "✓ Applied system prompt template"
+  fi
+  
+  echo ""
+  echo "Optimizations applied successfully!"
+  echo "Recommended next steps:"
+  echo "1. Restart opencode to apply changes"
+  echo "2. Run: ./script/opencode-memory optimize"
+  echo "3. Monitor memory: ./script/opencode-memory monitor"
+}
+
+reset_config() {
+  echo "Resetting opencode configuration..."
+  
+  read -p "This will remove custom configurations. Continue? (y/N): " confirm
+  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    echo "Aborted"
+    return 1
+  fi
+  
+  # Backup existing configs
+  backup_dir="$HOME/.config/opencode.backup.$(date +%s)"
+  mkdir -p "$backup_dir"
+  
+  if [[ -f "$HOME/.config/opencode/opencode.json" ]]; then
+    cp "$HOME/.config/opencode/opencode.json" "$backup_dir/"
+  fi
+  
+  if [[ -f "$HOME/.config/opencode/tui.json" ]]; then
+    cp "$HOME/.config/opencode/tui.json" "$backup_dir/"
+  fi
+  
+  if [[ -f "$HOME/.config/opencode/env.sh" ]]; then
+    cp "$HOME/.config/opencode/env.sh" "$backup_dir/"
+  fi
+  
+  # Remove configs
+  rm -f "$HOME/.config/opencode/opencode.json"
+  rm -f "$HOME/.config/opencode/tui.json"
+  rm -f "$HOME/.config/opencode/env.sh"
+  
+  echo "Configuration reset. Backup saved to: $backup_dir"
+  echo "Default templates will be applied on next opencode startup."
+}
+
+show_status() {
+  echo "=== OpenCode Configuration Status ==="
+  echo ""
+  
+  # Check config files
+  echo "Configuration files:"
+  if [[ -f "$HOME/.config/opencode/opencode.json" ]]; then
+    echo "  ✓ opencode.json"
+    grep -q "limits" "$HOME/.config/opencode/opencode.json" && echo "    - Contains performance limits"
+    grep -q "timeouts" "$HOME/.config/opencode/opencode.json" && echo "    - Contains timeout settings"
+  else
+    echo "  ✗ opencode.json (missing)"
+  fi
+  
+  if [[ -f "$HOME/.config/opencode/tui.json" ]]; then
+    echo "  ✓ tui.json"
+  else
+    echo "  ✗ tui.json (missing)"
+  fi
+  
+  if [[ -f "$HOME/.config/opencode/env.sh" ]]; then
+    echo "  ✓ env.sh"
+  else
+    echo "  ✗ env.sh (missing)"
+  fi
+  
+  echo ""
+  
+  # Check state files
+  echo "State files:"
+  if [[ -f "$HOME/.local/state/opencode/kv.json" ]]; then
+    echo "  ✓ kv.json (UI preferences)"
+  else
+    echo "  ✗ kv.json (missing)"
+  fi
+  
+  if [[ -f "$HOME/.local/state/opencode/model.json" ]]; then
+    echo "  ✓ model.json"
+    # Show recent models
+    echo "    Recent models:"
+    grep -o '"modelID":"[^"]*"' "$HOME/.local/state/opencode/model.json" | head -3 | \
+      sed 's/"modelID":"//g;s/"//g;s/^/      - /'
+  else
+    echo "  ✗ model.json (missing)"
+  fi
+  
+  if [[ -f "$HOME/.local/state/opencode/system_prompt.md" ]]; then
+    echo "  ✓ system_prompt.md"
+  else
+    echo "  ✗ system_prompt.md (missing)"
+  fi
+  
+  echo ""
+  
+  # Check memory usage
+  echo "Memory status:"
+  if command -v opencode >/dev/null 2>&1; then
+    pid=$(pgrep -f "opencode.*--port" | head -1)
+    if [[ -n "$pid" ]]; then
+      rss_mb=$(ps -p "$pid" -o rss= | awk '{print int($1/1024)}')
+      echo "  OpenCode PID: $pid"
+      echo "  RSS: ${rss_mb}MB"
+      
+      if [[ "$rss_mb" -gt 500 ]]; then
+        echo "  ⚠️  High memory usage (>500MB)"
+      fi
+      
+      if [[ "$rss_mb" -gt 800 ]]; then
+        echo "  🚨 Critical memory usage (>800MB)"
+        echo "  Recommendation: ./script/opencode-memory restart"
+      fi
+    else
+      echo "  No active opencode process"
+    fi
+  else
+    echo "  OpenCode not installed or not in PATH"
+  fi
+  
+  echo ""
+  echo "Use './script/opencode-setup --apply' to apply optimizations"
+}
+
+update_environment() {
+  echo "Updating shell environment for opencode..."
+  
+  local env_file="$HOME/.config/opencode/env.sh"
+  local shell_rc=""
+  
+  # Determine shell RC file
+  if [[ "$SHELL" == *"zsh"* ]]; then
+    shell_rc="$HOME/.zshrc"
+  elif [[ "$SHELL" == *"bash"* ]]; then
+    shell_rc="$HOME/.bashrc"
+  else
+    echo "Could not determine shell. Please manually source $env_file"
+    return 1
+  fi
+  
+  if [[ ! -f "$env_file" ]]; then
+    echo "Environment file not found: $env_file"
+    echo "Run './script/opencode-setup --apply' first"
+    return 1
+  fi
+  
+  # Check if already added
+  if grep -q "source.*env.sh" "$shell_rc" 2>/dev/null; then
+    echo "Environment already configured in $shell_rc"
+  else
+    echo "" >> "$shell_rc"
+    echo "# OpenCode performance optimizations" >> "$shell_rc"
+    echo "if [[ -f \"$env_file\" ]]; then" >> "$shell_rc"
+    echo "  source \"$env_file\"" >> "$shell_rc"
+    echo "fi" >> "$shell_rc"
+    echo "Added environment configuration to $shell_rc"
+  fi
+  
+  echo ""
+  echo "To apply changes immediately, run:"
+  echo "  source $shell_rc"
+  echo "Or open a new terminal session"
+}
+
+cmd="${1:-}"
+
+case "$cmd" in
+  --apply)
+    apply_optimizations
+    ;;
+    
+  --reset)
+    reset_config
+    ;;
+    
+  --status)
+    show_status
+    ;;
+    
+  --env)
+    update_environment
+    ;;
+    
+  ""|-h|--help)
+    usage
+    ;;
+    
+  *)
+    echo "Unknown option: $cmd"
+    usage >&2
+    exit 2
+    ;;
+esac
