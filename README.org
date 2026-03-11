@@ -123,13 +123,44 @@ mv ~/.config/nvim/lazy-lock.json ~/.config/nvim/lazy-lock.json.bak
 ./script/bootstrap
 #+end_src
 
-** opencode
+** AI Coding Assistants
+
+This dotfiles supports two AI coding assistants running in parallel:
+
+1. **OpenCode** (primary) - For general coding tasks
+2. **Claude Code** (secondary) - For complex reasoning with Claude 4.6 Sonnet
+
+They are independent tools — OpenCode runs a local server, Claude Code is a direct CLI authenticated via browser (Claude Pro/Max subscription).
+
+*** opencode
 
 This repo ships a small, safe subset of opencode state as *templates*:
 - UI preferences: `opencode-state/.local/state/opencode/kv.json`
-- Recent models: `opencode-state/.local/state/opencode/model.json`
+- Recent models: `opencode-state/.local/state/opencode/model.json` (deepseek, GPT-5)
+- System prompt: `opencode-state/.local/state/opencode/system_prompt.md`
+- Configuration: `opencode-state/.config/opencode/opencode.json`
+- TUI settings: `opencode-state/.config/opencode/tui.json`
+- Environment optimizations: `opencode-state/.config/opencode/env.sh`
 
-It intentionally does *not* sync:
+*** Claude Code
+
+Claude Code stores sessions under =~/.claude/= (managed by the CLI itself).
+This repo tracks only:
+- Global system prompt: =claude-state/CLAUDE.md= → deployed to =~/.claude/CLAUDE.md=
+- Settings: =claude-state/settings.json= → deployed to =~/.claude.json=
+
+Auth is browser-based — no API key needed (requires Claude Pro/Max subscription):
+
+#+begin_src sh
+claude --login
+#+end_src
+
+*** Shared Resources
+
+- Prompts templates: `shared-prompts/` (code-review, documentation, etc.)
+- Shell aliases: `zsh/.zshrc.d/{opencode,claude}.zsh`
+
+Both intentionally do *not* sync:
 - prompt history (`prompt-history.jsonl`)
 - usage/frecency stats (`frecency.jsonl`)
 
@@ -144,7 +175,142 @@ mv ~/.local/state/opencode/model.json ~/.local/state/opencode/model.json.bak
 If you want to explicitly sync your current (safe) local state back into the repo templates:
 
 #+begin_src sh
-./script/opencode-sync push
+./script/opencode sync push
+#+end_src
+
+** Unified AI Assistant Managers
+
+Both assistants have unified management scripts:
+
+*** OpenCode Manager
+
+#+begin_src sh
+# Show unified help
+./script/opencode help
+
+# Check overall status
+./script/opencode status
+
+# Run health checks
+./script/opencode doctor
+
+# Shell aliases (added by zsh/.zshrc.d/opencode.zsh):
+oc help           # Show help
+oc status         # Check status
+oc doctor         # Run health checks
+ocsetup           # Apply optimizations
+ocmem             # Monitor memory
+ocpush            # Save config to dotfiles
+ocpull            # Apply templates
+#+end_src
+
+*** Claude Code Manager
+
+#+begin_src sh
+# Show help
+./script/claude help
+
+# Check status
+./script/claude status
+
+# Run health checks
+./script/claude doctor
+
+# Sync system prompt / settings to/from dotfiles
+./script/claude sync push        # Save ~/.claude/CLAUDE.md to repo
+./script/claude sync pull        # Apply repo templates to ~/.claude/
+
+# Shell aliases (added by zsh/.zshrc.d/claude.zsh):
+ccstatus          # Check status
+ccdoctor          # Run health checks
+ccpush            # Save config to dotfiles
+ccpull            # Apply templates
+#+end_src
+
+*** Comparison Table
+
+| Feature | OpenCode | Claude Code |
+|---------|----------|-------------|
+| **Default Model** | claude-4.6-sonnet (via opencode) | claude-4.6-sonnet (direct) |
+| **Auth** | API key / OpenRouter | Browser login (Claude Pro/Max) |
+| **Architecture** | Local server (long-running) | CLI tool (per-invocation) |
+| **Neovim Prefix** | =<leader>a= | =<leader>z= |
+| **Shell Aliases** | =oc*= | =cc*= |
+
+*** Shared Prompts
+
+Common prompt templates available in =shared-prompts/=:
+- =code-review.md= — comprehensive code review checklist
+- =documentation.md= — API and code documentation generator
+
+These work with both assistants.
+
+*** Installation & Setup
+
+Quick setup on a new machine:
+
+#+begin_src sh
+# Install both tools
+cd ~/Documents/GitHub/dotfiles
+./script/install                   # Installs opencode + claude CLI
+
+# Authenticate Claude Code (browser-based, one-time)
+claude --login
+
+# Apply repo config templates
+./script/opencode sync pull        # Apply opencode templates
+./script/claude sync pull          # Apply CLAUDE.md system prompt
+
+# Verify
+./script/opencode status
+./script/claude status
+#+end_src
+
+*** Neovim Keymaps
+
+Both assistants run as right-side terminal splits:
+
+#+begin_src text
+OpenCode (prefix: <leader>a)     Claude Code (prefix: <leader>z)
+================================ ================================
+<leader>at  Toggle split         <leader>zt  Toggle split
+<leader>aa  Ask (@this)          <leader>za  Ask (input/selection)
+<leader>abb Send current buffer  <leader>zb  Send buffer
+                                 <leader>zp  Paste selection (visual)
+                                 <leader>zh  Focus split (insert)
+<leader>an  Navigation           <leader>zn  Navigation
+
+Operators:
+go<motion> Send range to opencode
+gl<motion> Send range to claude
+#+end_src
+
+*** Configured Limits
+
+| Setting | OpenCode | Claude Code |
+|---------|----------|-------------|
+| Max session messages | 200 | 180 |
+| Max total messages | 1000 | 900 |
+| Memory warning | 500MB | 450MB |
+| Auto-restart | 800MB | 700MB |
+| Context window | 128K tokens | 200K tokens |
+| Provider timeout | 5 minutes | 5.8 minutes |
+| Streaming timeout | 2 minutes | 3 minutes |
+| Cache cleanup | 30 minutes | 35 minutes |
+
+*** Example Workflow
+
+#+begin_src sh
+# See detailed examples
+./examples/opencode-workflow.sh
+
+# Quick start commands
+ocsetup && ccsetup          # Configure both
+ocmem && ccmem              # Monitor both
+ocpush && ccpush            # Sync both to dotfiles
+
+# AI assistant summary
+ai-summary                  # Shows comparison table
 #+end_src
 
 Key cheatsheet (custom additions in this repo):
@@ -199,6 +365,21 @@ opencode.nvim (<leader>a menu):
   Operator (go + motion):
     go<motion>    Send range (ex: goip, gow, go$)
     goo           Send current line
+
+  Troubleshooting / Performance:
+    - Memory issues: Use `./script/opencode memory monitor` to check usage
+    - High memory: Run `./script/opencode memory cleanup` to clear cache
+    - Stuck models: Check timeout settings in `opencode-state/.config/opencode/opencode.json`
+    - Context limits: 128K tokens max, 200 messages per session
+
+claude.lua (<leader>z):
+  <leader>zt    Toggle Claude split
+  <leader>zh    Focus Claude split (insert mode)
+  <leader>za    Ask Claude (input prompt / visual selection)
+  <leader>zb    Send current buffer to Claude
+  <leader>zp    Paste visual selection as code block
+  <Esc>         Interrupt Claude (Ctrl-C) in terminal mode
+  <C-w>p        Return to code window from Claude terminal
 
 poetry runner (Python projects):
   <leader>pr    Run current Python file via poetry in toggleterm
