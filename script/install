@@ -135,13 +135,13 @@ install_claude() {
   info "installing Claude Code..."
   
   # Use the dedicated installation script
-  local install_args=""
+  local -a install_args=()
   if [[ -n "$claude_version" ]]; then
-    install_args="--version \"$claude_version\""
+    install_args=(--version "$claude_version")
   fi
-  
+
   # Run the Claude installation script
-  "$repo_root/script/install-claude" $install_args
+  "$repo_root/script/install-claude" "${install_args[@]}"
   
   if have claude; then
     info "✓ Claude Code installed successfully"
@@ -249,7 +249,7 @@ ensure_lazygit_linux() {
 
   # Verify installation
   if have lazygit; then
-    ok "lazygit ${version} installed successfully"
+    info "lazygit ${version} installed successfully"
   else
     err "lazygit installation failed"
     return 1
@@ -365,7 +365,13 @@ ensure_eza_linux() {
 
 install_zoxide_release_linux() {
   local version="${1:-0.9.4}"
-  local url="https://github.com/ajeetdsouza/zoxide/releases/download/v${version}/zoxide-${version}-x86_64-unknown-linux-musl.tar.gz"
+  local arch
+  case "$(uname -m)" in
+    x86_64)          arch="x86_64-unknown-linux-musl" ;;
+    aarch64|arm64)   arch="aarch64-unknown-linux-musl" ;;
+    *) err "unsupported architecture for zoxide install: $(uname -m)"; exit 1 ;;
+  esac
+  local url="https://github.com/ajeetdsouza/zoxide/releases/download/v${version}/zoxide-${version}-${arch}.tar.gz"
   local tmpdir
   tmpdir=$(mktemp -d)
   (
