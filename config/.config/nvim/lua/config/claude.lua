@@ -174,12 +174,14 @@ end
 M.send = function(text)
   if not buf_is_valid() then
     M.toggle()
-    -- Wait for the terminal to be ready, then send
+    -- Wait for the terminal job to start before sending.
+    -- 1200ms is conservative but avoids a race condition where chansend
+    -- fires before the claude process has initialised its input loop.
     vim.defer_fn(function()
       if state.job_id then
         vim.fn.chansend(state.job_id, text .. "\n")
       end
-    end, 800)
+    end, 1200)
     return
   end
 
@@ -222,8 +224,6 @@ end
 -- ---------------------------------------------------------------------------
 
 M.setup = function()
-
-  vim.o.autoread = true
 
   -- Make module reachable from anywhere for debugging
   _G.claude_nvim = M

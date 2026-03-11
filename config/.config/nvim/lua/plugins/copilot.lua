@@ -62,26 +62,19 @@ return {
         { "folke/snacks.nvim", opts = { input = {}, picker = {}, terminal = {} } },
     },
     config = function()
-        ---@type opencode.Opts
-        vim.g.opencode_opts = {
-        -- Performance optimizations
-        events = {
-            reload = function()
-                vim.schedule(function()
-                    vim.cmd("checktime")
-                end)
-            end,
-        },
-        -- Memory management
-        max_session_messages = 200,
-        auto_compact_threshold = 50,
-        -- Timeout settings
-        request_timeout = 300000, -- 5 minutes
-        stream_timeout = 120000,  -- 2 minutes
-        }
-
-        -- Required for `opts.events.reload`.
+        -- Required for events.reload (auto-refresh buffers after opencode edits).
         vim.o.autoread = true
+
+        ---@type opencode.Opts
+        require("opencode").setup({
+          events = {
+            reload = function()
+              vim.schedule(function()
+                vim.cmd("checktime")
+              end)
+            end,
+          },
+        })
 
         -- Main menu: <leader>a (press <leader>a and wait to see which-key menu)
         vim.keymap.set({ "n", "x" }, "<leader>aa", function() require("opencode").ask("@this: ", { submit = true }) end, { desc = "Ask (@this)" })
