@@ -1,26 +1,17 @@
 -- Claude Code Neovim Integration
 -- Inspired by opencode.nvim terminal module
--- Tries: claude --continue --permission-mode plan
--- Falls back to: claude --permission-mode plan  (when no prior session exists)
 
 local M = {}
 
 -- Module-level state — persists for the lifetime of Neovim
 local state = {
-  winid       = nil,   -- current window (nil when hidden)
-  bufnr       = nil,   -- terminal buffer (kept alive between hide/show)
-  job_id      = nil,   -- terminal job id (for chansend + jobstop)
-  started_at  = nil,   -- vim.uv.now() at job start (for quick-exit detection)
-  use_continue = true, -- whether the current job was started with --continue
+  winid  = nil,  -- current window (nil when hidden)
+  bufnr  = nil,  -- terminal buffer (kept alive between hide/show)
+  job_id = nil,  -- terminal job id (for chansend + jobstop)
 }
 
-local CMD_CONTINUE = "claude --continue --permission-mode plan"
-local CMD_NEW      = "claude --permission-mode plan"
+local CLAUDE_CMD = "claude --permission-mode plan"
 local SPLIT_WIDTH_RATIO = 0.40  -- 40% of editor width
-
--- Threshold: if the job exits within this many ms, treat it as a
--- "no conversation found" failure rather than a normal exit.
-local QUICK_EXIT_MS = 2000
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -89,45 +80,17 @@ local function setup_terminal_keymaps(buf)
 end
 
 -- ---------------------------------------------------------------------------
--- Job management (with --continue retry logic)
+-- Job management
 -- ---------------------------------------------------------------------------
 
--- Forward declaration so on_exit can call start_job recursively.
-local start_job
-
-start_job = function(buf, use_continue)
-  if use_continue == nil then use_continue = true end
-
-  local cmd = use_continue and CMD_CONTINUE or CMD_NEW
-
-  state.use_continue = use_continue
-  state.started_at   = vim.uv.now()
-
-  state.job_id = vim.fn.jobstart(cmd, {
+local function start_job(buf)
+  state.job_id = vim.fn.jobstart(CLAUDE_CMD, {
     term    = true,
     buffer  = buf,
-    on_exit = function(_, code)
-      local elapsed = vim.uv.now() - (state.started_at or 0)
-
-      -- Detect "no conversation found" failure:
-      -- Claude exits quickly (< QUICK_EXIT_MS) with non-zero code
-      -- and we were using --continue.
-      if code ~= 0 and elapsed < QUICK_EXIT_MS and state.use_continue then
-        -- Retry without --continue — new session for this project.
-        vim.schedule(function()
-          if buf_is_valid() then
-            start_job(buf, false)
-          end
-        end)
-        return
-      end
-
-      -- Normal exit — clear all state.
-      state.job_id      = nil
-      state.bufnr       = nil
-      state.winid       = nil
-      state.started_at  = nil
-      state.use_continue = true
+    on_exit = function()
+      state.job_id = nil
+      state.bufnr  = nil
+      state.winid  = nil
     end,
   })
 end
@@ -162,7 +125,7 @@ M.toggle = function()
       end,
     })
 
-    start_job(state.bufnr, true)
+    start_job(state.bufnr)
 
     -- Kill the job cleanly when Neovim exits
     vim.api.nvim_create_autocmd("ExitPre", {
