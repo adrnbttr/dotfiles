@@ -29,6 +29,10 @@ PY
 
 copy_if_missing() {
   local src="$1" dst="$2"
+  if [[ ! -f "$src" ]]; then
+    echo "  - $(basename "$src") not in repo (skipped)"
+    return 0
+  fi
   if [[ ! -e "$dst" ]]; then
     mkdir -p "$(dirname "$dst")"
     cp -f "$src" "$dst"
@@ -37,6 +41,10 @@ copy_if_missing() {
 
 copy_force() {
   local src="$1" dst="$2"
+  if [[ ! -f "$src" ]]; then
+    echo "  - $(basename "$src") not in repo (skipped)"
+    return 0
+  fi
   mkdir -p "$(dirname "$dst")"
   cp -f "$src" "$dst"
 }

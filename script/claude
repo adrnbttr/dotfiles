@@ -193,7 +193,7 @@ case "$main_command" in
         ;;
       pull)
         force="${3:-}"
-        "$repo_root/script/claude-sync" pull $force
+        "$repo_root/script/claude-sync" pull ${force:+"$force"}
         ;;
       ""|-h|--help|help)
         sync_usage
