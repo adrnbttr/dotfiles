@@ -14,6 +14,8 @@ local defaults = {
     opencode_terminal = true,
     opencode_ask = true,
     snacks_terminal = true,
+    claude_terminal = true,
+    claude_ask = true,
   },
 }
 

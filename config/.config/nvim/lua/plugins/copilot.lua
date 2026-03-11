@@ -64,7 +64,20 @@ return {
     config = function()
         ---@type opencode.Opts
         vim.g.opencode_opts = {
-        -- Your configuration, if any — see `lua/opencode/config.lua`, or "goto definition".
+        -- Performance optimizations
+        events = {
+            reload = function()
+                vim.schedule(function()
+                    vim.cmd("checktime")
+                end)
+            end,
+        },
+        -- Memory management
+        max_session_messages = 200,
+        auto_compact_threshold = 50,
+        -- Timeout settings
+        request_timeout = 300000, -- 5 minutes
+        stream_timeout = 120000,  -- 2 minutes
         }
 
         -- Required for `opts.events.reload`.

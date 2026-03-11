@@ -27,6 +27,19 @@ vim.api.nvim_create_autocmd("User", {
   end,
 })
 
+-- Also flash for edits coming from Claude Code
+-- Uses the same event system as opencode
+vim.api.nvim_create_autocmd("User", {
+  pattern = "ClaudeEvent:file.edited",
+  callback = function(args)
+    local ev = args and args.data and args.data.event
+    local file = ev and ev.properties and ev.properties.file
+    if type(file) == "string" and file ~= "" then
+      recent.expect(file)
+    end
+  end,
+})
+
 -- File watchers: watchers[filepath] = uv_fs_event_t
 local watchers = {}
 local buf_content_before = {}
