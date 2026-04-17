@@ -105,7 +105,7 @@ Quick session helpers (defined in `zsh/.zshrc`):
 # Open the static, curated kitty session (tabs + splits)
 marvin_session
 
-# Open a dynamic session with one tab per repo under ~/Documents/GitHub
+# Open a dynamic session with one tab per repo under ~/Documents/github/perso
 # - Tabs are sorted by most recent commit
 # - Inside kitty: uses remote control to populate current window
 # - Outside kitty: spawns a new kitty window using a generated session file
@@ -256,7 +256,7 @@ Quick setup on a new machine:
 
 #+begin_src sh
 # Install both tools
-cd ~/Documents/GitHub/dotfiles
+cd ~/Documents/github/perso/dotfiles
 ./script/install                   # Installs opencode + claude CLI
 
 # Authenticate Claude Code (browser-based, one-time)

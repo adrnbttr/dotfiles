@@ -1,17 +1,17 @@
 # Claude Code dotfiles management aliases
 
 # Sync shortcuts
-alias ccpush='(cd ~/Documents/GitHub/dotfiles && ./script/claude sync push)'
-alias ccpull='(cd ~/Documents/GitHub/dotfiles && ./script/claude sync pull)'
+alias ccpush='(cd ~/Documents/github/perso/dotfiles && ./script/claude sync push)'
+alias ccpull='(cd ~/Documents/github/perso/dotfiles && ./script/claude sync pull)'
 
 # Status / health
-alias ccstatus='(cd ~/Documents/GitHub/dotfiles && ./script/claude status)'
-alias ccdoctor='(cd ~/Documents/GitHub/dotfiles && ./script/claude doctor)'
-alias cchelp='(cd ~/Documents/GitHub/dotfiles && ./script/claude help)'
+alias ccstatus='(cd ~/Documents/github/perso/dotfiles && ./script/claude status)'
+alias ccdoctor='(cd ~/Documents/github/perso/dotfiles && ./script/claude doctor)'
+alias cchelp='(cd ~/Documents/github/perso/dotfiles && ./script/claude help)'
 
 # Full command shorthand (runs from repo root)
 cc() {
-  (cd "$HOME/Documents/GitHub/dotfiles" && ./script/claude "$@")
+  (cd "$HOME/Documents/github/perso/dotfiles" && ./script/claude "$@")
 }
 
 # Start claude, installing if missing
@@ -20,7 +20,7 @@ claude-start() {
     claude
   else
     echo "claude CLI not found — installing..."
-    (cd ~/Documents/GitHub/dotfiles && ./script/install-claude)
+    (cd ~/Documents/github/perso/dotfiles && ./script/install-claude)
   fi
 }
 

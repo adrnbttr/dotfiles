@@ -1,17 +1,17 @@
 # OpenCode dotfiles management aliases
 
-alias ochelp='(cd ~/Documents/GitHub/dotfiles && ./script/opencode help)'
-alias ocstatus='(cd ~/Documents/GitHub/dotfiles && ./script/opencode status)'
-alias ocdoctor='(cd ~/Documents/GitHub/dotfiles && ./script/opencode doctor)'
-alias ocmem='(cd ~/Documents/GitHub/dotfiles && ./script/opencode memory monitor)'
-alias ocsetup='(cd ~/Documents/GitHub/dotfiles && ./script/opencode setup apply)'
-alias ocenv='(cd ~/Documents/GitHub/dotfiles && ./script/opencode setup env)'
-alias ocpush='(cd ~/Documents/GitHub/dotfiles && ./script/opencode sync push)'
-alias ocpull='(cd ~/Documents/GitHub/dotfiles && ./script/opencode sync pull)'
+alias ochelp='(cd ~/Documents/github/perso/dotfiles && ./script/opencode help)'
+alias ocstatus='(cd ~/Documents/github/perso/dotfiles && ./script/opencode status)'
+alias ocdoctor='(cd ~/Documents/github/perso/dotfiles && ./script/opencode doctor)'
+alias ocmem='(cd ~/Documents/github/perso/dotfiles && ./script/opencode memory monitor)'
+alias ocsetup='(cd ~/Documents/github/perso/dotfiles && ./script/opencode setup apply)'
+alias ocenv='(cd ~/Documents/github/perso/dotfiles && ./script/opencode setup env)'
+alias ocpush='(cd ~/Documents/github/perso/dotfiles && ./script/opencode sync push)'
+alias ocpull='(cd ~/Documents/github/perso/dotfiles && ./script/opencode sync pull)'
 
 # Full command shorthand (runs from repo root)
 oc() {
-  (cd "$HOME/Documents/GitHub/dotfiles" && ./script/opencode "$@")
+  (cd "$HOME/Documents/github/perso/dotfiles" && ./script/opencode "$@")
 }
 
 # Zsh completion for oc()
