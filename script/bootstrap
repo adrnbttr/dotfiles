@@ -65,7 +65,7 @@ if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
   git clone https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
 fi
 
-stow -d "$repo_root" -t "$HOME" zsh config oh-my-zsh-custom
+stow -d "$repo_root" -t "$HOME" zsh config oh-my-zsh-custom bin
 
 # Neovim lockfile: keep it versioned without overwriting local files.
 lock_src="$repo_root/config/.config/nvim/lazy-lock.json"

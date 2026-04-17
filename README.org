@@ -8,6 +8,7 @@ I manage the various configuration files in this repo using [[https://www.gnu.or
 stow -t ~ zsh
 stow -t ~ config
 stow -t ~ oh-my-zsh-custom
+stow -t ~ bin
 #+end_src
 
 Optional: one-shot bootstrap (clones Oh My Zsh if missing + runs stow):
@@ -126,6 +127,28 @@ Use the repo lockfile on a machine that already has a local one:
 #+begin_src sh
 mv ~/.config/nvim/lazy-lock.json ~/.config/nvim/lazy-lock.json.bak
 ./script/bootstrap
+#+end_src
+
+** Bin scripts (Linux)
+
+Scripts utilitaires stowés dans =~/.local/bin= via le package =bin=.
+
+- =hide-celluloid= — toggle minimize/restore de Celluloid (lecteur vidéo). Utile
+  comme "panic button" pour cacher rapidement une vidéo en cours de lecture,
+  même si la fenêtre n'a pas le focus. Dépend de =xdotool= et =xprop= (X11).
+
+Raccourci clavier (Cinnamon, non versionné car dans dconf) — à rejouer une fois
+sur une nouvelle machine :
+
+#+begin_src sh
+# Libère la touche Calculatrice (par défaut: lance la calculette)
+dconf write /org/cinnamon/desktop/keybindings/media-keys/calculator "@as []"
+
+# Associe la touche Calculatrice au toggle Celluloid
+dconf write /org/cinnamon/desktop/keybindings/custom-keybindings/custom0/name "'Hide Celluloid'"
+dconf write /org/cinnamon/desktop/keybindings/custom-keybindings/custom0/command "'/home/$USER/.local/bin/hide-celluloid'"
+dconf write /org/cinnamon/desktop/keybindings/custom-keybindings/custom0/binding "['XF86Calculator']"
+dconf write /org/cinnamon/desktop/keybindings/custom-list "['custom0']"
 #+end_src
 
 ** AI Coding Assistants

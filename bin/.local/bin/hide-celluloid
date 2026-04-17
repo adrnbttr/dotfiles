@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Toggle: minimise Celluloid si visible, restaure et focus si deja cache.
+# Depends on xdotool + xprop (X11 only).
+windows=$(xdotool search --class celluloid 2>/dev/null)
+[[ -z "$windows" ]] && exit 0
+
+any_hidden=0
+for wid in $windows; do
+    if xprop -id "$wid" _NET_WM_STATE 2>/dev/null | grep -q _NET_WM_STATE_HIDDEN; then
+        any_hidden=1
+        break
+    fi
+done
+
+if (( any_hidden )); then
+    for wid in $windows; do
+        xdotool windowactivate "$wid" 2>/dev/null
+    done
+else
+    for wid in $windows; do
+        xdotool windowminimize "$wid" 2>/dev/null
+    done
+fi
