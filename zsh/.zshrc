@@ -126,7 +126,7 @@ marvin_session() {
 }
 
 github_session() {
-  local root="${GITHUB_DIR:-$HOME/Documents/GitHub}"
+  local root="${GITHUB_DIR:-$HOME/Documents/github/perso}"
   local state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/kitty"
   local session="$state_dir/github-session.conf"
 
