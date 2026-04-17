@@ -13,3 +13,10 @@ vim.g.autoformat = false
 -- Enable persistent undo for undotree
 vim.opt.undofile = true
 vim.opt.undodir = vim.fn.stdpath("data") .. "/undo"
+
+-- Override TERM for child processes (:terminal, toggleterm) so the inner zsh
+-- doesn't load kitty's keyboard integration. Paired with kitty.conf mappings
+-- that force legacy encoding for <BS>/<CR> to prevent double key events.
+if vim.env.TERM == "xterm-kitty" then
+  vim.env.TERM = "xterm-256color"
+end
