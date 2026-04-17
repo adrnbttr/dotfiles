@@ -47,7 +47,7 @@ fi
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git autojump jump fzf)
+plugins=(git fzf)
 
 if [[ -f "$ZSH/oh-my-zsh.sh" ]]; then
   source "$ZSH/oh-my-zsh.sh"
@@ -302,10 +302,24 @@ fi
 # zoxide: smarter cd command with fuzzy matching
 if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init zsh)"
-  # 'cd' is aliased to zoxide's 'z' for frecency-based directory jumping.
-  # Note: 'cd -' (go to previous dir) and bare 'cd' (go to $HOME) still
-  # work because zoxide falls back to the built-in cd for those cases.
-  alias cd='z'
+  # Wrap zoxide's z so `cd documents` resolves case-insensitively to
+  # `Documents` in the current directory even when it's not yet in zoxide's
+  # frecency database. Preserves zoxide behaviour for '-', bare 'cd', and
+  # existing paths; falls back to fuzzy frecency lookup for everything else.
+  cd() {
+    if [[ $# -eq 0 ]] || [[ "$1" == -* ]] || [[ -d "$1" ]]; then
+      __zoxide_z "$@"
+      return
+    fi
+    setopt localoptions nocaseglob nullglob
+    local -a matches
+    matches=( "${1}"(/) )
+    if (( ${#matches[@]} == 1 )); then
+      __zoxide_z "${matches[1]}"
+      return
+    fi
+    __zoxide_z "$@"
+  }
   alias cdi='zi'
 fi
 
