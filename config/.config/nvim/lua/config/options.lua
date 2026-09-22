@@ -10,6 +10,10 @@ vim.opt.shiftwidth = 4 -- Largeur de l'indentation
 vim.opt.softtabstop = 4 -- Largeur des tabulations en mode insertion
 vim.g.autoformat = false
 
+-- Extra formatting.prettier : ne formater avec prettier que dans les projets
+-- qui ont une config prettier (marvin-suite), jamais dans les autres.
+vim.g.lazyvim_prettier_needs_config = true
+
 -- Enable persistent undo for undotree
 vim.opt.undofile = true
 vim.opt.undodir = vim.fn.stdpath("data") .. "/undo"
