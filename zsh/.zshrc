@@ -123,8 +123,148 @@ v() {
 # partagés. Indispensable pour faire tourner plusieurs worktrees en parallèle.
 export MARVIN_WORKTREE_ISOLATION=1
 
+# --- Helpers WezTerm (équivalents de `kitty @`) ---
+# Vrai si on tourne dans WezTerm avec la CLI joignable. Sous WSL (WezTerm
+# Windows), la CLI est wezterm.exe, appelée via l'interop Windows.
+_in_wezterm() {
+  [[ -n "${WEZTERM_PANE:-}" || "${TERM_PROGRAM:-}" == "WezTerm" ]] || return 1
+  if command -v wezterm >/dev/null 2>&1; then
+    _WEZ_BIN=wezterm
+  elif command -v wezterm.exe >/dev/null 2>&1; then
+    _WEZ_BIN=wezterm.exe
+  else
+    return 1
+  fi
+}
+
+_wezcli() {
+  command "${_WEZ_BIN:-wezterm}" cli "$@"
+}
+
+# TERM=wezterm (soulignement ondulé dans nvim) n'existe pas sur les serveurs
+# distants : on retombe sur xterm-256color pour ssh.
+if [[ "$TERM" == "wezterm" ]]; then
+  alias ssh='TERM=xterm-256color ssh'
+fi
+
+# Chaque session vit dans son propre workspace WezTerm (de, ms, github,
+# marvin) : on bascule entre elles avec ctrl+shift+s sans rien fermer.
+# Relancer une session n'ajoute que les onglets manquants (nouveaux worktrees)
+# puis bascule dessus ; les onglets existants (nvim, Claude...) sont conservés.
+#
+# Ordre important : on bascule d'abord l'interface sur le workspace, puis on
+# crée onglets et splits dans la fenêtre affichée. Créés dans une fenêtre
+# cachée, ils héritent d'une taille périmée (80x24 ou taille d'une ancienne
+# interface) et le split 70/30 est faux, voire le bas du split hors écran.
+#
+# _wez_ws_begin <workspace> prépare les variables lues par les helpers
+# suivants ; elles doivent être déclarées `local` dans l'appelant :
+#   local _wez_ws _wez_win _wez_titles _wez_first _wez_placeholder
+_wez_ws_begin() {
+  _wez_ws="$1"
+  _wez_win=""
+  _wez_first=""
+  _wez_placeholder=""
+  local json i
+  if ! json=$(_wezcli list --format json 2>/dev/null); then
+    echo "wezterm: CLI injoignable (wezterm cli list)" >&2
+    return 1
+  fi
+  _wez_win=$(_wez_ws_window "$json")
+  # Titres sans l'espace de marge ajouté par _wez_tab.
+  _wez_titles=$(jq -r --arg ws "$_wez_ws" '.[] | select(.workspace == $ws) | .tab_title | rtrimstr(" ")' <<<"$json")
+
+  # Bascule via une user var interceptée par wezterm.lua ("user-var-changed").
+  # Un workspace inexistant est créé par l'interface avec un shell temporaire,
+  # fermé par _wez_ws_finish une fois les vrais onglets ouverts.
+  printf '\033]1337;SetUserVar=switch_workspace=%s\007' "$(print -rn -- "$_wez_ws" | base64 | tr -d '\n')" >/dev/tty
+  if [[ -z "$_wez_win" ]]; then
+    for i in {1..30}; do
+      sleep 0.1
+      json=$(_wezcli list --format json 2>/dev/null)
+      _wez_win=$(_wez_ws_window "$json")
+      [[ -n "$_wez_win" ]] && break
+    done
+    _wez_placeholder=$(jq -r --arg ws "$_wez_ws" 'first(.[] | select(.workspace == $ws) | .pane_id) // empty' <<<"$json")
+  else
+    # Laisse l'interface redimensionner la fenêtre qu'elle vient d'afficher.
+    sleep 0.3
+  fi
+  if [[ -z "$_wez_win" ]]; then
+    echo "wezterm: impossible d'ouvrir le workspace '$_wez_ws'" >&2
+    return 1
+  fi
+}
+
+# window_id du workspace courant dans le JSON de `wezterm cli list`.
+_wez_ws_window() {
+  jq -r --arg ws "$_wez_ws" 'first(.[] | select(.workspace == $ws) | .window_id) // empty' <<<"$1"
+}
+
+# Vrai si le workspace courant a déjà un onglet portant ce titre.
+_wez_has_tab() {
+  [[ -n "$_wez_titles" ]] && (( ${${(f)_wez_titles}[(Ie)$1]} ))
+}
+
+# Ouvre un onglet titré dans la fenêtre du workspace. pane_id dans $REPLY.
+#   Usage : _wez_tab <cwd> <titre> [commande...]
+_wez_tab() {
+  local cwd="$1" title="$2"
+  shift 2
+  (( $# > 0 )) && set -- -- "$@"
+  REPLY=$(_wezcli spawn --window-id "$_wez_win" --cwd "$cwd" "$@" 2>/dev/null)
+  [[ -n "$REPLY" ]] || return 1
+  : "${_wez_first:=$REPLY}"
+  # Espace final : marge entre le texte et le bord droit de l'onglet (la barre
+  # native de WezTerm n'a pas de réglage de padding).
+  _wezcli set-tab-title --pane-id "$REPLY" "$title " >/dev/null 2>&1
+}
+
+# Titre court pour un onglet de worktree : sans le préfixe du workspace
+# ("de-", "ms-", déjà affiché à droite de la barre) et limité à 14 caractères,
+# pour que ~11 onglets tiennent sans que WezTerm ne tronque les titres.
+#   Usage : _wez_short_title <prefixe> <nom>   (résultat dans $REPLY)
+_wez_short_title() {
+  REPLY="${2#${1}-}"
+  REPLY="${REPLY[1,14]}"
+}
+
+# Ajoute un terminal en bas du pane donné (pourcentage = hauteur du bas).
+#   Usage : _wez_split_bottom <pane_id> <cwd> [percent]
+_wez_split_bottom() {
+  _wezcli split-pane --pane-id "$1" --bottom --percent "${3:-50}" --cwd "$2" >/dev/null 2>&1
+}
+
+# Ferme le shell temporaire (si de vrais onglets ont été ouverts) et active
+# le premier onglet créé.
+_wez_ws_finish() {
+  if [[ -n "$_wez_placeholder" && -n "$_wez_first" ]]; then
+    _wezcli kill-pane --pane-id "$_wez_placeholder" >/dev/null 2>&1
+  fi
+  [[ -n "$_wez_first" ]] && _wezcli activate-pane --pane-id "$_wez_first" >/dev/null 2>&1
+  return 0
+}
+
 # Session Marvin statique : un onglet par projet actif (cf. marvin-session.conf).
 marvin_session() {
+  if _in_wezterm; then
+    local base="$HOME/Documents/github/marvin"
+    local -a projects=(
+      "Data Engineering:$base/data-engineering"
+      "Marvin Suite:$base/marvin-suite"
+      "Keystone:$base/keystone"
+    )
+    local _wez_ws _wez_win _wez_titles _wez_first _wez_placeholder entry
+    _wez_ws_begin "marvin" || return 1
+    for entry in $projects; do
+      _wez_has_tab "${entry%%:*}" && continue
+      _wez_tab "${entry#*:}" "${entry%%:*}" && _wez_split_bottom "$REPLY" "${entry#*:}"
+    done
+    _wez_has_tab "Marvin" || _wez_tab "$base" "Marvin"
+    _wez_ws_finish
+    return 0
+  fi
+
   local session="$HOME/.config/kitty/marvin-session.conf"
   if [[ ! -f "$session" ]]; then
     echo "marvin-session: session file not found: $session" >&2
@@ -180,6 +320,22 @@ github_session() {
   for line in $sorted; do
     repos+=("${line#*${delim}}")
   done
+
+  # Dans WezTerm : même logique via `wezterm cli`.
+  if _in_wezterm; then
+    local _wez_ws _wez_win _wez_titles _wez_first _wez_placeholder
+    _wez_ws_begin "github" || return 1
+    for repo in $repos; do
+      _wez_has_tab "${repo:t}" && continue
+      _wez_tab "$repo" "${repo:t}" zsh -ic 'nvim; exec zsh -i'
+    done
+    if [[ -z "$_wez_win" ]]; then
+      echo "github-session: failed to create any tabs via wezterm cli" >&2
+      return 1
+    fi
+    _wez_ws_finish
+    return 0
+  fi
 
   # If running inside kitty, use remote control to create tabs in the
   # current OS window (no new kitty process, no hard exit).
@@ -291,6 +447,34 @@ _marvin_wt_session() {
   if (( ${#repos} == 0 )); then
     echo "${label}: aucun worktree sous $wt_root (et pas de dépôt principal à $main_repo)" >&2
     return 1
+  fi
+
+  # Dans WezTerm : un workspace par session ("de", "ms"), onglets manquants
+  # seulement. Le split se fait directement en 70/30 (--percent 30 en bas).
+  if _in_wezterm; then
+    local _wez_ws _wez_win _wez_titles _wez_first _wez_placeholder name
+    _wez_ws_begin "${label%-session}" || return 1
+    for repo in $repos; do
+      if [[ "$repo" == "$wt_root" ]]; then
+        name="atelier"
+      else
+        _wez_short_title "$_wez_ws" "${repo:t}"
+        name="$REPLY"
+      fi
+      _wez_has_tab "$name" && continue
+      if [[ "$repo" == "$wt_root" ]]; then
+        _wez_tab "$repo" "$name"
+      elif _wez_tab "$repo" "$name" zsh -ic 'nvim; exec zsh -i'; then
+        _wez_split_bottom "$REPLY" "$repo" 30
+      fi
+    done
+
+    if [[ -z "$_wez_win" ]]; then
+      echo "${label}: échec de création des onglets via wezterm cli" >&2
+      return 1
+    fi
+    _wez_ws_finish
+    return 0
   fi
 
   # Dans kitty : remote control pour créer les onglets dans la fenêtre courante
