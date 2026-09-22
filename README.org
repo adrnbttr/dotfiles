@@ -72,6 +72,64 @@ Keyboard hints:
 Terminal tip:
 - Ctrl-S is enabled for Neovim/Kitty (XON/XOFF disabled via `stty -ixon` in `zsh/.zshrc`).
 
+** WezTerm (Linux + Windows)
+
+Config: `config/.config/wezterm/wezterm.lua` (même fichier pour Linux et Windows).
+Installé par `./script/install` (Linux, dépôt apt officiel + terminfo `wezterm`),
+et côté Windows par :
+
+#+begin_src powershell
+powershell -ExecutionPolicy Bypass -File .\script\install-windows.ps1
+#+end_src
+
+Sous Windows, WezTerm ouvre la distribution WSL (Ubuntu en priorité) : lancer
+ensuite `./script/install` dans WSL pour zsh, nvim et les sessions.
+
+Sessions persistantes (Linux) : shells, nvim et Claude Code tournent dans
+`wezterm-mux-server`. Fermer la fenêtre ou relancer WezTerm ne tue rien :
+`wezterm` (ou le lanceur du menu, surchargé dans
+`bin/.local/share/applications/`) se reconnecte. Tout arrêter pour de bon :
+`pkill -x wezterm-mux-ser`. Un changement de `config.term` ou des domaines
+ne s'applique qu'après ce redémarrage du serveur.
+
+Workspaces : `de-session`, `ms-session`, `github-session` et
+`marvin-session` ouvrent chacune leur workspace (de, ms, github, marvin) ;
+les relancer n'ajoute que les onglets manquants.
+
+Key cheatsheet (sous Windows, ajouter Shift aux raccourcis Ctrl+Alt+lettre :
+AltGr y arrive comme Ctrl+Alt) :
+
+#+begin_src text
+splits:
+  Ctrl+Alt+Shift+Right   vertical split (cwd=current)
+  Ctrl+Alt+Shift+Down    horizontal split (cwd=current)
+  Ctrl+Alt+Arrow keys    focus split (pris par Cinnamon s'il a plusieurs bureaux)
+  Ctrl+Alt+a / x         aller à / échanger un split par lettre (a u i e t s r n)
+  Ctrl+b                 split précédent
+  Ctrl+Alt+r             resize mode (flèches, Échap)
+  Ctrl+Alt+z             zoom
+
+tabs:
+  Ctrl+Alt+t / w         new / close tab
+  Ctrl+Tab, Ctrl+Shift+Right   next tab
+  Ctrl+Shift+Tab, Ctrl+Shift+Left  previous tab
+  Ctrl+Shift+PageUp/Down move tab
+  Ctrl+Shift+o           tab navigator (fuzzy)
+
+workspaces:
+  Ctrl+Shift+s           workspace launcher (fuzzy)
+  Ctrl+Alt+PageUp/Down   previous / next workspace
+
+links:
+  Ctrl+click             open URL / Linear ticket (MAR-1234)
+  Ctrl+Shift+Space       quick select (SHA, paths, URLs, MAR-xxxx)
+  Ctrl+Alt+o             open a visible Linear ticket by letter
+
+misc:
+  Ctrl+Shift+p           command palette
+  Ctrl+Alt+left drag     rectangular selection
+#+end_src
+
 ** Kitty
 
 Key cheatsheet (from `config/.config/kitty/kitty.conf`):
