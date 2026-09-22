@@ -123,11 +123,16 @@ v() {
 # partagés. Indispensable pour faire tourner plusieurs worktrees en parallèle.
 export MARVIN_WORKTREE_ISOLATION=1
 
+# Session Marvin statique : un onglet par projet actif (cf. marvin-session.conf).
 marvin_session() {
   local session="$HOME/.config/kitty/marvin-session.conf"
+  if [[ ! -f "$session" ]]; then
+    echo "marvin-session: session file not found: $session" >&2
+    return 1
+  fi
   nohup kitty --session "$session" >/dev/null 2>&1 &
   disown
-  exit
+  return 0
 }
 
 github_session() {
@@ -375,6 +380,7 @@ ms_session() {
 alias vim='nvim'
 alias g='git'
 
+alias marvin-session='marvin_session'
 alias github-session='github_session'
 alias de-session='de_session'
 alias ms-session='ms_session'
@@ -521,3 +527,4 @@ fi
 
 # Scaleway CLI autocomplete initialization.
 eval "$(scw autocomplete script shell=zsh)"
+eval "$(direnv hook zsh)"
