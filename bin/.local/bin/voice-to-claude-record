@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# voice-to-claude-record — background worker.
+#
+# Records mic audio via parecord until it receives SIGTERM (from a second
+# invocation of voice-to-claude), then runs faster-whisper and pipes the
+# transcript into the last-focused nvim's Claude split.
+
+set -uo pipefail
+
+STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}/voice-to-claude"
+PID_FILE="$STATE_DIR/record.pid"
+WAV_FILE="$STATE_DIR/record.wav"
+TRANSCRIPT_FILE="$STATE_DIR/transcript.txt"
+SOCKET_FILE="$STATE_DIR/nvim-socket"
+
+VENV="$HOME/.local/share/voice-to-claude/venv"
+TRANSCRIBE="$HOME/.local/bin/voice-to-claude-transcribe"
+
+mkdir -p "$STATE_DIR"
+rm -f "$WAV_FILE" "$TRANSCRIPT_FILE"
+
+notify() { notify-send -a "Voice to Claude" -t 2500 "Voice to Claude" "$1" || true; }
+fail()   { notify-send -a "Voice to Claude" -t 4000 -u critical "Voice to Claude" "$1" || true; exit 1; }
+
+notify "🎤 Recording… press Super+V again to stop"
+
+parecord --channels=1 --rate=16000 --format=s16le --file-format=wav "$WAV_FILE" &
+REC_PID=$!
+echo "$REC_PID" > "$PID_FILE"
+
+# Block until the recorder stops (killed by the toggle script).
+wait "$REC_PID" || true
+rm -f "$PID_FILE"
+
+if [[ ! -s "$WAV_FILE" ]]; then
+  fail "No audio captured"
+fi
+
+notify "⏳ Transcribing…"
+
+if [[ ! -x "$VENV/bin/python" ]]; then
+  fail "Python venv missing — run ./script/install"
+fi
+
+TEXT="$("$VENV/bin/python" "$TRANSCRIBE" "$WAV_FILE" 2>/dev/null || true)"
+
+if [[ -z "${TEXT// }" ]]; then
+  notify "No speech detected"
+  exit 0
+fi
+
+if [[ ! -f "$SOCKET_FILE" ]]; then
+  fail "No nvim instance registered (focus an nvim window first)"
+fi
+
+SOCKET="$(cat "$SOCKET_FILE")"
+if [[ -z "$SOCKET" ]] || [[ ! -S "$SOCKET" ]]; then
+  fail "nvim socket '$SOCKET' is stale"
+fi
+
+printf '%s' "$TEXT" > "$TRANSCRIPT_FILE"
+
+if ! nvim --server "$SOCKET" --remote-expr \
+  "v:lua.claude_nvim.send_from_file('$TRANSCRIPT_FILE')" >/dev/null 2>&1; then
+  fail "Failed to send to nvim ($SOCKET)"
+fi
+
+notify "✓ Sent: ${TEXT:0:80}"

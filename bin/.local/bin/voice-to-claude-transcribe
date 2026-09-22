@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""Transcribe a WAV file to French text via faster-whisper.
+
+Invoked by voice-to-claude-record using the dedicated venv's python:
+    ~/.local/share/voice-to-claude/venv/bin/python voice-to-claude-transcribe <wav>
+Prints the transcript to stdout. Empty output means no speech detected.
+"""
+
+import sys
+
+from faster_whisper import WhisperModel
+
+if len(sys.argv) != 2:
+    sys.stderr.write("usage: voice-to-claude-transcribe <audio.wav>\n")
+    sys.exit(2)
+
+model = WhisperModel("small", device="cpu", compute_type="int8")
+segments, _info = model.transcribe(
+    sys.argv[1],
+    language="fr",
+    vad_filter=True,
+    vad_parameters=dict(min_silence_duration_ms=500),
+)
+
+text = " ".join(seg.text.strip() for seg in segments).strip()
+if text:
+    print(text)

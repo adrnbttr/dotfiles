@@ -151,6 +151,65 @@ install_claude() {
   fi
 }
 
+install_voice_to_claude() {
+  if ! have apt-get; then
+    warn "voice-to-claude setup skipped (non-apt OS)"
+    return 0
+  fi
+
+  info "installing voice-to-claude system deps (python3-venv, pulseaudio, notify, ffmpeg)"
+  ${sudo_cmd} apt-get install -y \
+    python3-venv \
+    pulseaudio-utils \
+    libnotify-bin \
+    ffmpeg
+
+  local venv="$HOME/.local/share/voice-to-claude/venv"
+  if [[ ! -x "$venv/bin/python" ]]; then
+    info "creating faster-whisper venv at $venv"
+    mkdir -p "$(dirname "$venv")"
+    python3 -m venv "$venv"
+    "$venv/bin/pip" install --upgrade pip
+    "$venv/bin/pip" install faster-whisper
+  fi
+
+  info "pre-downloading Whisper 'small' model (~150 MB on first run)"
+  "$venv/bin/python" - <<'PY' || warn "model pre-download failed (will retry at first use)"
+from faster_whisper import WhisperModel
+WhisperModel("small", device="cpu", compute_type="int8")
+PY
+}
+
+configure_cinnamon_keybind() {
+  if ! have gsettings; then
+    warn "gsettings not found; skip Cinnamon keybinding"
+    return 0
+  fi
+  if [[ "${XDG_CURRENT_DESKTOP:-}" != *"Cinnamon"* ]] && [[ "${DESKTOP_SESSION:-}" != *"cinnamon"* ]]; then
+    info "not running Cinnamon; skip keybinding (bind manually to $HOME/.local/bin/voice-to-claude)"
+    return 0
+  fi
+
+  local key_id="voice-to-claude"
+  local bind_path="/org/cinnamon/desktop/keybindings/custom-keybindings/${key_id}/"
+  local schema="org.cinnamon.desktop.keybindings.custom-keybinding:${bind_path}"
+
+  gsettings set "$schema" name "Voice to Claude"
+  gsettings set "$schema" command "$HOME/.local/bin/voice-to-claude"
+  gsettings set "$schema" binding "['<Super>v']"
+
+  local current
+  current="$(gsettings get org.cinnamon.desktop.keybindings custom-list 2>/dev/null || echo "@as []")"
+  if [[ "$current" != *"'${key_id}'"* ]]; then
+    if [[ "$current" == "@as []" || "$current" == "[]" ]]; then
+      gsettings set org.cinnamon.desktop.keybindings custom-list "['${key_id}']"
+    else
+      gsettings set org.cinnamon.desktop.keybindings custom-list "${current%]}, '${key_id}']"
+    fi
+  fi
+  info "Cinnamon shortcut <Super>v → voice-to-claude"
+}
+
 install_fzf_release_linux() {
   local ver="${1:-}"
   if [[ -z "$ver" ]]; then
@@ -603,6 +662,8 @@ case "$os" in
     ensure_pyenv_virtualenv_plugin
     install_opencode
     install_claude
+    install_voice_to_claude
+    configure_cinnamon_keybind
     ;;
 
   *)

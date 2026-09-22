@@ -201,6 +201,19 @@ M.send = function(text)
   end
 end
 
+-- Send the contents of `path` as a single message. Used by the voice-to-claude
+-- pipeline to avoid shell-quoting issues with transcribed text (apostrophes,
+-- quotes, newlines).
+M.send_from_file = function(path)
+  local f = io.open(path, "r")
+  if not f then return end
+  local text = f:read("*a")
+  f:close()
+  if text and #text > 0 then
+    M.send(text)
+  end
+end
+
 -- ---------------------------------------------------------------------------
 -- Public helpers
 -- ---------------------------------------------------------------------------
@@ -227,6 +240,23 @@ M.setup = function()
 
   -- Make module reachable from anywhere for debugging
   _G.claude_nvim = M
+
+  -- Advertise this nvim's socket to external tools (voice-to-claude).
+  -- The last-focused nvim instance wins, so the dictation always targets
+  -- whichever window the user is currently working in.
+  local socket_dir  = (vim.env.XDG_RUNTIME_DIR or "/tmp") .. "/voice-to-claude"
+  local socket_file = socket_dir .. "/nvim-socket"
+  vim.fn.mkdir(socket_dir, "p")
+  local function advertise_socket()
+    if vim.v.servername and #vim.v.servername > 0 then
+      local fd = io.open(socket_file, "w")
+      if fd then fd:write(vim.v.servername); fd:close() end
+    end
+  end
+  advertise_socket()
+  vim.api.nvim_create_autocmd({ "VimEnter", "FocusGained" }, {
+    callback = advertise_socket,
+  })
 
   -- ============================================
   -- CLAUDE KEYMAPS  (prefix <leader>z)
