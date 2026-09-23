@@ -54,7 +54,7 @@ cas := [
     ["symbole rendu : >", "^+056", ">"],
     ["symbole rendu : =", "^+035", "="],
     ["symbole rendu : /", "^+034", "/"],
-    ["symbole rendu : ;", "^+033", ";"],
+    ["symbole rendu : point-virgule", "^+033", ";"],
     ["symbole rendu : ?", "^+032", "?"],
     ["chiffres, position BÉPO : +", "^+008", "+"],
     ["chiffres, position BÉPO : /", "^+00A", "/"],

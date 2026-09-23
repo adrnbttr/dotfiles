@@ -50,11 +50,16 @@ keys := Map(
 
 ; --- Symboles imprimés rendus aux touches remappées ------------------------
 ; AltGr : on ne remplace que deux légendes, parce qu'elles existent ailleurs
-; sur le clavier belge (l'accent aigu est aussi sur AltGr+M, la barre oblique
-; inverse est aussi sur AltGr+« ) »). Tout le reste du niveau AltGr est intact.
+; sur le clavier belge (l'accent aigu est aussi sur AltGr+M). Tout le reste
+; du niveau AltGr est intact. L'antislash est ajouté sur AltGr+« ) » : le
+; layout belge de Windows, contrairement à X11, ne l'y prévoit pas, et il
+; serait sinon injoignable (AltGr+« < », sa position native, remappée).
 symbolesAltGr := Map(
     "028", "ù",     ; touche « ù % »  (AltGr+M garde l'accent aigu)
-    "056", "<"      ; touche « < > \ » (AltGr+« ) » garde le \)
+    "056", "<",     ; touche « < > \ » (AltGr+« ) » garde le \)
+    "00C", "\"      ; touche « °) » : le layout belge Windows ne prévoit
+                    ; pas l'antislash ici (c'est le cas sous X11, pas Windows),
+                    ; on l'envoie donc explicitement pour le garder joignable
 )
 
 ; AltGr+Shift : niveau resté libre sur le clavier belge (¼, ⅜, °, ™…).
