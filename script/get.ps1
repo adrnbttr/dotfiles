@@ -93,13 +93,13 @@ Step "police MesloLGS NF" {
 # --- 3. WSL + distribution -----------------------------------------------------
 Step "WSL + $Distro" {
     if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
-        if (-not $admin) { throw "WSL absent : relance PowerShell en administrateur, ou installe-le avec `wsl --install`" }
+        if (-not $admin) { throw 'WSL absent : relance PowerShell en administrateur, ou installe-le avec « wsl --install »' }
         wsl.exe --install --no-launch | Out-Null
-        throw "WSL vient d'être activé : redémarre Windows, puis relance cette commande"
+        throw 'WSL vient d''être activé : redémarre Windows, puis relance cette commande'
     }
     $installed = (wsl.exe --list --quiet) -replace "`0", "" | Where-Object { $_ -ne "" }
     if ($installed -contains $Distro) { return "skip" }
-    if (-not $admin) { throw "$Distro absente : relance en administrateur, ou `wsl --install -d $Distro`" }
+    if (-not $admin) { throw "$Distro absente : relance en administrateur, ou « wsl --install -d $Distro »" }
     wsl.exe --install -d $Distro --no-launch | Out-Null
     throw "$Distro vient d'être installée : ouvre-la une fois pour créer ton utilisateur, puis relance cette commande"
 }
