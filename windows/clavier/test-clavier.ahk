@@ -31,9 +31,13 @@ bepo := 0, chargeIci := false
 n := DllCall("GetKeyboardLayoutList", "Int", 0, "Ptr", 0)
 liste := Buffer(n * A_PtrSize)
 DllCall("GetKeyboardLayoutList", "Int", n, "Ptr", liste)
+; Une BÉPO rattachée au français de préférence (une autre langue, reste d'une
+; ancienne config, afficherait son propre nom dans la barre des tâches).
 Loop n {
     hkl := NumGet(liste, (A_Index - 1) * A_PtrSize, "Ptr")
-    if ((hkl >> 16) & 0xFFFF) = bepoId
+    if ((hkl >> 16) & 0xFFFF) != bepoId
+        continue
+    if !bepo || (hkl & 0x3FF) = 0x0C     ; 0x0C : langue principale française
         bepo := hkl
 }
 if !bepo {
@@ -110,8 +114,8 @@ for r in raccourcis {
 }
 
 total := cas.Length + raccourcis.Length
-entete := Format("Test BÉPO Windows — {1}`r`n{2} cas · {3} réussis · {4} en échec`r`n",
-    FormatTime(, "yyyy-MM-dd HH:mm"), total, total - echecs, echecs)
+entete := Format("Test BÉPO Windows — {1}`r`n{2} cas · {3} réussis · {4} en échec`r`nclavier testé : {5:08X} (langue {6:04X})`r`n",
+    FormatTime(, "yyyy-MM-dd HH:mm"), total, total - echecs, echecs, bepo & 0xFFFFFFFF, bepo & 0xFFFF)
 texte := entete . "`r`n"
 for ligne in rapport
     texte .= ligne . "`r`n"
