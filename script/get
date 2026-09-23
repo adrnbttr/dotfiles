@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Amorçage en une commande (Linux, macOS, WSL) :
+#
+#   bash <(curl -fsSL https://raw.githubusercontent.com/adrnbttr/dotfiles/master/script/get)
+#
+# Installe les prérequis minimum (git, curl), clone — ou met à jour — le dépôt,
+# puis lance ./script/install. Les options sont transmises telles quelles :
+#
+#   bash <(curl -fsSL .../script/get) --minimal --no-gui
+#
+# Variables :
+#   DOTFILES_DIR   où cloner (défaut : ~/Documents/github/perso/dotfiles)
+#   DOTFILES_REPO  dépôt source (défaut : github.com/adrnbttr/dotfiles)
+set -euo pipefail
+
+REPO="${DOTFILES_REPO:-https://github.com/adrnbttr/dotfiles.git}"
+DEST="${DOTFILES_DIR:-$HOME/Documents/github/perso/dotfiles}"
+
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  B=$'\e[1m'; D=$'\e[2m'; G=$'\e[32m'; R=$'\e[31m'; N=$'\e[0m'
+else
+  B=""; D=""; G=""; R=""; N=""
+fi
+
+say() { printf '%s\n' "$*"; }
+die() { printf '%s✗ %s%s\n' "$R" "$*" "$N" >&2; exit 1; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+printf '\n%s❯ dotfiles · installation en une commande%s\n\n' "$B" "$N"
+
+os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+case "$os" in
+  linux)
+    have apt-get || die "distribution non gérée : apt-get est requis (Debian/Ubuntu)"
+    sudo_cmd=""
+    [[ ${EUID:-0} -ne 0 ]] && sudo_cmd="sudo"
+    if ! have git || ! have curl; then
+      say "  installation de git et curl…"
+      ${sudo_cmd} apt-get update -qq || true
+      ${sudo_cmd} apt-get install -y -qq git curl ca-certificates
+    fi
+    ;;
+  darwin)
+    have git || die "installe les outils de développement : xcode-select --install"
+    have brew || die "installe Homebrew : https://brew.sh"
+    ;;
+  *)
+    die "système non pris en charge : $os (Linux, macOS ou WSL)"
+    ;;
+esac
+
+if [[ -d "$DEST/.git" ]]; then
+  say "  dépôt déjà présent : $DEST"
+  git -C "$DEST" pull --ff-only --quiet 2>/dev/null \
+    && printf '  %s✓ dépôt à jour%s\n' "$G" "$N" \
+    || printf '  %s(modifications locales : pull ignoré)%s\n' "$D" "$N"
+else
+  say "  clonage dans $DEST…"
+  mkdir -p "$(dirname "$DEST")"
+  git clone --quiet "$REPO" "$DEST"
+  printf '  %s✓ dépôt cloné%s\n' "$G" "$N"
+fi
+
+exec "$DEST/script/install" "$@"

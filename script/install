@@ -18,20 +18,35 @@ err() { printf "error %s\n" "$*" >&2; }
 
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 
+# Les outils téléchargés depuis GitHub atterrissent dans ~/.local/bin : sur une
+# machine neuve, ce dossier n'existe pas encore et n'est donc pas dans le PATH
+# (cf. ~/.profile d'Ubuntu). Sans ça, les vérifications « have <outil> » qui
+# suivent l'installation échouent alors que tout s'est bien passé.
+mkdir -p "$HOME/.local/bin"
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
 usage() {
   cat <<'EOF'
 Usage:
   ./script/install [options]
 
 Options:
-  --minimal           Install core CLI deps only
-  --no-gui            Skip GUI apps (kitty, wezterm)
-  --no-opencode       Skip installing opencode
-  --no-claude         Skip installing Claude Code
-  --upgrade           Upgrade already-installed Homebrew packages (macOS only)
-  --opencode-version <version>  Install a specific opencode version
-  --claude-version <version>    Install a specific Claude Code version
-  -h, --help          Show this help
+  --minimal           Installe uniquement les outils CLI de base
+  --no-gui            Saute les applis graphiques (kitty, wezterm)
+  --no-opencode       Saute opencode
+  --no-claude         Saute Claude Code
+  --upgrade           Met à jour les paquets Homebrew déjà installés (macOS)
+  --dry-run           Affiche ce qui serait fait, sans rien installer
+  --only "a b"        N'exécute que ces étapes (cf. --list)
+  --skip "a b"        Saute ces étapes
+  --list              Liste les étapes et sort
+  --yes               Ne pose aucune question
+  --opencode-version <version>  Version précise d'opencode
+  --claude-version <version>    Version précise de Claude Code
+  -h, --help          Affiche cette aide
 EOF
 }
 
@@ -40,8 +55,16 @@ no_gui=false
 no_opencode=false
 no_claude=false
 upgrade=false
+assume_yes=false
+list_only=false
 opencode_version="${OPENCODE_VERSION:-}"
 claude_version="${CLAUDE_VERSION:-}"
+export DOTFILES_DRY_RUN="${DOTFILES_DRY_RUN:-}"
+export DOTFILES_ONLY="${DOTFILES_ONLY:-}"
+export DOTFILES_SKIP="${DOTFILES_SKIP:-}"
+
+# shellcheck source=script/lib-ui.sh
+source "$repo_root/script/lib-ui.sh"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -50,6 +73,11 @@ while [[ $# -gt 0 ]]; do
     --no-opencode) no_opencode=true; shift ;;
     --no-claude) no_claude=true; shift ;;
     --upgrade) upgrade=true; shift ;;
+    --dry-run) DOTFILES_DRY_RUN=1; shift ;;
+    --yes|-y) assume_yes=true; shift ;;
+    --list) list_only=true; shift ;;
+    --only) DOTFILES_ONLY="${2:-}"; shift 2 ;;
+    --skip) DOTFILES_SKIP="${2:-}"; shift 2 ;;
     --opencode-version)
       opencode_version="${2:-}"
       if [[ -z "$opencode_version" ]]; then
@@ -528,6 +556,24 @@ install_bottom_release_linux() {
   rm -rf "$tmpdir"
 }
 
+# Libère ctrl+alt+flèches et ctrl+alt+shift+flèches pour le terminal (focus et
+# création de splits dans WezTerm/kitty) : les bureaux Cinnamon passent sur
+# super+ctrl+flèches (changer) et super+ctrl+shift+flèches (y déplacer la fenêtre).
+configure_cinnamon_workspace_keys() {
+  if ! have gsettings || ! gsettings list-schemas 2>/dev/null | grep -qx org.cinnamon.desktop.keybindings.wm; then
+    return 0
+  fi
+  local schema="org.cinnamon.desktop.keybindings.wm" dir lower
+  for dir in Left Right Down; do
+    lower="$(printf '%s' "$dir" | tr '[:upper:]' '[:lower:]')"
+    gsettings set "$schema" "switch-to-workspace-${lower}" "['<Super><Control>${dir}']"
+    gsettings set "$schema" "move-to-workspace-${lower}" "['<Super><Control><Shift>${dir}']"
+  done
+  gsettings set "$schema" switch-to-workspace-up "['<Super><Control>Up', '<Alt>F1']"
+  gsettings set "$schema" move-to-workspace-up "['<Super><Control><Shift>Up']"
+  info "Cinnamon workspaces moved to Super+Ctrl(+Shift)+arrows (terminal keeps Ctrl+Alt+arrows)"
+}
+
 # Terminfo `wezterm` (TERM=wezterm dans wezterm.lua : soulignement ondulé des
 # diagnostics nvim). Compilé dans ~/.terminfo, sans sudo.
 ensure_wezterm_terminfo() {
@@ -598,140 +644,194 @@ ensure_bottom_linux() {
   fi
 }
 
-case "$os" in
-  darwin)
-    if ! have brew; then
-      err "Homebrew not found. Install it from https://brew.sh and re-run."
-      exit 1
-    fi
+# --- Vérifications préalables --------------------------------------------------
+preflight() {
+  local problems=0
+  printf '%svérifications%s\n' "$UI_BOLD" "$UI_RESET"
 
-    export HOMEBREW_NO_AUTO_UPDATE=1
-
-    info "installing packages (macOS/Homebrew)"
-
-    # Only install missing packages (avoid surprise upgrades).
-    brew_install_if_missing git
-    brew_install_if_missing stow
-    brew_install_if_missing jq
-    brew_install_if_missing zsh
-    brew_install_if_missing fzf
-    brew_install_if_missing ripgrep
-    brew_install_if_missing fd
-    brew_install_if_missing bat
-    brew_install_if_missing pyenv
-    brew_install_if_missing lazygit
-    brew_install_if_missing lazydocker
-    # Needed by vim-dadbod for PostgreSQL queries
-    brew_install_if_missing libpq
-
-    if [[ "$minimal" != "true" ]]; then
-      brew_install_if_missing autojump
-      brew_install_if_missing neovim
-    fi
-
-    if [[ "$upgrade" == "true" ]]; then
-      info "upgrading packages (macOS/Homebrew)"
-      brew upgrade git stow zsh fzf ripgrep fd bat pyenv lazygit || true
-      if [[ "$minimal" != "true" ]]; then
-        brew upgrade autojump neovim || true
+  case "$os" in
+    linux)
+      if have apt-get; then
+        printf '  ✓ système : Linux (apt)\n'
+      else
+        printf '  %s✗ système : apt-get introuvable (distributions Debian/Ubuntu uniquement)%s\n' "$UI_RED" "$UI_RESET"
+        problems=1
       fi
-    fi
-
-    # kitty is a cask; it may already exist outside brew management.
-    if [[ "$minimal" != "true" && "$no_gui" != "true" ]]; then
-      if ! brew_cask_install_if_missing kitty >/dev/null 2>&1; then
-        warn "kitty cask install skipped (kitty.app already present?)"
+      if grep -qi microsoft /proc/version 2>/dev/null; then
+        printf '  ✓ WSL détecté : WezTerm s'"'"'installe côté Windows (script/get.ps1)\n'
       fi
-      if ! brew_cask_install_if_missing wezterm >/dev/null 2>&1; then
-        warn "wezterm cask install skipped (WezTerm.app already present?)"
+      ;;
+    darwin)
+      if have brew; then
+        printf '  ✓ système : macOS (Homebrew)\n'
+      else
+        printf '  %s✗ Homebrew absent : https://brew.sh%s\n' "$UI_RED" "$UI_RESET"
+        problems=1
       fi
-      ensure_wezterm_terminfo
+      ;;
+    *)
+      printf '  %s✗ système non pris en charge : %s%s\n' "$UI_RED" "$os" "$UI_RESET"
+      problems=1
+      ;;
+  esac
+
+  if [[ -z "$sudo_cmd" ]] || sudo -n true 2>/dev/null; then
+    printf '  ✓ droits administrateur\n'
+  else
+    printf '  %s! mot de passe sudo demandé pendant l'"'"'installation%s\n' "$UI_YELLOW" "$UI_RESET"
+  fi
+
+  if have curl && curl -fsI --max-time 8 https://github.com >/dev/null 2>&1; then
+    printf '  ✓ accès réseau (github.com)\n'
+  else
+    printf '  %s✗ pas d'"'"'accès à github.com (curl absent ou réseau coupé)%s\n' "$UI_RED" "$UI_RESET"
+    problems=1
+  fi
+
+  local free_mb
+  free_mb=$(df -Pm "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')
+  if [[ -n "$free_mb" && "$free_mb" -lt 2048 ]]; then
+    printf '  %s! espace disque faible : %s Mo libres (2 Go conseillés)%s\n' "$UI_YELLOW" "$free_mb" "$UI_RESET"
+  else
+    printf '  ✓ espace disque : %s Mo libres\n' "${free_mb:-?}"
+  fi
+
+  if [[ "$os" == "linux" ]] && have apt-get; then
+    local broken
+    broken=$(${sudo_cmd} apt-get update 2>&1 | grep -cE '^(E|W): ' || true)
+    if [[ "${broken:-0}" -gt 0 ]]; then
+      printf '  %s! %s dépôt(s) apt en erreur : l'"'"'installation continue, mais ces sources sont ignorées%s\n' \
+        "$UI_YELLOW" "$broken" "$UI_RESET"
+      printf '    %s(détail : sudo apt-get update)%s\n' "$UI_DIM" "$UI_RESET"
+    else
+      printf '  ✓ dépôts apt à jour\n'
     fi
+  fi
 
-    ensure_pyenv_virtualenv_plugin
-    install_opencode
-    install_claude
-
-    # Install modern terminal tools (via Homebrew)
-    if [[ "$minimal" != "true" ]]; then
-      brew_install_if_missing eza
-      brew_install_if_missing zoxide
-      brew_install_if_missing git-delta
-      brew_install_if_missing bottom
-    fi
-    ;;
-
-  linux)
-    if ! have apt-get; then
-      err "apt-get not found (this installer currently supports apt-based distros)"
-      exit 1
-    fi
-
-    info "installing packages (Linux/apt)"
-    
-    # Install lazygit first (before apt to avoid dependency on apt repositories)
-    ensure_lazygit_linux
-    ensure_lazydocker_linux
-
-    ${sudo_cmd} apt-get update || true
-
-    required_pkgs=(
-      ca-certificates
-      curl
-      git
-      stow
-      zsh
-      fzf
-      ripgrep
-      fd-find
-      bat
-      tar
-      # Needed by the kitty / wezterm session helpers in .zshrc
-      jq
-      # Needed by vim-dadbod for PostgreSQL queries
-      postgresql-client
-    )
-
-    ${sudo_cmd} apt-get install -y "${required_pkgs[@]}"
-
-    # fzf-lua (Neovim) requires fzf >= 0.36, but Ubuntu jammy ships 0.29.
-    ensure_fzf_recent_linux
-
-    # Install modern terminal tools
-    ensure_eza_linux
-    ensure_zoxide_linux
-    ensure_delta_linux
-    ensure_bottom_linux
-
-    if [[ "$minimal" != "true" ]]; then
-      optional_pkgs=(autojump neovim)
-      if [[ "$no_gui" != "true" ]]; then
-        optional_pkgs+=(kitty)
-      fi
-
-      if ! ${sudo_cmd} apt-get install -y "${optional_pkgs[@]}"; then
-        warn "some optional packages failed to install: ${optional_pkgs[*]}"
-      fi
-
-      if [[ "$no_gui" != "true" ]]; then
-        ensure_wezterm_linux
-      fi
-    fi
-
-    ensure_pyenv_virtualenv_plugin
-    install_opencode
-    install_claude
-    install_voice_to_claude
-    configure_cinnamon_keybind
-    ;;
-
-  *)
-    err "unsupported OS: $os"
+  printf '\n'
+  if (( problems > 0 )); then
+    ui_error "prérequis manquants : voir ci-dessus"
     exit 1
-    ;;
-esac
+  fi
+}
 
-info "running bootstrap (stow + config)"
-"$repo_root/script/bootstrap"
+# --- Étapes --------------------------------------------------------------------
+apt_base_linux() {
+  local pkgs=(
+    ca-certificates curl git stow zsh fzf ripgrep fd-find bat tar
+    # Utilisé par les sessions WezTerm/kitty de .zshrc
+    jq
+    # Utilisé par vim-dadbod pour les requêtes PostgreSQL
+    postgresql-client
+  )
+  ${sudo_cmd} apt-get install -y "${pkgs[@]}"
+}
 
-info "done"
+apt_optional_linux() {
+  local pkgs=(autojump neovim)
+  if ! ${sudo_cmd} apt-get install -y "${pkgs[@]}"; then
+    warn "certains paquets optionnels n'ont pas pu être installés : ${pkgs[*]}"
+  fi
+}
+
+brew_base_macos() {
+  export HOMEBREW_NO_AUTO_UPDATE=1
+  local pkg
+  for pkg in git stow jq zsh fzf ripgrep fd bat pyenv lazygit lazydocker libpq; do
+    brew_install_if_missing "$pkg"
+  done
+}
+
+brew_optional_macos() {
+  brew_install_if_missing autojump
+  brew_install_if_missing neovim
+  brew_install_if_missing eza
+  brew_install_if_missing zoxide
+  brew_install_if_missing git-delta
+  brew_install_if_missing bottom
+  if [[ "$upgrade" == "true" ]]; then
+    brew upgrade git stow zsh fzf ripgrep fd bat pyenv lazygit autojump neovim || true
+  fi
+}
+
+brew_terminals_macos() {
+  brew_cask_install_if_missing kitty >/dev/null 2>&1 || warn "kitty déjà présent hors brew"
+  brew_cask_install_if_missing wezterm >/dev/null 2>&1 || warn "WezTerm déjà présent hors brew"
+  ensure_wezterm_terminfo
+}
+
+modern_tools_linux() {
+  ensure_eza_linux
+  ensure_zoxide_linux
+  ensure_delta_linux
+  ensure_bottom_linux
+}
+
+run_bootstrap() { "$repo_root/script/bootstrap"; }
+
+# Liste des étapes (id + libellé + commande), selon l'OS et les options.
+declare -a STEP_IDS=() STEP_LABELS=() STEP_CMDS=()
+add_step() { STEP_IDS+=("$1"); STEP_LABELS+=("$2"); STEP_CMDS+=("$3"); }
+
+build_steps() {
+  case "$os" in
+    linux)
+      add_step lazygit    "lazygit"                 ensure_lazygit_linux
+      add_step lazydocker "lazydocker"              ensure_lazydocker_linux
+      add_step base       "outils de base (apt)"    apt_base_linux
+      add_step fzf        "fzf récent"              ensure_fzf_recent_linux
+      add_step tools      "eza, zoxide, delta, btm" modern_tools_linux
+      [[ "$minimal" == "true" ]] || add_step optional "autojump, neovim"    apt_optional_linux
+      if [[ "$minimal" != "true" && "$no_gui" != "true" ]]; then
+        add_step wezterm  "WezTerm + terminfo"      ensure_wezterm_linux
+      fi
+      add_step pyenv      "plugin pyenv-virtualenv" ensure_pyenv_virtualenv_plugin
+      [[ "$no_opencode" == "true" ]] || add_step opencode "opencode"        install_opencode
+      [[ "$no_claude" == "true" ]]   || add_step claude   "Claude Code"     install_claude
+      add_step voice      "dictée vocale (Whisper)" install_voice_to_claude
+      add_step keys       "raccourcis Cinnamon"     configure_cinnamon_keys
+      ;;
+    darwin)
+      add_step base       "outils de base (brew)"   brew_base_macos
+      [[ "$minimal" == "true" ]] || add_step optional "outils modernes"     brew_optional_macos
+      if [[ "$minimal" != "true" && "$no_gui" != "true" ]]; then
+        add_step wezterm  "kitty + WezTerm"         brew_terminals_macos
+      fi
+      add_step pyenv      "plugin pyenv-virtualenv" ensure_pyenv_virtualenv_plugin
+      [[ "$no_opencode" == "true" ]] || add_step opencode "opencode"        install_opencode
+      [[ "$no_claude" == "true" ]]   || add_step claude   "Claude Code"     install_claude
+      ;;
+  esac
+  add_step link "liens symboliques (stow)" run_bootstrap
+}
+
+configure_cinnamon_keys() {
+  configure_cinnamon_keybind
+  configure_cinnamon_workspace_keys
+}
+
+build_steps
+
+if [[ "$list_only" == "true" ]]; then
+  printf 'Étapes de l'"'"'installation (%s) :\n' "$os"
+  for i in "${!STEP_IDS[@]}"; do
+    printf '  %-10s %s\n' "${STEP_IDS[$i]}" "${STEP_LABELS[$i]}"
+  done
+  exit 0
+fi
+
+ui_init "installation" "${#STEP_IDS[@]}"
+preflight
+for i in "${!STEP_IDS[@]}"; do
+  step "${STEP_IDS[$i]}" "${STEP_LABELS[$i]}" "${STEP_CMDS[$i]}"
+done
+
+printf '\n'
+ui_summary
+rc=$?
+if (( rc == 0 )); then
+  printf '\n%sProchaine étape :%s ouvre un nouveau terminal (ou `exec zsh`).\n' "$UI_BOLD" "$UI_RESET"
+  printf '  · WezTerm : F1 pour l'"'"'aide-mémoire, ctrl+shift+s pour les workspaces\n'
+  printf '  · Diagnostic : ./script/doctor\n'
+fi
+exit $rc

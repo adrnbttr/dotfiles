@@ -1,45 +1,83 @@
 #+TITLE: dotfiles
 
-This repo contains my dotfile configuration
+Configuration personnelle : zsh, Neovim, WezTerm, outils CLI et assistants IA
+(Claude Code, opencode). Déployée avec [[https://www.gnu.org/software/stow/][GNU Stow]].
 
-I manage the various configuration files in this repo using [[https://www.gnu.org/software/stow/][GNU Stow]].  This allows me to set up symlinks for all of my dotfiles using a single command:
+* Installation
 
-#+begin_src sh
-stow -t ~ zsh
-stow -t ~ config
-stow -t ~ oh-my-zsh-custom
-stow -t ~ bin
-#+end_src
-
-Optional: one-shot bootstrap (clones Oh My Zsh if missing + runs stow):
+** Linux / WSL — une commande
 
 #+begin_src sh
-./script/bootstrap
+bash <(curl -fsSL https://raw.githubusercontent.com/adrnbttr/dotfiles/master/script/get)
 #+end_src
 
-Full install (recommended on new machines): installs packages (macOS/Homebrew or Linux/apt), installs opencode, then runs bootstrap:
+Clone le dépôt dans =~/Documents/github/perso/dotfiles=, installe les outils,
+puis crée les liens symboliques. Compter 5 à 15 minutes selon la connexion.
+
+Prérequis : Debian/Ubuntu (apt), un compte avec =sudo=, un accès Internet et
+~2 Go libres. Le script les vérifie avant de commencer et s'arrête net s'il
+manque quelque chose.
+
+** Windows — une commande
+
+#+begin_src powershell
+irm https://raw.githubusercontent.com/adrnbttr/dotfiles/master/script/get.ps1 | iex
+#+end_src
+
+Installe WezTerm et la police MesloLGS NF, met en place WSL + Ubuntu si besoin,
+puis lance l'installation Linux *dans WSL* et pointe WezTerm sur la config.
+Prérequis : Windows 10/11 avec winget (« App Installer » du Microsoft Store) ;
+PowerShell en administrateur si WSL n'est pas encore installé. Si WSL vient
+d'être activé, redémarrer puis relancer la même commande.
+
+** macOS
 
 #+begin_src sh
-./script/install
+bash <(curl -fsSL https://raw.githubusercontent.com/adrnbttr/dotfiles/master/script/get)
 #+end_src
 
-Common options:
+Prérequis : [[https://brew.sh][Homebrew]] et les outils de développement (=xcode-select --install=).
+
+** Vérifier et réparer
 
 #+begin_src sh
-# core CLI only
-./script/install --minimal
-
-# skip GUI apps
-./script/install --no-gui
-
-# skip installing one of the AI tools
-./script/install --no-opencode
-./script/install --no-claude
-
-# install a specific version
-OPENCODE_VERSION=1.1.50 ./script/install
-./script/install --claude-version 2.1.72
+./script/doctor        # ce qui est en place, ce qui manque
+./script/doctor --fix  # relance uniquement les étapes manquantes
 #+end_src
+
+** Options
+
+#+begin_src sh
+./script/install --list              # liste les étapes
+./script/install --dry-run           # montre ce qui serait fait, sans rien installer
+./script/install --only "wezterm"    # rejoue une étape précise
+./script/install --skip "claude"     # saute une étape
+./script/install --minimal           # outils CLI de base seulement
+./script/install --no-gui            # sans les terminaux (kitty, wezterm)
+#+end_src
+
+Chaque étape est isolée : si l'une échoue, les autres continuent et le résumé
+final indique quoi rejouer. Le détail complet part dans
+=~/.local/state/dotfiles/<date>.log=.
+
+** Mettre à jour
+
+#+begin_src sh
+cd ~/Documents/github/perso/dotfiles && git pull && ./script/install
+#+end_src
+
+** Ce qui est installé
+
+| Domaine   | Contenu                                                        |
+|-----------+----------------------------------------------------------------|
+| Shell     | zsh, oh-my-zsh, thème agnoster, autosuggestions, fzf-tab       |
+| Terminal  | WezTerm (+ terminfo), kitty, police MesloLGS NF                |
+| Édition   | Neovim (LazyVim), LSP Python/TypeScript/Terraform              |
+| CLI       | fzf, ripgrep, fd, bat, eza, zoxide, delta, bottom, jq, lazygit |
+| IA        | Claude Code, opencode, dictée vocale (Whisper)                 |
+
+Pour ne poser que les liens symboliques, sans rien installer :
+=./script/bootstrap= (ou =stow -t ~ zsh config oh-my-zsh-custom bin=).
 
 * Features / memo
 
@@ -75,26 +113,46 @@ Terminal tip:
 ** WezTerm (Linux + Windows)
 
 Config: `config/.config/wezterm/wezterm.lua` (même fichier pour Linux et Windows).
-Installé par `./script/install` (Linux, dépôt apt officiel + terminfo `wezterm`),
-et côté Windows par :
-
-#+begin_src powershell
-powershell -ExecutionPolicy Bypass -File .\script\install-windows.ps1
-#+end_src
+Installé par `./script/install` (Linux, dépôt apt officiel + terminfo `wezterm`)
+et par `script/get.ps1` côté Windows (cf. Installation).
 
 Sous Windows, WezTerm ouvre la distribution WSL (Ubuntu en priorité) : lancer
 ensuite `./script/install` dans WSL pour zsh, nvim et les sessions.
 
-Sessions persistantes (Linux) : shells, nvim et Claude Code tournent dans
-`wezterm-mux-server`. Fermer la fenêtre ou relancer WezTerm ne tue rien :
-`wezterm` (ou le lanceur du menu, surchargé dans
-`bin/.local/share/applications/`) se reconnecte. Tout arrêter pour de bon :
-`pkill -x wezterm-mux-ser`. Un changement de `config.term` ou des domaines
-ne s'applique qu'après ce redémarrage du serveur.
+Dispositions clavier : les raccourcis suivent le *caractère* produit (Ctrl+Alt+z
+reste sur la touche « z » en BÉPO comme en AZERTY) et Alt+1…9 les touches
+*physiques* du haut (pas de Shift). Seules les lettres de Ctrl+Alt+a / x
+s'adaptent à la disposition, détectée via `setxkbmap` (AZERTY par défaut sous
+Windows) ; écrire `bepo`, `azerty` ou `qwerty` dans `~/.config/wezterm/keyboard`
+force le choix.
+
+Différences sous Windows (le même `wezterm.lua`, branche `IS_WINDOWS`) :
+- Ctrl+Alt+lettre devient Ctrl+Alt+Shift+lettre (AltGr arrive comme Ctrl+Alt).
+- Sélecteurs `ctrl+shift+s` / `ctrl+shift+o` : version native de WezTerm
+  (fzf et `wez-pick` vivent dans WSL) ; pas de ctrl+x / ctrl+r ni de reprise
+  au démarrage. Le marquage jaune des workspaces qui sonnent fonctionne.
+- Pas de `TERM=wezterm` (terminfo absent côté WSL) ni de domaine Unix.
+- F1 lit `~/.config/wezterm/cheatsheet.txt` **dans WSL** (le chemin Windows de
+  la config n'y est pas lisible).
+- La confirmation avant fermeture reste active : fermer tue les onglets.
+
+Pas de sessions persistantes : le mode connecté à `wezterm-mux-server` rate
+les redimensionnements avec beaucoup d'onglets nvim (voir `wezterm.lua`).
 
 Workspaces : `de-session`, `ms-session`, `github-session` et
 `marvin-session` ouvrent chacune leur workspace (de, ms, github, marvin) ;
-les relancer n'ajoute que les onglets manquants.
+les relancer n'ajoute que les onglets manquants. Elles sont déclarées dans
+`config/.config/wezterm/sessions.conf` (nom du workspace + commande), lu par
+le sélecteur `wez-pick`.
+
+Au démarrage, WezTerm propose de reprendre les workspaces de la fois
+précédente (mémorisés dans `~/.local/state/wezterm/workspaces`) ; Échap ouvre
+un shell simple. Quand un programme sonne (Claude Code en attente) dans un
+workspace qu'on ne regarde pas, son nom passe en jaune dans la barre et il est
+marqué dans le sélecteur.
+
+Bureaux Cinnamon déplacés sur Super+Ctrl(+Shift)+flèches par `./script/install`,
+pour laisser Ctrl+Alt(+Shift)+flèches au terminal.
 
 Key cheatsheet (sous Windows, ajouter Shift aux raccourcis Ctrl+Alt+lettre :
 AltGr y arrive comme Ctrl+Alt) :
@@ -103,22 +161,31 @@ AltGr y arrive comme Ctrl+Alt) :
 splits:
   Ctrl+Alt+Shift+Right   vertical split (cwd=current)
   Ctrl+Alt+Shift+Down    horizontal split (cwd=current)
-  Ctrl+Alt+Arrow keys    focus split (pris par Cinnamon s'il a plusieurs bureaux)
-  Ctrl+Alt+a / x         aller à / échanger un split par lettre (a u i e t s r n)
+  Ctrl+Alt+Arrow keys    focus split
+  Ctrl+Alt+a / x         aller à / échanger un split par lettre (rangée de repos :
+                         auietsrn en BÉPO, qsdfghjklm en AZERTY, détecté au
+                         démarrage ; forçage via ~/.config/wezterm/keyboard)
   Ctrl+b                 split précédent
   Ctrl+Alt+r             resize mode (flèches, Échap)
   Ctrl+Alt+z             zoom
 
 tabs:
-  Ctrl+Alt+t / w         new / close tab
+  Ctrl+Shift+t           new tab (Ctrl+Alt+t reste à Cinnamon)
+  Ctrl+Alt+w, Ctrl+Shift+q  close tab
+  Ctrl+Alt+e             rename tab
   Ctrl+Tab, Ctrl+Shift+Right   next tab
   Ctrl+Shift+Tab, Ctrl+Shift+Left  previous tab
   Ctrl+Shift+PageUp/Down move tab
-  Ctrl+Shift+o           tab navigator (fuzzy)
 
-workspaces:
-  Ctrl+Shift+s           workspace launcher (fuzzy)
+workspaces (une seule fenêtre ; Ctrl+Shift+n désactivé) :
+  clic « workspaces ▾ »  bouton de la barre : gauche = workspaces, droit = onglets
+  Ctrl+Shift+s           sélecteur plein écran (bin/.local/bin/wez-pick, fzf) :
+                         aperçu réel, sessions pas encore ouvertes lançables,
+                         ctrl+x ferme un workspace, ctrl+r le renomme
+  Ctrl+Shift+o           chercher un onglet dans tous les workspaces
+  Alt+1…9                workspace n (barre en bas à droite, touches physiques)
   Ctrl+Alt+PageUp/Down   previous / next workspace
+  Ctrl+Alt+n             create / join a workspace by name
 
 links:
   Ctrl+click             open URL / Linear ticket (MAR-1234)
@@ -126,6 +193,7 @@ links:
   Ctrl+Alt+o             open a visible Linear ticket by letter
 
 misc:
+  F1 (ou `wez-help`)     cet aide-mémoire (config/.config/wezterm/cheatsheet.txt)
   Ctrl+Shift+p           command palette
   Ctrl+Alt+left drag     rectangular selection
 #+end_src

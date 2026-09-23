@@ -1,169 +1,129 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Diagnostic de l'installation : ce qui est en place, ce qui manque, et comment
+# le réparer.
+#
+#   ./script/doctor          état des lieux
+#   ./script/doctor --fix    relance les étapes d'installation manquantes
+set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=script/lib-ui.sh
+source "$repo_root/script/lib-ui.sh"
+
+fix=false
+[[ "${1:-}" == "--fix" ]] && fix=true
 
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
-
-ok() { printf "ok   %s\n" "$*"; }
-warn() { printf "warn %s\n" "$*"; }
-bad() { printf "bad  %s\n" "$*"; }
-
 have() { command -v "$1" >/dev/null 2>&1; }
+version_ge() { [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n 1)" == "$2" ]]; }
 
-version_ge() {
-  # usage: version_ge <have> <want>
-  # returns 0 if have >= want (sort -V)
-  local have_ver="$1" want_ver="$2"
-  [[ "$(printf '%s\n%s\n' "$have_ver" "$want_ver" | sort -V | head -n 1)" == "$want_ver" ]]
+OK=0; WARN=0; BAD=0
+MISSING_STEPS=()
+
+section() { printf '\n%s%s%s\n' "$UI_BOLD" "$1" "$UI_RESET"; }
+good() { printf '  %s✓%s %s\n' "$UI_GREEN" "$UI_RESET" "$*"; OK=$((OK + 1)); }
+meh() { printf '  %s!%s %s\n' "$UI_YELLOW" "$UI_RESET" "$*"; WARN=$((WARN + 1)); }
+bad() { printf '  %s✗%s %s\n' "$UI_RED" "$UI_RESET" "$*"; BAD=$((BAD + 1)); }
+
+# check <libellé> <commande> [étape d'installation] [obligatoire]
+check() {
+  local label="$1" cmd="$2" step="${3:-}" required="${4:-false}"
+  if have "$cmd"; then
+    good "$label"
+    return
+  fi
+  [[ -n "$step" ]] && MISSING_STEPS+=("$step")
+  if [[ "$required" == "true" ]]; then
+    bad "$label — manquant${step:+ (étape « $step »)}"
+  else
+    meh "$label — manquant${step:+ (étape « $step »)}"
+  fi
 }
 
-echo "dotfiles doctor"
-echo "- repo: $repo_root"
-echo "- os:   $os"
+printf '\n%s❯ dotfiles · diagnostic%s\n' "$UI_BOLD" "$UI_RESET"
+printf '%s  dépôt : %s · système : %s%s\n' "$UI_DIM" "$repo_root" "$os" "$UI_RESET"
 
-echo
-echo "core"
-if have git; then
-  ok "git"
+section "indispensables"
+check "git" git base true
+check "stow (liens symboliques)" stow base true
+check "zsh" zsh base true
+check "jq (sessions WezTerm)" jq base true
+
+section "terminal"
+if have wezterm; then
+  good "WezTerm $(wezterm --version 2>/dev/null | awk '{print $2}')"
 else
-  bad "git (required)"
+  MISSING_STEPS+=(wezterm); meh "WezTerm — manquant (étape « wezterm »)"
 fi
-
-if have stow; then
-  ok "stow"
+if [[ -f "$HOME/.config/wezterm/wezterm.lua" ]]; then
+  good "config WezTerm liée"
 else
-  bad "stow (required)"
+  MISSING_STEPS+=(link); meh "config WezTerm absente (étape « link »)"
 fi
-
-echo
-echo "oh-my-zsh"
-if [[ -d "$HOME/.oh-my-zsh" ]]; then
-  ok "$HOME/.oh-my-zsh exists"
+if [[ -x "$HOME/.local/bin/wez-pick" ]]; then
+  good "sélecteur wez-pick"
 else
-  warn "$HOME/.oh-my-zsh missing (run ./script/bootstrap)"
+  MISSING_STEPS+=(link); meh "wez-pick absent (étape « link »)"
 fi
-
-zsh_custom="${XDG_CONFIG_HOME:-$HOME/.config}/oh-my-zsh"
-if [[ -d "$zsh_custom" ]]; then
-  ok "ZSH_CUSTOM dir: $zsh_custom"
+if infocmp wezterm >/dev/null 2>&1; then
+  good "terminfo wezterm (soulignement ondulé)"
 else
-  warn "ZSH_CUSTOM dir missing: $zsh_custom (run ./script/bootstrap)"
+  MISSING_STEPS+=(wezterm); meh "terminfo wezterm absent (étape « wezterm »)"
 fi
-
-if [[ -f "$zsh_custom/themes/adrien-agnoster.zsh-theme" ]]; then
-  ok "custom theme installed"
-else
-  warn "custom theme missing (stow oh-my-zsh-custom)"
-fi
-
-echo
-echo "zsh extras (optional)"
-zsh_plugin_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
-if [[ -d "$zsh_plugin_dir/zsh-autosuggestions" ]]; then
-  ok "zsh-autosuggestions"
-else
-  warn "zsh-autosuggestions (run ./script/bootstrap)"
-fi
-
-if [[ -d "$zsh_plugin_dir/fast-syntax-highlighting" ]]; then
-  ok "fast-syntax-highlighting"
-else
-  warn "fast-syntax-highlighting (run ./script/bootstrap)"
-fi
-
-if [[ -d "$zsh_plugin_dir/fzf-tab" ]]; then
-  ok "fzf-tab"
-else
-  warn "fzf-tab (run ./script/bootstrap)"
-fi
-
-echo
-echo "python (optional)"
-if have pyenv; then
-  if pyenv commands 2>/dev/null | command grep -qx "virtualenv-init"; then
-    ok "pyenv-virtualenv available"
-  else
-    warn "pyenv-virtualenv missing (run ./script/install or install plugin)"
-  fi
-else
-  warn "pyenv"
-fi
-
-echo
-echo "cli tools (recommended)"
 if have fzf; then
-  fzf_ver="$(fzf --version 2>/dev/null | awk '{print $1}' || true)"
-  if [[ -n "$fzf_ver" ]] && version_ge "$fzf_ver" "0.36.0"; then
-    ok "fzf $fzf_ver"
-  else
-    warn "fzf ${fzf_ver:-unknown} (need >= 0.36 for Neovim fzf-lua)"
-  fi
+  fzf_ver="$(fzf --version 2>/dev/null | awk '{print $1}')"
+  if version_ge "$fzf_ver" "0.36.0"; then good "fzf $fzf_ver"; else MISSING_STEPS+=(fzf); meh "fzf $fzf_ver trop ancien (0.36 minimum)"; fi
 else
-  warn "fzf"
+  MISSING_STEPS+=(fzf); bad "fzf — manquant (étape « fzf »)"
 fi
-if have rg; then ok "rg"; else warn "rg"; fi
-if have fd || have fdfind; then ok "fd"; else warn "fd"; fi
-if have bat || have batcat; then ok "bat"; else warn "bat"; fi
-if have kitty; then ok "kitty"; else warn "kitty"; fi
-if have nvim; then ok "nvim"; else warn "nvim"; fi
-if have opencode; then ok "opencode"; else warn "opencode"; fi
-if have lazygit; then ok "lazygit $(lazygit --version 2>/dev/null | head -1 | awk '{print $6}')"; else warn "lazygit"; fi
 
-echo
-echo "databases (optional)"
-if have psql; then ok "psql"; else warn "psql (needed for vim-dadbod Postgres)"; fi
+section "zsh"
+if [[ -d "$HOME/.oh-my-zsh" ]]; then good "oh-my-zsh"; else MISSING_STEPS+=(link); meh "oh-my-zsh absent (étape « link »)"; fi
+zsh_custom="${ZSH_CUSTOM:-${XDG_CONFIG_HOME:-$HOME/.config}/oh-my-zsh}"
+if [[ -f "$zsh_custom/themes/adrien-agnoster.zsh-theme" ]]; then good "thème adrien-agnoster"; else MISSING_STEPS+=(link); meh "thème absent (étape « link »)"; fi
+plugins="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
+for p in zsh-autosuggestions fast-syntax-highlighting fzf-tab; do
+  if [[ -d "$plugins/$p" ]]; then good "$p"; else MISSING_STEPS+=(link); meh "$p absent (étape « link »)"; fi
+done
+if [[ -f "$HOME/.zshrc" ]]; then good ".zshrc lié"; else MISSING_STEPS+=(link); bad ".zshrc absent (étape « link »)"; fi
 
-echo
-echo "neovim"
-if [[ -f "$repo_root/config/.config/nvim/lazy-lock.json" ]]; then
-  ok "lazy-lock.json committed"
+section "outils"
+check "ripgrep (rg)" rg base
+check "neovim" nvim optional
+check "lazygit" lazygit lazygit
+check "lazydocker" lazydocker lazydocker
+check "psql (vim-dadbod)" psql base
+check "Claude Code" claude claude
+check "opencode" opencode opencode
+if have fd || have fdfind; then good "fd"; else MISSING_STEPS+=(base); meh "fd — manquant (étape « base »)"; fi
+if have bat || have batcat; then good "bat"; else MISSING_STEPS+=(base); meh "bat — manquant (étape « base »)"; fi
+if have pyenv; then
+  if pyenv commands 2>/dev/null | grep -qx virtualenv-init; then good "pyenv + virtualenv"; else MISSING_STEPS+=(pyenv); meh "plugin pyenv-virtualenv absent (étape « pyenv »)"; fi
 else
-  warn "lazy-lock.json missing"
+  meh "pyenv — manquant (optionnel)"
 fi
 
-echo
-echo "opencode"
-opencode_state_dir="$HOME/.local/state/opencode"
-if have opencode; then
-  ok "opencode"
+section "neovim"
+if [[ -f "$repo_root/config/.config/nvim/lazy-lock.json" ]]; then good "lazy-lock.json versionné"; else meh "lazy-lock.json absent"; fi
+if [[ -d "$HOME/.local/share/nvim/mason/packages" ]]; then
+  good "$(ls "$HOME/.local/share/nvim/mason/packages" 2>/dev/null | wc -l) outils Mason (LSP, formateurs)"
 else
-  warn "opencode (run ./script/install)"
+  meh "aucun outil Mason (ouvre nvim une fois)"
 fi
 
-if [[ -f "$repo_root/opencode-state/.local/state/opencode/kv.json" ]]; then
-  if [[ -L "$opencode_state_dir/kv.json" ]]; then
-    warn "kv.json is a symlink (run ./script/bootstrap to migrate)"
-  elif [[ -f "$opencode_state_dir/kv.json" ]]; then
-    ok "kv.json present"
-  else
-    warn "kv.json missing (run ./script/bootstrap)"
+# --- Résumé --------------------------------------------------------------------
+printf '\n%s─────────────────────────────────────────────%s\n' "$UI_DIM" "$UI_RESET"
+printf '%s%s en place · %s à regarder · %s bloquants%s\n' \
+  "$UI_BOLD" "$OK" "$WARN" "$BAD" "$UI_RESET"
+
+if (( ${#MISSING_STEPS[@]} > 0 )); then
+  uniq_steps="$(printf '%s\n' "${MISSING_STEPS[@]}" | sort -u | tr '\n' ' ' | sed 's/ $//')"
+  if [[ "$fix" == "true" ]]; then
+    printf '\nRéparation : ./script/install --only "%s"\n\n' "$uniq_steps"
+    exec "$repo_root/script/install" --only "$uniq_steps"
   fi
+  printf '\nPour réparer :\n  %s./script/doctor --fix%s\n' "$UI_BOLD" "$UI_RESET"
+  printf '  %s(équivaut à ./script/install --only "%s")%s\n' "$UI_DIM" "$uniq_steps" "$UI_RESET"
 fi
 
-if [[ -f "$repo_root/opencode-state/.local/state/opencode/model.json" ]]; then
-  if [[ -L "$opencode_state_dir/model.json" ]]; then
-    warn "model.json is a symlink (run ./script/bootstrap to migrate)"
-  elif [[ -f "$opencode_state_dir/model.json" ]]; then
-    ok "model.json present"
-  else
-    warn "model.json missing (run ./script/bootstrap)"
-  fi
-fi
-
-echo
-echo "install hints"
-echo "- dotfiles: $repo_root/script/install"
-case "$os" in
-  linux)
-    echo "- Debian/Ubuntu/Mint: sudo apt install -y stow git zsh ripgrep fd-find bat"
-    echo "  (fd may be 'fdfind', bat may be 'batcat')"
-    echo "- fzf: Ubuntu jammy ships an old fzf; use ./script/install to install a recent fzf in ~/.local/bin"
-    ;;
-  darwin)
-    echo "- macOS (Homebrew): brew install stow git zsh fzf ripgrep fd bat"
-    ;;
-  *)
-    echo "- install: stow git zsh fzf ripgrep fd bat"
-    ;;
-esac
+(( BAD == 0 ))
