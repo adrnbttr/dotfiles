@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Les fonctions d'installation sont appelées indirectement par step(), ce que
-# l'analyse statique ne voit pas (d'où SC2329 désactivé ci-dessous).
-# shellcheck disable=SC2329
+# l'analyse statique ne voit pas : selon sa version, elle les signale comme
+# jamais appelées (SC2329) ou inatteignables (SC2317).
+# shellcheck disable=SC2317,SC2329
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
