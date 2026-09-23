@@ -25,7 +25,8 @@ irm https://raw.githubusercontent.com/adrnbttr/dotfiles/master/script/get.ps1 | 
 #+end_src
 
 Installe WezTerm et la police MesloLGS NF, met en place WSL + Ubuntu si besoin,
-puis lance l'installation Linux *dans WSL* et pointe WezTerm sur la config.
+puis lance l'installation Linux *dans WSL*, pointe WezTerm sur la config
+(=~\.wezterm.lua=) et ajoute =Documents\github= dans l'Explorateur.
 Prérequis : Windows 10/11 avec winget (« App Installer » du Microsoft Store) ;
 PowerShell en administrateur si WSL n'est pas encore installé. Si WSL vient
 d'être activé, redémarrer puis relancer la même commande.
@@ -118,6 +119,21 @@ et par `script/get.ps1` côté Windows (cf. Installation).
 
 Sous Windows, WezTerm ouvre la distribution WSL (Ubuntu en priorité) : lancer
 ensuite `./script/install` dans WSL pour zsh, nvim et les sessions.
+
+Windows en pratique :
+- WezTerm lit =%USERPROFILE%\.wezterm.lua=, écrit par `script/get.ps1`, qui
+  charge `wezterm.lua` depuis le clone WSL (=\\wsl$\Ubuntu\...=). Si WezTerm
+  était déjà ouvert pendant l'installation, le fermer puis le rouvrir.
+- Les dépôts vivent dans WSL, sous =~/Documents/github/perso= (git et nvim y
+  sont bien plus rapides que sur =/mnt/c=). Depuis l'Explorateur :
+  =Documents\github= (raccourci créé par `get.ps1`). Cloner un dépôt là, puis
+  `github-session` ouvre un onglet nvim par dépôt dans le workspace =github=.
+- zsh doit être le shell par défaut de WSL (étape `shell` de `./script/install`) :
+  c'est lui que WezTerm lance, et les sessions sont des fonctions zsh.
+- git dans WSL (étape `git`, sans effet hors WSL) : reprend l'identité de git
+  Windows et s'authentifie sur GitHub via le =gh.exe= Windows déjà connecté,
+  pour cloner, pull et push les dépôts privés sans clé ni jeton dans WSL.
+- Police : 8.25 sous Windows (écran à 125 %), 11 sous Linux.
 
 *Clavier BÉPO sur un portable AZERTY (Windows)* : `windows/clavier/` pose les
 lettres en BÉPO tout en gardant les caractères spéciaux imprimés sur les touches

@@ -7,7 +7,8 @@
 #   2. installe WezTerm et la police MesloLGS NF ;
 #   3. installe WSL + Ubuntu s'ils manquent (redémarrage éventuel) ;
 #   4. lance l'installation Linux DANS WSL (script/get) ;
-#   5. pointe WEZTERM_CONFIG_FILE sur la config du dépôt cloné dans WSL.
+#   5. écrit ~\.wezterm.lua, qui charge la config du dépôt cloné dans WSL ;
+#   6. ajoute Documents\github (raccourci vers ~/Documents/github de WSL).
 #
 # Réexécutable sans risque : chaque étape est ignorée si elle est déjà faite.
 
@@ -18,7 +19,7 @@ $Repo = if ($env:DOTFILES_REPO) { $env:DOTFILES_REPO } else { "https://github.co
 $Distro = if ($env:DOTFILES_WSL_DISTRO) { $env:DOTFILES_WSL_DISTRO } else { "Ubuntu" }
 $steps = @()
 $index = 0
-$total = 5
+$total = 6
 
 function Step($label, $block) {
     $script:index++
@@ -115,12 +116,47 @@ Step "dotfiles dans WSL" {
 }
 
 # --- 5. Config WezTerm ---------------------------------------------------------
+# Un ~\.wezterm.lua qui charge la config WSL, plutôt que WEZTERM_CONFIG_FILE :
+# un WezTerm déjà ouvert (lancé juste après l'étape 1) ne voit jamais une
+# variable posée après coup, et toute nouvelle fenêtre passe par lui : on
+# restait sur la config par défaut (cmd.exe, pas de WSL) jusqu'à fermeture.
 Step "config WezTerm" {
     $user = (wsl.exe -d $Distro -- whoami).Trim()
     $path = "\\wsl$\$Distro\home\$user\Documents\github\perso\dotfiles\config\.config\wezterm\wezterm.lua"
     if (-not (Test-Path $path)) { throw "config introuvable : $path" }
-    if ([Environment]::GetEnvironmentVariable("WEZTERM_CONFIG_FILE", "User") -eq $path) { return "skip" }
-    [Environment]::SetEnvironmentVariable("WEZTERM_CONFIG_FILE", $path, "User")
+    $stub = Join-Path $HOME ".wezterm.lua"
+    $content = @"
+-- Généré par dotfiles/script/get.ps1 : la config vit dans le dépôt cloné dans WSL.
+local wezterm = require("wezterm")
+local path = [[$path]]
+wezterm.add_to_config_reload_watch_list(path)
+return dofile(path)
+"@
+    # L'ancienne méthode passait par WEZTERM_CONFIG_FILE, prioritaire sur ce fichier.
+    $hadVar = [Environment]::GetEnvironmentVariable("WEZTERM_CONFIG_FILE", "User")
+    if ($hadVar) { [Environment]::SetEnvironmentVariable("WEZTERM_CONFIG_FILE", $null, "User") }
+    if (-not $hadVar -and (Test-Path $stub) -and ((Get-Content -Raw $stub).Trim() -eq $content.Trim())) { return "skip" }
+    [IO.File]::WriteAllText($stub, $content, (New-Object Text.UTF8Encoding $false))
+    if (Get-Process wezterm-gui -ErrorAction SilentlyContinue) {
+        Write-Host ""
+        Write-Host "      WezTerm est ouvert : ferme-le puis rouvre-le pour prendre la config" -ForegroundColor Yellow
+    }
+}
+
+# --- 6. Dépôts accessibles depuis l'Explorateur --------------------------------
+# Les dépôts restent dans WSL (git et nvim y sont bien plus rapides que sur
+# /mnt/c) ; Documents\github est un raccourci vers ~/Documents/github.
+Step "Documents\github" {
+    $user = (wsl.exe -d $Distro -- whoami).Trim()
+    $target = "\\wsl.localhost\$Distro\home\$user\Documents\github"
+    $docs = [Environment]::GetFolderPath("MyDocuments")
+    $lnkPath = Join-Path $docs "github.lnk"
+    $shell = New-Object -ComObject WScript.Shell
+    if ((Test-Path $lnkPath) -and $shell.CreateShortcut($lnkPath).TargetPath -eq $target) { return "skip" }
+    $lnk = $shell.CreateShortcut($lnkPath)
+    $lnk.TargetPath = $target
+    $lnk.Description = "Dépôts GitHub (WSL $Distro) : github-session"
+    $lnk.Save()
 }
 
 # --- Résumé --------------------------------------------------------------------

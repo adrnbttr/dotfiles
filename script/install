@@ -600,11 +600,11 @@ ensure_wezterm_terminfo() {
 }
 
 # WezTerm via son dépôt apt officiel (le paquet Ubuntu est trop ancien ou absent).
-# Sous WSL, c'est WezTerm Windows qui tourne (script/install-windows.ps1) :
+# Sous WSL, c'est WezTerm Windows qui tourne (script/get.ps1) :
 # rien à installer côté Linux.
 ensure_wezterm_linux() {
   if grep -qi microsoft /proc/version 2>/dev/null; then
-    info "WSL detected: wezterm is installed on the Windows side (script/install-windows.ps1)"
+    info "WSL detected: wezterm is installed on the Windows side (script/get.ps1)"
     return 0
   fi
   if ! have wezterm; then
@@ -773,6 +773,48 @@ modern_tools_linux() {
 
 run_bootstrap() { "$repo_root/script/bootstrap"; }
 
+# zsh comme shell de connexion : c'est lui que WezTerm ouvre (et, sous Windows,
+# la distribution WSL), et les sessions (github-session...) sont des fonctions zsh.
+ensure_login_shell_zsh() {
+  local zsh_bin current
+  zsh_bin="$(command -v zsh)" || { warn "zsh absent : lance d'abord l'étape « base »"; return 1; }
+  current="$(getent passwd "$USER" 2>/dev/null | cut -d: -f7)"
+  if [[ "${current##*/}" == "zsh" ]]; then
+    info "login shell already zsh ($current)"
+    return 0
+  fi
+  grep -qx "$zsh_bin" /etc/shells 2>/dev/null || echo "$zsh_bin" | ${sudo_cmd} tee -a /etc/shells >/dev/null
+  ${sudo_cmd} chsh -s "$zsh_bin" "$USER"
+  info "login shell: ${current:-?} -> $zsh_bin"
+}
+
+# WSL uniquement : git y démarre sans identité ni accès GitHub (dépôts privés).
+# On reprend l'identité de git Windows et on s'authentifie via le gh Windows
+# (déjà connecté) : aucune clé ni jeton à recopier dans WSL.
+configure_git_wsl() {
+  if ! grep -qi microsoft /proc/version 2>/dev/null; then
+    info "not WSL: git config left untouched"
+    return 0
+  fi
+  local key val gh_win
+  for key in user.name user.email; do
+    if [[ -z "$(git config --global "$key")" ]] && have git.exe; then
+      val="$(git.exe config --global "$key" 2>/dev/null | tr -d '\r')"
+      [[ -n "$val" ]] && git config --global "$key" "$val" && info "git $key <- Windows ($val)"
+    fi
+  done
+  gh_win="$(command -v gh.exe 2>/dev/null)"
+  if [[ -z "$gh_win" ]]; then
+    warn "gh.exe introuvable côté Windows : accès aux dépôts privés non configuré (winget install GitHub.cli, puis gh auth login)"
+    return 0
+  fi
+  # Une valeur vide d'abord : ignore les helpers hérités, puis celui de gh.
+  git config --global --unset-all credential.https://github.com.helper 2>/dev/null || true
+  git config --global --add credential.https://github.com.helper ""
+  git config --global --add credential.https://github.com.helper "!'$gh_win' auth git-credential"
+  info "git credentials for github.com -> $gh_win"
+}
+
 # Liste des étapes (id + libellé + commande), selon l'OS et les options.
 declare -a STEP_IDS=() STEP_LABELS=() STEP_CMDS=()
 add_step() { STEP_IDS+=("$1"); STEP_LABELS+=("$2"); STEP_CMDS+=("$3"); }
@@ -794,6 +836,8 @@ build_steps() {
       [[ "$no_claude" == "true" ]]   || add_step claude   "Claude Code"     install_claude
       add_step voice      "dictée vocale (Whisper)" install_voice_to_claude
       add_step keys       "raccourcis Cinnamon"     configure_cinnamon_keys
+      add_step shell      "zsh shell par défaut"    ensure_login_shell_zsh
+      add_step git        "git (WSL : identité, GitHub)" configure_git_wsl
       ;;
     darwin)
       add_step base       "outils de base (brew)"   brew_base_macos

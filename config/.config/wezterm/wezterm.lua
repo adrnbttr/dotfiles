@@ -1,5 +1,5 @@
 -- WezTerm : portage de config/.config/kitty/kitty.conf (couleurs, splits, onglets).
--- Même fichier pour Linux et Windows (voir script/install-windows.ps1) ; les
+-- Même fichier pour Linux et Windows (chargé par ~\.wezterm.lua, cf. script/get.ps1) ; les
 -- différences sont regroupées derrière IS_WINDOWS.
 local wezterm = require("wezterm")
 local act = wezterm.action
@@ -10,7 +10,9 @@ local IS_WINDOWS = wezterm.target_triple:find("windows") ~= nil
 
 -- --- Apparence ---------------------------------------------------------------
 config.font = wezterm.font_with_fallback({ "MesloLGS NF", "Cascadia Mono", "Consolas" })
-config.font_size = 11.0
+-- Windows : le portable est à 125 % d'échelle, 11 y paraît trop gros ; 8.25
+-- = 10 réduit deux fois avec ctrl+- (÷1,1 à chaque fois), réglé à l'œil.
+config.font_size = IS_WINDOWS and 8.25 or 11.0
 -- Rendu plus proche de kitty : hinting léger (comme Xft.hintstyle=hintslight)
 -- et antialiasing sous-pixel, qui donne un trait plus net et plus dense.
 config.freetype_load_target = "Light"
