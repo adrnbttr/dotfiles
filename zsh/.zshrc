@@ -626,7 +626,12 @@ fi
 
 if command -v pyenv >/dev/null 2>&1; then
   eval "$(pyenv init --path)"
-  eval "$(pyenv init -)"
+  # --no-rehash : pas de `pyenv rehash` à chaque shell. Une session WezTerm
+  # ouvre une dizaine de shells d'un coup, qui se disputaient le verrou
+  # ~/.pyenv/shims/.pyenv-shim ; un verrou orphelin bloquait chaque nouveau
+  # shell ~60 s. Les shims restent à jour : pyenv rehash tout seul après
+  # `pip install` / `pyenv install` (hook pip-rehash).
+  eval "$(pyenv init - --no-rehash zsh)"
   if pyenv commands 2>/dev/null | command grep -qx "virtualenv-init"; then
     eval "$(pyenv virtualenv-init -)"
   fi
@@ -709,6 +714,12 @@ if command -v btm >/dev/null 2>&1; then
   alias htop='btm'
 fi
 
-# Scaleway CLI autocomplete initialization.
-eval "$(scw autocomplete script shell=zsh)"
-eval "$(direnv hook zsh)"
+# Outils optionnels : sans ces gardes, chaque nouveau shell affiche une erreur
+# sur une machine où ils ne sont pas installés.
+if command -v scw >/dev/null 2>&1; then
+  eval "$(scw autocomplete script shell=zsh)"
+fi
+
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook zsh)"
+fi
