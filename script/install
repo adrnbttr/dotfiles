@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Les fonctions d'installation sont appelées indirectement par step(), ce que
+# l'analyse statique ne voit pas (d'où SC2329 désactivé ci-dessous).
+# shellcheck disable=SC2329
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -63,7 +66,7 @@ export DOTFILES_DRY_RUN="${DOTFILES_DRY_RUN:-}"
 export DOTFILES_ONLY="${DOTFILES_ONLY:-}"
 export DOTFILES_SKIP="${DOTFILES_SKIP:-}"
 
-# shellcheck source=script/lib-ui.sh
+# shellcheck source=lib-ui.sh disable=SC1091
 source "$repo_root/script/lib-ui.sh"
 
 while [[ $# -gt 0 ]]; do
@@ -508,7 +511,7 @@ install_delta_release_linux() {
     cd "$tmpdir"
     curl -fsSL -o delta.tar.gz "$url" || { err "failed to download delta ${version}"; exit 1; }
     tar -xzf delta.tar.gz || { err "failed to extract delta"; exit 1; }
-    install -m 0755 -D ./delta-${version}-${arch}-unknown-linux-gnu/delta "$HOME/.local/bin/delta"
+    install -m 0755 -D "./delta-${version}-${arch}-unknown-linux-gnu/delta" "$HOME/.local/bin/delta"
   )
   rm -rf "$tmpdir"
 }
@@ -812,6 +815,11 @@ configure_cinnamon_keys() {
 
 build_steps
 
+# --yes : aucune question, y compris celles d'apt.
+if [[ "$assume_yes" == "true" ]]; then
+  export DEBIAN_FRONTEND=noninteractive
+fi
+
 if [[ "$list_only" == "true" ]]; then
   printf 'Étapes de l'"'"'installation (%s) :\n' "$os"
   for i in "${!STEP_IDS[@]}"; do
@@ -830,7 +838,7 @@ printf '\n'
 ui_summary
 rc=$?
 if (( rc == 0 )); then
-  printf '\n%sProchaine étape :%s ouvre un nouveau terminal (ou `exec zsh`).\n' "$UI_BOLD" "$UI_RESET"
+  printf '\n%sProchaine étape :%s ouvre un nouveau terminal (ou « exec zsh »).\n' "$UI_BOLD" "$UI_RESET"
   printf '  · WezTerm : F1 pour l'"'"'aide-mémoire, ctrl+shift+s pour les workspaces\n'
   printf '  · Diagnostic : ./script/doctor\n'
 fi

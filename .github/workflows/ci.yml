@@ -20,4 +20,18 @@ jobs:
         run: zsh -n zsh/.zshrc
 
       - name: Shellcheck scripts
-        run: shellcheck script/bootstrap script/doctor
+        # -x : suit les fichiers sourcés (script/lib-ui.sh)
+        run: |
+          shellcheck -x \
+            script/bootstrap \
+            script/doctor \
+            script/get \
+            script/install \
+            script/lib-ui.sh \
+            bin/.local/bin/wez-pick
+
+      - name: Install steps are listable
+        run: ./script/install --list
+
+      - name: Install dry-run
+        run: ./script/install --dry-run --no-gui --no-opencode --no-claude

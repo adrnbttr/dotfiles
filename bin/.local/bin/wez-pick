@@ -213,11 +213,10 @@ preview_startup() {
 }
 
 startup() {
-  local previous entries choice ws home first=""
+  local previous entries choice ws
   [[ -s "$LAST" ]] || exit 0
   previous="$(tr '\n' ' ' < "$LAST" | sed 's/  */ /g; s/^ //; s/ $//')"
   [[ -z "$previous" ]] && exit 0
-  home="$(current_workspace)"
   entries="__all__"$'\t'"${GREEN}⟲  reprendre : $previous${RESET}"$'\t'"${DIM}relance ces sessions${RESET}"$'\n'
   for ws in $previous; do
     entries+="$ws"$'\t'"   $ws"$'\t'"${DIM}$(session_desc "$ws")${RESET}"$'\n'
@@ -231,7 +230,10 @@ startup() {
   ws="${choice%%$'\t'*}"
   case "$ws" in
     __none__ | "") exit 0 ;;
-    __all__) resume $previous ;;
+    __all__)
+      # shellcheck disable=SC2086  # découpage voulu : la liste des workspaces
+      resume $previous
+      ;;
     *) launch_session "$ws" ;;
   esac
 }

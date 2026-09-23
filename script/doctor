@@ -7,7 +7,7 @@
 set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=script/lib-ui.sh
+# shellcheck source=lib-ui.sh disable=SC1091
 source "$repo_root/script/lib-ui.sh"
 
 fix=false
@@ -106,7 +106,8 @@ fi
 section "neovim"
 if [[ -f "$repo_root/config/.config/nvim/lazy-lock.json" ]]; then good "lazy-lock.json versionné"; else meh "lazy-lock.json absent"; fi
 if [[ -d "$HOME/.local/share/nvim/mason/packages" ]]; then
-  good "$(ls "$HOME/.local/share/nvim/mason/packages" 2>/dev/null | wc -l) outils Mason (LSP, formateurs)"
+  mason_count=$(find "$HOME/.local/share/nvim/mason/packages" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+  good "$mason_count outils Mason (LSP, formateurs)"
 else
   meh "aucun outil Mason (ouvre nvim une fois)"
 fi
