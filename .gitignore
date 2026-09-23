@@ -7,3 +7,6 @@ secrets.lua
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Rapport du harnais de test clavier
+windows/clavier/resultat-test.txt

@@ -135,9 +135,10 @@ Windows en pratique :
   pour cloner, pull et push les dépôts privés sans clé ni jeton dans WSL.
 - Police : 8.25 sous Windows (écran à 125 %), 11 sous Linux.
 
-*Clavier BÉPO sur un portable AZERTY (Windows)* : `windows/clavier/` pose les
-lettres en BÉPO tout en gardant les caractères spéciaux imprimés sur les touches
-(ThinkPad belge). Une commande dans PowerShell, AutoHotkey installé au passage :
+*Clavier BÉPO sur un portable AZERTY (Windows)* : `windows/clavier/` ajoute la
+BÉPO native de Windows à côté du clavier Belge imprimé (Win+Espace pour
+basculer), avec de petits correctifs pour qu'elle tape comme la BÉPO Linux
+(apostrophe, underscore). Une commande dans PowerShell :
 
 #+begin_src powershell
 irm https://raw.githubusercontent.com/adrnbttr/dotfiles/master/windows/clavier/get.ps1 | iex
@@ -150,7 +151,7 @@ reste sur la touche « z » en BÉPO comme en AZERTY) et Alt+1…9 les touches
 *physiques* du haut (pas de Shift). Seules les lettres de Ctrl+Alt+a / x
 s'adaptent à la disposition, détectée via `setxkbmap` (AZERTY par défaut sous
 Windows) ; écrire `bepo`, `azerty` ou `qwerty` dans `~/.config/wezterm/keyboard`
-force le choix.
+(sous Windows : =%USERPROFILE%\.config\wezterm\keyboard=) force le choix.
 
 Différences sous Windows (le même `wezterm.lua`, branche `IS_WINDOWS`) :
 - Ctrl+Alt+lettre devient Ctrl+Alt+Shift+lettre (AltGr arrive comme Ctrl+Alt).

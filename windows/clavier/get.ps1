@@ -1,4 +1,4 @@
-# Clavier BÉPO hybride — installation en une commande (PowerShell) :
+# Clavier Belge + BÉPO — installation en une commande (PowerShell) :
 #
 #   irm https://raw.githubusercontent.com/adrnbttr/dotfiles/master/windows/clavier/get.ps1 | iex
 #
@@ -8,9 +8,9 @@
 #
 # Fait, dans l'ordre :
 #   1. vérifie Windows et l'accès réseau ;
-#   2. télécharge le script BÉPO et son installeur ;
-#   3. passe la main à installer.ps1 (disposition belge, AutoHotkey v2,
-#      copie, démarrage automatique).
+#   2. télécharge les correctifs BÉPO et l'installeur ;
+#   3. passe la main à installer.ps1 (claviers Belge + BÉPO, AutoHotkey v2,
+#      correctifs, démarrage automatique).
 #
 # Aucun droit administrateur nécessaire. Réexécutable sans risque.
 
@@ -19,10 +19,10 @@ $ProgressPreference = "SilentlyContinue"
 
 $Base = if ($env:DOTFILES_RAW) { $env:DOTFILES_RAW }
         else { "https://raw.githubusercontent.com/adrnbttr/dotfiles/master" }
-$dir = Join-Path $env:TEMP "bepo-belge-setup"
+$dir = Join-Path $env:TEMP "bepo-setup"
 
 Write-Host ""
-Write-Host "❯ clavier BÉPO hybride · téléchargement" -ForegroundColor White
+Write-Host "❯ clavier Belge + BÉPO · téléchargement" -ForegroundColor White
 Write-Host ""
 
 if ($PSVersionTable.Platform -eq "Unix") {
@@ -39,7 +39,7 @@ try {
 }
 
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
-foreach ($file in @("bepo-belge.ahk", "installer.ps1", "desinstaller.ps1",
+foreach ($file in @("bepo-correctifs.ahk", "installer.ps1", "desinstaller.ps1",
                     "test-clavier.ahk", "README.md")) {
     try {
         Invoke-WebRequest -UseBasicParsing -Uri "$Base/windows/clavier/$file" `
@@ -59,6 +59,6 @@ if (-not $ps) { $ps = "powershell.exe" }
 
 Write-Host ""
 Write-Host ("Les fichiers restent dans {0}" -f $dir) -ForegroundColor DarkGray
-Write-Host "  · README.md        ce que tape chaque touche"
-Write-Host "  · test-clavier.ahk vérifie les 37 cas tout seul"
-Write-Host "  · desinstaller.ps1 pour tout retirer"
+Write-Host "  · README.md        ce qui change par rapport à la BÉPO Linux"
+Write-Host "  · test-clavier.ahk vérifie 25 cas tout seul"
+Write-Host "  · desinstaller.ps1 pour retirer la BÉPO"

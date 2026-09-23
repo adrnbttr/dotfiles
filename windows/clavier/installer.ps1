@@ -1,23 +1,28 @@
-# Installe le clavier « BÉPO hybride » sur le ThinkPad (clavier AZERTY belge).
+﻿# Deux dispositions sur le ThinkPad (clavier AZERTY belge) :
+#   · Belge  : ce qui est imprimé sur les touches (inchangé) ;
+#   · BÉPO   : la BÉPO native de Windows, alignée sur la BÉPO Linux.
+# On passe de l'une à l'autre avec Win+Espace.
 #
 #   powershell -ExecutionPolicy Bypass -File .\installer.ps1
 #
 # Fait, dans l'ordre :
-#   1. règle la disposition Windows sur Français (Belgique) — indispensable
-#      pour que les caractères imprimés sur les touches fonctionnent ;
-#   2. installe AutoHotkey v2 (winget) ;
-#   3. copie bepo-belge.ahk dans %LOCALAPPDATA%\bepo-belge ;
-#   4. le lance et l'ajoute au démarrage de session ;
-#   5. propose un test rapide.
+#   1. Français (Belgique) avec deux claviers : Belge, puis BÉPO ;
+#   2. retire l'ancien « BÉPO hybride » s'il est là ;
+#   3. installe AutoHotkey v2 (winget, sinon téléchargement) ;
+#   4. copie bepo-correctifs.ahk, le lance et l'ajoute au démarrage.
 #
-# Réexécutable sans risque. Pour tout retirer : .\desinstaller.ps1
+# Aucun droit administrateur. Réexécutable sans risque. Retrait : .\desinstaller.ps1
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-$dest = Join-Path $env:LOCALAPPDATA "bepo-belge"
-$script = Join-Path $dest "bepo-belge.ahk"
-$startup = Join-Path ([Environment]::GetFolderPath("Startup")) "bepo-belge.lnk"
+$BELGE = "080C:0000080C"   # Français (Belgique) · clavier Belge (période)
+$BEPO = "080C:0002040C"    # Français (Belgique) · clavier Français (Standard, BÉPO)
+
+$dest = Join-Path $env:LOCALAPPDATA "bepo"
+$script = Join-Path $dest "bepo-correctifs.ahk"
+$startupDir = [Environment]::GetFolderPath("Startup")
+$startup = Join-Path $startupDir "bepo-correctifs.lnk"
 $index = 0
 $total = 4
 $results = @()
@@ -52,25 +57,42 @@ function Step($label, $block) {
 }
 
 Write-Host ""
-Write-Host "❯ clavier BÉPO hybride · ThinkPad AZERTY belge" -ForegroundColor White
+Write-Host "❯ clavier · Belge + BÉPO (ThinkPad AZERTY belge)" -ForegroundColor White
 Write-Host ""
 
-# 1. Disposition belge ---------------------------------------------------------
-Step "disposition Français (Belgique)" {
+# 1. Dispositions --------------------------------------------------------------
+# Belge en premier (défaut, ce qui est imprimé), BÉPO en second. Les autres
+# langues éventuelles ne sont pas touchées.
+Step "claviers Belge + BÉPO" {
+    if (-not (Test-Path "HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layouts\0002040C")) {
+        throw "cette version de Windows n'a pas la BÉPO native (Windows 10 1903 ou plus récent requis)"
+    }
     $list = Get-WinUserLanguageList
-    $fr = $list | Where-Object { $_.LanguageTag -like "fr*" } | Select-Object -First 1
+    $fr = $list | Where-Object { $_.LanguageTag -eq "fr-BE" } | Select-Object -First 1
+    if ($fr -and ($fr.InputMethodTips -join ",") -eq "$BELGE,$BEPO") { return "skip" }
     if (-not $fr) {
-        $list.Add("fr-BE")
+        $list.Insert(0, "fr-BE")
         $fr = $list | Where-Object { $_.LanguageTag -eq "fr-BE" }
     }
-    # 0813:0000080C = clavier belge (période française) ; 080C = belge francophone
-    if ($fr.InputMethodTips -contains "080C:0000080C") { return "skip" }
     $fr.InputMethodTips.Clear()
-    $fr.InputMethodTips.Add("080C:0000080C")
-    Set-WinUserLanguageList $list -Force
+    $fr.InputMethodTips.Add($BELGE)
+    $fr.InputMethodTips.Add($BEPO)
+    Set-WinUserLanguageList $list -Force -WarningAction SilentlyContinue
 }
 
-# 2. AutoHotkey v2 -------------------------------------------------------------
+# 2. Ancien « BÉPO hybride » (lettres BÉPO sur symboles belges) -----------------
+Step "retrait de l'ancien hybride" {
+    $old = Join-Path $env:LOCALAPPDATA "bepo-belge"
+    $oldLnk = Join-Path $startupDir "bepo-belge.lnk"
+    if (-not (Test-Path $old) -and -not (Test-Path $oldLnk)) { return "skip" }
+    Get-CimInstance Win32_Process -Filter "Name like 'AutoHotkey%'" |
+        Where-Object { $_.CommandLine -like "*bepo-belge*" } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Remove-Item $oldLnk -Force -ErrorAction SilentlyContinue
+    Remove-Item $old -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# 3. AutoHotkey v2 -------------------------------------------------------------
 Step "AutoHotkey v2" {
     if (Trouve-AutoHotkey) { return "skip" }
 
@@ -93,34 +115,33 @@ Step "AutoHotkey v2" {
     }
 }
 
-# 3. Copie du script -----------------------------------------------------------
-Step "script BÉPO" {
-    New-Item -ItemType Directory -Force -Path $dest | Out-Null
-    $source = Join-Path $PSScriptRoot "bepo-belge.ahk"
-    if (-not (Test-Path $source)) { throw "bepo-belge.ahk introuvable à côté de ce script" }
-    if ((Test-Path $script) -and ((Get-FileHash $source).Hash -eq (Get-FileHash $script).Hash)) {
-        return "skip"
-    }
-    Copy-Item $source $script -Force
-}
-
-# 4. Démarrage automatique + lancement -----------------------------------------
-Step "démarrage automatique" {
+# 4. Correctifs BÉPO : copie, démarrage automatique, lancement ------------------
+Step "correctifs BÉPO" {
     $exe = Trouve-AutoHotkey
     if (-not $exe) { throw "AutoHotkey v2 introuvable : rouvre un terminal et relance ce script" }
+    $source = Join-Path $PSScriptRoot "bepo-correctifs.ahk"
+    if (-not (Test-Path $source)) { throw "bepo-correctifs.ahk introuvable à côté de ce script" }
 
-    Get-Process AutoHotkey64, AutoHotkey -ErrorAction SilentlyContinue |
-        Where-Object { $_.Path -eq $exe } | Stop-Process -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force -Path $dest | Out-Null
+    Copy-Item $source $script -Force
 
     $shell = New-Object -ComObject WScript.Shell
     $lnk = $shell.CreateShortcut($startup)
     $lnk.TargetPath = $exe
     $lnk.Arguments = '"' + $script + '"'
     $lnk.WorkingDirectory = $dest
-    $lnk.Description = "BÉPO hybride sur clavier belge"
+    $lnk.Description = "BÉPO : correctifs pour taper comme sous Linux"
     $lnk.Save()
 
+    # #SingleInstance Force : relancer remplace la version qui tourne.
     Start-Process $exe -ArgumentList "`"$script`""
+
+    # WezTerm : lettres de saut entre splits sur la rangée de repos BÉPO.
+    $kb = Join-Path $HOME ".config\wezterm\keyboard"
+    if (-not (Test-Path $kb)) {
+        New-Item -ItemType Directory -Force -Path (Split-Path $kb) | Out-Null
+        [IO.File]::WriteAllText($kb, "bepo`n")
+    }
 }
 
 # Résumé ------------------------------------------------------------------------
@@ -130,18 +151,10 @@ if ($results -contains "échec") {
     Write-Host "Des étapes ont échoué : corrige le point signalé puis relance." -ForegroundColor Red
     return
 }
-Write-Host "Le BÉPO hybride est actif." -ForegroundColor White
+Write-Host "Belge + BÉPO en place." -ForegroundColor White
 Write-Host ""
-Write-Host "  Ctrl+Alt+Shift+B   activer / désactiver (retour au belge normal)"
-Write-Host "  Ctrl+Alt+Shift+Q   quitter le script"
-Write-Host "  .\desinstaller.ps1 tout retirer"
+Write-Host "  Win+Espace         passer du Belge à la BÉPO (et retour)"
+Write-Host "  en BÉPO            tout comme sous Linux : chiffres, AltGr, Ctrl+lettre"
+Write-Host "  test-clavier.ahk   vérifie 25 cas tout seul"
 Write-Host ""
-Write-Host "Test rapide (ouvre le Bloc-notes et tape) :" -ForegroundColor White
-Write-Host "  · les touches A S D F G H J K L donnent : a u i e , c t s r"
-Write-Host "  · AltGr+2 donne @ · AltGr+9 donne { · AltGr+E donne €"
-Write-Host "  · ^ puis a donne â · AltGr+Shift+^ puis e donne ë"
-Write-Host ""
-Write-Host "Les symboles recouverts par les lettres BÉPO reviennent sur leur touche :" -ForegroundColor White
-Write-Host "  · AltGr = la légende de droite · AltGr+Shift = la légende recouverte"
-Write-Host "  · exemples : AltGr+Shift sur « =+~ » donne = · sur « :/ » donne /"
-Write-Host "  · rangée des chiffres, AltGr+Shift : 7=+  9=/  0=*  )==  -=%"
+Write-Host "Si la BÉPO n'apparaît pas dans Win+Espace : ferme la session et rouvre-la." -ForegroundColor DarkGray

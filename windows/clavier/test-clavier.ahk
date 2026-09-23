@@ -1,139 +1,116 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 ; ---------------------------------------------------------------------------
-; Harnais de test du BÉPO hybride — à lancer APRÈS bepo-belge.ahk.
+; Harnais de test de la BÉPO Windows (+ bepo-correctifs.ahk, qui doit tourner).
 ;
-;   "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" test-clavier.ahk
+;   AutoHotkey64.exe test-clavier.ahk [--quitter]
 ;
-; Il tape lui-même chaque touche physique (par code de scan) dans sa propre
-; zone de texte, lit ce qui en sort et compare à l'attendu. Aucune frappe
-; humaine nécessaire : l'agent peut lancer ça et lire le rapport.
+; Passe sa propre fenêtre en BÉPO, tape chaque touche physique par code de
+; scan, lit ce qui sort et compare à la BÉPO Linux (fr bepo). Aucune frappe
+; humaine. Rapport : la fenêtre + resultat-test.txt à côté du script.
 ;
-; Résultat : une fenêtre récapitulative + un fichier resultat-test.txt
-; à côté de ce script.
-;
-; SendLevel 1 est indispensable : sans lui, les frappes simulées sont
-; ignorées par les raccourcis de bepo-belge.ahk (protection anti-boucle).
+; SendLevel 1 : sans lui, bepo-correctifs.ahk ignorerait les frappes simulées.
 ; ---------------------------------------------------------------------------
 
 SendLevel 1
-SetKeyDelay 15, 15
+SetKeyDelay 10, 10
 rapport := []
 echecs := 0
 
-; --- Zone de saisie qui recevra les caractères ------------------------------
-fenetre := Gui("+AlwaysOnTop", "Test BÉPO hybride")
+fenetre := Gui("+AlwaysOnTop", "Test BÉPO")
 fenetre.SetFont("s10", "Consolas")
 zone := fenetre.AddEdit("w700 r3")
-journal := fenetre.AddEdit("w700 r22 ReadOnly -Wrap")
+journal := fenetre.AddEdit("w700 r26 ReadOnly -Wrap")
 fenetre.Show()
+
+; La fenêtre de test passe en BÉPO (la disposition est propre à chaque fil).
+bepo := DllCall("LoadKeyboardLayout", "Str", "0002040C", "UInt", 0, "Ptr")
+if !bepo {
+    MsgBox "Disposition BÉPO (0002040C) introuvable : lance installer.ps1."
+    ExitApp 2
+}
+DllCall("ActivateKeyboardLayout", "Ptr", bepo, "UInt", 0)
 zone.Focus()
 Sleep 400
 
-; --- Les cas de test --------------------------------------------------------
-; [ description, suite de touches, texte attendu ]
-; « > » sépare les frappes ; « ^ » devant un code = AltGr ; « ^+ » = AltGr+Shift ;
-; « + » = Shift.
+; [ description, frappes, attendu ]
+; frappes : codes de scan séparés par « > » ; préfixes « + » Shift,
+; « ^ » AltGr, « ^+ » AltGr+Shift.
 cas := [
-    ["lettres, rangée du haut", "010>011>012>013>014", "bépoè"],
-    ["lettres, rangée du haut (suite)", "016>017>018>019>01A>01B", "vdljzw"],
-    ["lettres, rangée de repos", "01E>01F>020>021>023>024>025>026>027>028", "auiectsrnm"],
-    ["virgule et cédille", "022>02B", ",ç"],
-    ["lettres, rangée du bas", "056>02C>02D>02E>030>032>033>034>035", "êàyxkqghf"],
-    ["point et apostrophe", "02F>031", ".'"],
-    ["majuscules", "+01E>+021>+025", "AES"],
-    ["ponctuation BÉPO (Shift)", "+022>+02F>+031>+015", ";:?!"],
-    ["accent circonflexe mort", "015>01E", "â"],
+    ["lettres, rangée du haut", "010>011>012>013>014>016>017>018>019>01A>01B", "bépoèvdljzw"],
+    ["lettres, rangée de repos", "01E>01F>020>021>022>023>024>025>026>027>028>02B", "auie,ctsrnmç"],
+    ["lettres, rangée du bas", "056>02C>02D>02E>02F>030>032>033>034>035", "êàyx.kqghf"],
+    ["majuscules accentuées", "+011>+014>+02C>+02B>+056", "ÉÈÀÇÊ"],
+    ["rangée des chiffres", "029>002>003>004>005>006>007>008>009>00A>00B>00C>00D", "$`"«»()@+-/*=%"],
+    ["chiffres (Shift)", "+002>+003>+004>+005>+006>+007>+008>+009>+00A>+00B", "1234567890"],
+    ["ponctuation (Shift)", "+022>+02F>+031>+015>+00C>+00D", ";:?!°``"],
+    ["apostrophe droite (correctif)", "031", "'"],
+    ["apostrophe typographique AltGr+, (correctif)", "^022", "’"],
+    ["crochets et accolades", "^005>^006>^02D>^02E", "[]{}"],
+    ["< > \ / |", "^003>^004>^02C>^056>^010", "<>\/|"],
+    ["& ~ ^ _", "^012>^030>^007>^039", "&~^_"],
+    ["… € œ æ ù", "^02F>^021>^013>^01E>^01F", "…€œæù"],
+    ["circonflexe mort", "015>01E>015>021>015>020", "âêî"],
     ["circonflexe seul (espace)", "015>039", "^"],
-    ["tréma mort (AltGr+Shift)", "^+01A>021", "ë"],
-    ["symbole rendu : $", "^+01B", "$"],
-    ["symbole rendu : ù", "^028", "ù"],
-    ["symbole rendu : %", "^+028", "%"],
-    ["symbole rendu : µ", "^+02B", "µ"],
-    ["symbole rendu : <", "^056", "<"],
-    ["symbole rendu : >", "^+056", ">"],
-    ["symbole rendu : =", "^+035", "="],
-    ["symbole rendu : /", "^+034", "/"],
-    ["symbole rendu : point-virgule", "^+033", ";"],
-    ["symbole rendu : ?", "^+032", "?"],
-    ["chiffres, position BÉPO : +", "^+008", "+"],
-    ["chiffres, position BÉPO : /", "^+00A", "/"],
-    ["chiffres, position BÉPO : *", "^+00B", "*"],
-    ["chiffres, position BÉPO : =", "^+00C", "="],
-    ["chiffres, position BÉPO : %", "^+00D", "%"],
-    ["intact : crochet [", "^01A", "["],
-    ["intact : crochet ]", "^01B", "]"],
-    ["intact : tilde ~ (mort)", "^035>039", "~"],
-    ["intact : arobase", "^003", "@"],
-    ["intact : euro", "^012", "€"],
-    ["intact : accolades", "^00A>^00B", "{}"],
-    ["intact : antislash", "^00C", "\"],
-    ["intact : dièse", "^004", "#"],
-    ["intact : chiffres (Shift)", "+002>+003>+004", "123"],
-    ["intact : rangée du haut", "002>003>005>006", "&é'("],
-    ["intact : tiret et souligné", "00D>+00D", "-_"]
+    ["tréma mort (AltGr+i)", "^020>021>^020>020", "ëï"],
+    ["accent grave mort (AltGr+è)", "^014>01E", "à"],
+    ["backtick direct (AltGr+Shift+è)", "^+014", "``"],
 ]
 
-for element in cas {
+for c in cas {
     zone.Value := ""
     zone.Focus()
-    Sleep 60
-    frappe(element[2])
-    Sleep 180
+    for frappe in StrSplit(c[2], ">")
+        taper(frappe)
+    Sleep 80
     obtenu := zone.Value
-    ok := (obtenu == element[3])
-    if (!ok)
+    ok := (obtenu == c[3])
+    if !ok
         echecs++
-    ligne := Format("{1}  {2}`n     attendu « {3} »   obtenu « {4} »",
-        ok ? "[ OK ]" : "[ÉCHEC]", element[1], element[3], obtenu)
-    rapport.Push(ligne)
-    journal.Value := journal.Value . ligne . "`n"
+    rapport.Push(Format("{1}  {2}`r`n     attendu « {3} »   obtenu « {4} »",
+        ok ? "[ OK ]" : "[ÉCHEC]", c[1], c[3], obtenu))
 }
 
-; --- Rapport ----------------------------------------------------------------
-resume := Format("{1} cas · {2} réussis · {3} en échec", cas.Length, cas.Length - echecs, echecs)
-entete := "Test du BÉPO hybride — " . FormatTime(, "yyyy-MM-dd HH:mm") . "`n" . resume . "`n"
-fichier := A_ScriptDir . "\resultat-test.txt"
-try FileDelete fichier
-FileAppend entete . "`n" . Join(rapport) . "`n", fichier, "UTF-8"
-
-journal.Value := journal.Value . "`n" . resume . "`nRapport écrit dans " . fichier
-fenetre.Title := "Test BÉPO hybride — " . resume
-zone.Value := ""
-
-Join(liste) {
-    texte := ""
-    for ligne in liste
-        texte .= ligne . "`n"
-    return texte
+; Raccourcis : Ctrl suit la lettre BÉPO (comme sous Linux) si la touche porte
+; le code virtuel de sa lettre. GetKeyVK lit la disposition de ce fil (BÉPO).
+raccourcis := [["c", "023"], ["v", "016"], ["s", "025"], ["w", "01B"], ["z", "01A"], ["d", "017"], ["u", "01F"]]
+for r in raccourcis {
+    vk := GetKeyVK("SC" . r[2])
+    ok := (vk = Ord(StrUpper(r[1])))
+    if !ok
+        echecs++
+    rapport.Push(Format("{1}  Ctrl+{2} sur la touche BÉPO « {2} »`r`n     VK attendu {3:X}   obtenu {4:X}",
+        ok ? "[ OK ]" : "[ÉCHEC]", r[1], Ord(StrUpper(r[1])), vk))
 }
 
-; Envoie une suite de touches décrite comme "^+01A>021".
-frappe(suite) {
-    for morceau in StrSplit(suite, ">") {
-        altgr := InStr(morceau, "^") == 1
-        if (altgr)
-            morceau := SubStr(morceau, 2)
-        maj := InStr(morceau, "+") == 1
-        if (maj)
-            morceau := SubStr(morceau, 2)
+total := cas.Length + raccourcis.Length
+entete := Format("Test BÉPO Windows — {1}`r`n{2} cas · {3} réussis · {4} en échec`r`n",
+    FormatTime(, "yyyy-MM-dd HH:mm"), total, total - echecs, echecs)
+texte := entete . "`r`n"
+for ligne in rapport
+    texte .= ligne . "`r`n"
+journal.Value := texte
+try FileDelete A_ScriptDir "\resultat-test.txt"
+FileAppend texte, A_ScriptDir "\resultat-test.txt", "UTF-8"
+fenetre.Title := echecs ? "Test BÉPO — " echecs " échec(s)" : "Test BÉPO — tout est bon"
 
-        prefixe := ""
-        suffixe := ""
-        if (altgr) {
-            prefixe .= "{LCtrl down}{RAlt down}"
-            suffixe := "{RAlt up}{LCtrl up}" . suffixe
-        }
-        if (maj) {
-            prefixe .= "{Shift down}"
-            suffixe := "{Shift up}" . suffixe
-        }
-        ; SendEvent et non Send : le mode « Event » produit de vraies frappes
-        ; que le hook de bepo-belge.ahk voit à coup sûr (SendInput les groupe
-        ; et peut passer sous le radar des autres scripts).
-        SendEvent prefixe . "{SC" . morceau . "}" . suffixe
-        Sleep 40
+if A_Args.Length && A_Args[1] = "--quitter"
+    ExitApp echecs ? 1 : 0
+Escape::ExitApp
+
+; Une frappe : préfixes éventuels + code de scan.
+taper(frappe) {
+    if SubStr(frappe, 1, 2) = "^+" {
+        avant := "{LCtrl down}{RAlt down}{LShift down}", apres := "{LShift up}{RAlt up}{LCtrl up}"
+        code := SubStr(frappe, 3)
+    } else if SubStr(frappe, 1, 1) = "^" {
+        avant := "{LCtrl down}{RAlt down}", apres := "{RAlt up}{LCtrl up}"
+        code := SubStr(frappe, 2)
+    } else if SubStr(frappe, 1, 1) = "+" {
+        avant := "{LShift down}", apres := "{LShift up}"
+        code := SubStr(frappe, 2)
+    } else {
+        avant := "", apres := "", code := frappe
     }
+    SendEvent avant "{SC" code "}" apres
 }
-
-Esc:: ExitApp

@@ -68,7 +68,9 @@ local HOME_ROWS = {
 }
 
 local function detect_keyboard()
-  local override = io.open((os.getenv("XDG_CONFIG_HOME") or ((os.getenv("HOME") or "") .. "/.config"))
+  -- Windows n'a pas de HOME : %USERPROFILE%\.config\wezterm\keyboard.
+  local override = io.open((os.getenv("XDG_CONFIG_HOME")
+    or ((os.getenv("HOME") or os.getenv("USERPROFILE") or "") .. "/.config"))
     .. "/wezterm/keyboard", "r")
   if override then
     local want = (override:read("*l") or ""):gsub("%s", "")
