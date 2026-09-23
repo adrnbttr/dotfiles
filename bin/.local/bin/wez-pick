@@ -1,0 +1,263 @@
+#!/usr/bin/env bash
+# wez-pick : sélecteur plein écran de workspaces / onglets pour WezTerm, façon
+# Telescope (liste et recherche à gauche, aperçu réel à droite). Lancé par
+# wezterm.lua (ctrl+shift+s, ctrl+shift+o, bouton « workspaces ▾ ») dans un
+# pane zoomé, qui se ferme à la sortie.
+#
+#   wez-pick workspaces <etat.json>   workspaces ouverts + sessions à lancer
+#   wez-pick tabs <etat.json>         onglets de tous les workspaces
+#   wez-pick startup                  au démarrage : reprendre la session
+#   wez-pick resume <ws...>           relance ces sessions, l'une après l'autre
+#
+# <etat.json> est écrit par wezterm.lua : workspace courant, workspaces en
+# attente (bell) et, par fenêtre, ses onglets (id, position, titre, actif).
+# Les sessions connues viennent de ~/.config/wezterm/sessions.conf ; la liste
+# des workspaces de la fois précédente est dans
+# ~/.local/state/wezterm/workspaces (écrite par wezterm.lua).
+set -u
+# Disposition et couleurs maîtrisées ici (thème de wezterm.lua : vert #00cc7a
+# sur #121212), sans les --height 40% / --border hérités du .zshrc.
+export FZF_DEFAULT_OPTS="--ansi --layout=reverse --info=inline-right --margin=1,2 \
+  --border=rounded --pointer=▶ --marker=● --separator=─ --scrollbar=│ \
+  --preview-window=right,60%,border-rounded \
+  --color=fg:#dddddd,bg:#121212,hl:#00cc7a,fg+:#ffffff,bg+:#1e2a24,hl+:#00cc7a:bold \
+  --color=info:#767676,prompt:#00cc7a,pointer:#00cc7a,marker:#00cc7a,spinner:#00cc7a \
+  --color=header:#767676,border:#3a4540,label:#00cc7a:bold,preview-bg:#121212,query:#ffffff:bold"
+
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/wezterm/sessions.conf"
+LAST="${XDG_STATE_HOME:-$HOME/.local/state}/wezterm/workspaces"
+
+self="$(readlink -f "$0")"
+mode="${1:-workspaces}"
+state="${2:-}"
+
+# L'état est éphémère : on le supprime en sortant (pas dans les sous-appels
+# d'aperçu, qui le relisent).
+case "$mode" in
+  workspaces | tabs) trap 'rm -f "$state"' EXIT ;;
+esac
+
+GREEN=$'\e[38;2;0;204;122m'
+YELLOW=$'\e[38;2;206;203;0m'
+DIM=$'\e[38;2;118;118;118m'
+BOLD=$'\e[1m'
+RESET=$'\e[0m'
+BELL=$''   # cloche (Nerd Font)
+
+# --- sessions.conf ------------------------------------------------------------
+session_names() { [[ -f "$CONF" ]] && awk '!/^[[:space:]]*(#|$)/ { print $1 }' "$CONF"; }
+session_cmd() { [[ -f "$CONF" ]] && awk -v w="$1" '!/^[[:space:]]*(#|$)/ && $1 == w { print $2; exit }' "$CONF"; }
+session_desc() {
+  [[ -f "$CONF" ]] && awk -v w="$1" '!/^[[:space:]]*(#|$)/ && $1 == w {
+      i = index($0, "#"); if (i) print substr($0, i + 1); else print ""; exit }' "$CONF" \
+    | sed 's/^ *//; s/ *$//'
+}
+
+open_workspaces() { jq -r '[.windows[].workspace] | unique[]' "$state" | LC_ALL=C sort; }
+bell_workspaces() { jq -r '(.bells // [])[]' "$state" 2>/dev/null; }
+
+switch_workspace() {
+  printf '\033]1337;SetUserVar=switch_workspace=%s\007' \
+    "$(printf '%s' "$1" | base64 | tr -d '\n')" >/dev/tty
+  # Laisse WezTerm traiter la demande avant que ce pane ne se ferme.
+  sleep 0.3
+}
+
+# Workspace de ce pane.
+current_workspace() {
+  wezterm cli list --format json \
+    | jq -r --argjson p "${WEZTERM_PANE:-0}" 'first(.[] | select(.pane_id == $p) | .workspace) // "home"'
+}
+
+# Écran d'un pane, en couleurs, sans les lignes vides du bas.
+pane_screen() {
+  wezterm cli get-text --pane-id "$1" --escapes 2>/dev/null \
+    | awk '{ lines[NR] = $0; if ($0 ~ /[^[:space:]]/ && $0 !~ /^(\033\[[0-9;]*m)*[[:space:]]*(\033\[[0-9;]*m)*$/) last = NR }
+           END { for (i = 1; i <= last; i++) print lines[i] }'
+}
+
+preview_workspace() {
+  local ws="$1" cmd pane
+  if ! jq -e --arg w "$ws" 'any(.windows[]; .workspace == $w)' "$state" >/dev/null; then
+    cmd="$(session_cmd "$ws")"
+    printf '%s○ %s%s\n\n%s\n\nSession pas encore ouverte.\nEntrée : lancer %s%s%s\n' \
+      "$BOLD" "$ws" "$RESET" "$(session_desc "$ws")" "$GREEN" "$cmd" "$RESET"
+    return
+  fi
+  jq -r --arg w "$ws" '.windows[] | select(.workspace == $w) | .tabs[]
+      | "\(if .is_active then "▸" else " " end)\(.index) \(.title)"' "$state" \
+    | while IFS= read -r line; do
+        if [[ "$line" == ▸* ]]; then printf '%s%s%s\n' "$GREEN" "$line" "$RESET"; else printf '%s\n' "$line"; fi
+      done
+  printf '%s%s%s\n' "$DIM" "────────────────────────────────────────" "$RESET"
+  pane="$(jq -r --arg w "$ws" 'first(.windows[] | select(.workspace == $w) | .tabs[] | select(.is_active) | .pane_id) // empty' "$state")"
+  [[ -n "$pane" ]] && pane_screen "$pane" | tail -n "$(( ${FZF_PREVIEW_LINES:-40} - 12 ))"
+}
+
+preview_tab() { pane_screen "${1##*|}" | tail -n "${FZF_PREVIEW_LINES:-40}"; }
+
+launch_session() {
+  local cmd
+  cmd="$(session_cmd "$1")"
+  if [[ -z "$cmd" ]]; then
+    printf '%sAucune commande pour « %s » dans %s%s\n' "$DIM" "$1" "$CONF" "$RESET"
+    sleep 2
+    return 1
+  fi
+  if ! zsh -ic "$cmd"; then
+    printf '\n%sÉchec de %s — une touche pour fermer.%s' "$DIM" "$cmd" "$RESET"
+    read -r -n 1 -s
+    return 1
+  fi
+}
+
+close_workspace() {
+  local ws="$1" tabs answer
+  tabs="$(jq --arg w "$ws" '[.windows[] | select(.workspace == $w) | .tabs[]] | length' "$state")"
+  printf '%sFermer « %s » et ses %s onglet(s) ? [o/N] %s' "$YELLOW" "$ws" "$tabs" "$RESET"
+  read -r -n 1 answer; echo
+  [[ "$answer" == [oOyY] ]] || return 0
+  # Tous les panes du workspace (l'état ne retient que le pane actif de chaque
+  # onglet : tuer celui-là seul laisserait les splits, donc le workspace, en vie).
+  wezterm cli list --format json \
+    | jq -r --arg w "$ws" '.[] | select(.workspace == $w) | .pane_id' \
+    | while read -r p; do wezterm cli kill-pane --pane-id "$p" >/dev/null 2>&1; done
+}
+
+rename_workspace() {
+  local ws="$1" name
+  printf '%sNouveau nom pour « %s » : %s' "$GREEN" "$ws" "$RESET"
+  read -r name
+  [[ -z "$name" ]] && return 0
+  wezterm cli rename-workspace --workspace "$ws" "$name" >/dev/null 2>&1
+}
+
+# --- workspaces ---------------------------------------------------------------
+pick_workspaces() {
+  local current ws n entries="" count bells key choice mark info
+  current="$(jq -r '.current' "$state")"
+  bells=" $(bell_workspaces | tr '\n' ' ')"
+  n=0
+  while IFS= read -r ws; do
+    n=$((n + 1))
+    count="$(jq --arg w "$ws" '[.windows[] | select(.workspace == $w) | .tabs[]] | length' "$state")"
+    mark="  "; info="$count onglet$([[ $count -gt 1 ]] && echo s)"
+    [[ "$ws" == "$current" ]] && { mark="${GREEN}● "; info="$info · actuel"; }
+    if [[ "$bells" == *" $ws "* ]]; then
+      mark="${YELLOW}$BELL "; info="$info · en attente"
+    fi
+    entries+="$ws"$'\t'"$mark$n  $ws$RESET"$'\t'"${DIM}$info${RESET}"$'\n'
+  done < <(open_workspaces)
+  while IFS= read -r ws; do
+    [[ -z "$ws" ]] && continue
+    open_workspaces | grep -qx "$ws" && continue
+    entries+="$ws"$'\t'"${DIM}○    $ws${RESET}"$'\t'"${DIM}$(session_desc "$ws")${RESET}"$'\n'
+  done < <(session_names)
+
+  choice="$(printf '%s' "$entries" | fzf \
+    --delimiter=$'\t' --with-nth=2.. --nth=1 \
+    --border-label=' Workspaces ' --prompt='  ' \
+    --header=$'Entrée : y aller · ctrl+x : fermer · ctrl+r : renommer · Échap\n● ouvert · ○ session à lancer · '"$BELL"' en attente' \
+    --expect=ctrl-x,ctrl-r \
+    --preview="$self --preview-ws {1} $state" \
+    --preview-label=' Aperçu ')" || exit 0
+  key="$(sed -n 1p <<<"$choice")"
+  ws="$(sed -n 2p <<<"$choice" | cut -f1)"
+  [[ -z "$ws" ]] && exit 0
+
+  case "$key" in
+    ctrl-x) close_workspace "$ws" ;;
+    ctrl-r) rename_workspace "$ws" ;;
+    *)
+      [[ "$ws" == "$current" ]] && exit 0
+      if open_workspaces | grep -qx "$ws"; then
+        switch_workspace "$ws"
+      else
+        launch_session "$ws"
+      fi
+      ;;
+  esac
+}
+
+# --- onglets ------------------------------------------------------------------
+pick_tabs() {
+  local current entries choice id tab ws
+  current="$(jq -r '.current' "$state")"
+  entries="$(jq -r --arg cur "$current" '
+      .windows[] as $w | $w.tabs[]
+      | [ "\(.tab_id)|\($w.workspace)|\(.pane_id)",
+          (if $w.workspace == $cur then "● " else "  " end) + $w.workspace + " › " + (.index | tostring) + ": " + .title ]
+      | @tsv' "$state" \
+    | awk -F'\t' -v g="$GREEN" -v r="$RESET" '{ if (index($2, "● ") == 1) print $1 "\t" g $2 r; else print }')"
+  choice="$(printf '%s\n' "$entries" | fzf \
+    --delimiter=$'\t' --with-nth=2 --nth=1 \
+    --border-label=' Onglets · tous les workspaces ' --prompt='  ' \
+    --header=$'Entrée : y aller · Échap : fermer\n● workspace actuel' \
+    --preview="$self --preview-tab {1}" \
+    --preview-label=' Aperçu ')" || exit 0
+  id="${choice%%$'\t'*}"
+  tab="${id%%|*}"; ws="${id#*|}"; ws="${ws%%|*}"
+  wezterm cli activate-tab --tab-id "$tab" >/dev/null 2>&1
+  [[ "$ws" != "$current" ]] && switch_workspace "$ws"
+  exit 0
+}
+
+# --- démarrage ----------------------------------------------------------------
+# Propose de reprendre les workspaces ouverts la fois précédente.
+preview_startup() {
+  case "$1" in
+    __all__) printf '%sReprend les sessions de la dernière fois :%s\n\n%s\n' "$BOLD" "$RESET" "$(tr '\n' ' ' < "$LAST")" ;;
+    __none__) printf 'Ouvre simplement un shell.\nLes sessions restent accessibles avec ctrl+shift+s.\n' ;;
+    *) printf '%s%s%s\n\n%s\n\nLance %s%s%s\n' "$BOLD" "$1" "$RESET" "$(session_desc "$1")" "$GREEN" "$(session_cmd "$1")" "$RESET" ;;
+  esac
+}
+
+startup() {
+  local previous entries choice ws home first=""
+  [[ -s "$LAST" ]] || exit 0
+  previous="$(tr '\n' ' ' < "$LAST" | sed 's/  */ /g; s/^ //; s/ $//')"
+  [[ -z "$previous" ]] && exit 0
+  home="$(current_workspace)"
+  entries="__all__"$'\t'"${GREEN}⟲  reprendre : $previous${RESET}"$'\t'"${DIM}relance ces sessions${RESET}"$'\n'
+  for ws in $previous; do
+    entries+="$ws"$'\t'"   $ws"$'\t'"${DIM}$(session_desc "$ws")${RESET}"$'\n'
+  done
+  entries+="__none__"$'\t'"${DIM}   shell simple${RESET}"$'\t'"${DIM}ne rien ouvrir${RESET}"$'\n'
+  choice="$(printf '%s' "$entries" | fzf \
+    --delimiter=$'\t' --with-nth=2.. --nth=1 \
+    --border-label=' Reprendre la session ' --prompt='  ' \
+    --header='Entrée : ouvrir · Échap : shell simple' \
+    --preview="$self --preview-startup {1}" --preview-label=' Détail ')" || exit 0
+  ws="${choice%%$'\t'*}"
+  case "$ws" in
+    __none__ | "") exit 0 ;;
+    __all__) resume $previous ;;
+    *) launch_session "$ws" ;;
+  esac
+}
+
+# Relance les sessions l'une après l'autre. Une session ne peut être lancée que
+# depuis le workspace affiché : après la première, l'interface a basculé, donc
+# on enchaîne depuis un onglet temporaire du workspace affiché (qui se referme
+# tout seul à la fin).
+resume() {
+  local ws="$1" shown win
+  shift || true
+  launch_session "$ws" || return 1
+  [[ $# -eq 0 ]] && return 0
+  sleep 0.8
+  shown="$(wezterm cli list-clients --format json | jq -r '.[0].workspace // empty')"
+  win="$(wezterm cli list --format json | jq -r --arg w "$shown" 'first(.[] | select(.workspace == $w) | .window_id) // empty')"
+  [[ -z "$win" ]] && return 1
+  wezterm cli spawn --window-id "$win" -- zsh -ic "$self resume $*" >/dev/null 2>&1
+}
+
+case "$mode" in
+  --preview-ws) state="$3"; preview_workspace "$2" ;;
+  --preview-tab) preview_tab "$2" ;;
+  --preview-startup) preview_startup "$2" ;;
+  tabs) pick_tabs ;;
+  startup) startup ;;
+  resume) shift; resume "$@" ;;
+  *) pick_workspaces ;;
+esac

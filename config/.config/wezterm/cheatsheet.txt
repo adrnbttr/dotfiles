@@ -1,0 +1,71 @@
+                     WEZTERM · AIDE-MÉMOIRE          (q pour fermer)
+                     F1 dans WezTerm · `wez-help` dans le terminal
+
+ SPLITS ─────────────────────────────────────────────────────────────────
+  ctrl+alt+shift+→        split à droite (même dossier)
+  ctrl+alt+shift+↓        split en bas (même dossier)
+  ctrl+alt+flèches        aller au split voisin
+  ctrl+b                  revenir au split précédent
+  ctrl+alt+a              sauter à un split : taper la lettre affichée dessus
+                          (rangée de repos de ta disposition : BÉPO auietsrn,
+                           AZERTY qsdfghjklm)
+  ctrl+alt+x              échanger le split actif avec un autre (lettre)
+  ctrl+alt+r              redimensionner : flèches, puis Échap (badge RESIZE)
+  ctrl+alt+z              zoom sur le split (bascule)
+  exit  ou  ctrl+d        fermer le split
+
+ ONGLETS ────────────────────────────────────────────────────────────────
+  ctrl+shift+t            nouvel onglet (même dossier)
+  ctrl+tab   ctrl+shift+→ onglet suivant
+  ctrl+shift+tab  ctrl+shift+← onglet précédent
+  clic                    aller à l'onglet
+  ctrl+shift+1…9          aller à l'onglet n (BÉPO : ctrl+shift+" pour 1…)
+  ctrl+alt+e              renommer l'onglet
+  ctrl+shift+PageUp/Down  déplacer l'onglet
+  ctrl+alt+w  ctrl+shift+q fermer l'onglet
+
+ SESSIONS & WORKSPACES (une seule fenêtre, un workspace par session) ────
+  clic « workspaces ▾ »   (barre du bas, après les onglets) : clic gauche =
+                          workspaces, clic droit = chercher un onglet
+  ctrl+shift+s            sélecteur de workspaces plein écran (aperçu à droite)
+                          ● ouvert · ○ session à lancer · 🔔 en attente
+                          ctrl+x : fermer · ctrl+r : renommer
+  ctrl+shift+o            chercher un onglet dans TOUS les workspaces (ex. 6168)
+                          → dans les sélecteurs : taper, ↑↓, Entrée, Échap
+  alt+1…9                 aller au workspace n (touches du haut, sans Shift)
+  ctrl+alt+PageUp/Down    workspace précédent / suivant
+  ctrl+alt+n              créer / rejoindre un workspace par son nom
+  en bas à droite         1 de  2 home  3 ms… (actuel en vert = alt+n,
+                          jaune = ça sonne dans ce workspace)
+  au démarrage            « ⟲ reprendre : de ms » relance la dernière session
+                          (Échap = shell simple)
+  de-session ms-session marvin-session github-session  (ou via ctrl+shift+s)
+    → définies dans ~/.config/wezterm/sessions.conf
+    → relancer une session n'ajoute que les onglets manquants (nouveau worktree)
+    → fermer le dernier onglet d'un workspace bascule sur un autre
+    → fermer la fenêtre ferme tout : rouvrir via ctrl+shift+s (○)
+
+ LIENS & SÉLECTION RAPIDE ───────────────────────────────────────────────
+  ctrl+clic               ouvrir une URL ou un ticket MAR-1234 dans Linear
+  ctrl+alt+o              lettres sur les tickets MAR visibles → ouvrir
+  ctrl+shift+espace       lettres sur SHA, chemins, URLs, MAR → copier
+
+ COPIER / COLLER / CHERCHER ─────────────────────────────────────────────
+  sélection à la souris   copiée automatiquement (presse-papiers)
+  ctrl+alt+glisser        sélection rectangulaire
+  ctrl+shift+c / v        copier / coller
+  ctrl+shift+f            chercher dans l'historique du terminal
+  ctrl+shift+x            mode copie au clavier (vim : v, y, Échap)
+  y dans nvim             presse-papiers système (collable partout)
+
+ DIVERS ─────────────────────────────────────────────────────────────────
+  shift+Entrée            saut de ligne (Claude Code, nvim)
+  ctrl+=  ctrl+-  ctrl+0  taille de police (+ / - / normale)
+  ctrl+shift+p            palette de commandes (toutes les actions)
+  ctrl+shift+u            caractères spéciaux / emoji
+  ctrl+shift+l            journal de debug (erreurs de config)
+  F1                      cet aide-mémoire
+
+ BUREAUX CINNAMON (déplacés pour libérer ctrl+alt+flèches) ──────────────
+  super+ctrl+flèches        changer de bureau
+  super+ctrl+shift+flèches  y déplacer la fenêtre

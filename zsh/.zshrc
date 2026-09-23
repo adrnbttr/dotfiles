@@ -127,7 +127,6 @@ export MARVIN_WORKTREE_ISOLATION=1
 # Vrai si on tourne dans WezTerm avec la CLI joignable. Sous WSL (WezTerm
 # Windows), la CLI est wezterm.exe, appelée via l'interop Windows.
 _in_wezterm() {
-  [[ -n "${WEZTERM_PANE:-}" || "${TERM_PROGRAM:-}" == "WezTerm" ]] || return 1
   if command -v wezterm >/dev/null 2>&1; then
     _WEZ_BIN=wezterm
   elif command -v wezterm.exe >/dev/null 2>&1; then
@@ -135,10 +134,19 @@ _in_wezterm() {
   else
     return 1
   fi
+  # WEZTERM_PANE/TERM_PROGRAM ne traversent pas toujours l'interop WSL : en
+  # dernier recours, on demande à la CLI si elle voit une fenêtre.
+  [[ -n "${WEZTERM_PANE:-}" || "${TERM_PROGRAM:-}" == "WezTerm" ]] && return 0
+  _wezcli list >/dev/null 2>&1
 }
 
 _wezcli() {
   command "${_WEZ_BIN:-wezterm}" cli "$@"
+}
+
+# Aide-mémoire WezTerm (le même que F1 dans WezTerm).
+wez-help() {
+  less -R -~ "${XDG_CONFIG_HOME:-$HOME/.config}/wezterm/cheatsheet.txt"
 }
 
 # TERM=wezterm (soulignement ondulé dans nvim) n'existe pas sur les serveurs
@@ -170,6 +178,17 @@ _wez_ws_begin() {
     echo "wezterm: CLI injoignable (wezterm cli list)" >&2
     return 1
   fi
+  # WezTerm ignore une demande de bascule venant d'un pane qui n'est pas dans le
+  # workspace affiché : la session échouerait à mi-chemin. On le dit clairement.
+  local mine shown
+  mine=$(jq -r --argjson p "${WEZTERM_PANE:-0}" 'first(.[] | select(.pane_id == $p) | .workspace) // empty' <<<"$json")
+  shown=$(_wezcli list-clients --format json 2>/dev/null | jq -r '.[0].workspace // empty')
+  if [[ -n "$mine" && -n "$shown" && "$mine" != "$shown" ]]; then
+    echo "wezterm: lance cette session depuis un onglet du workspace affiché (« $shown »)," >&2
+    echo "         ou bascule d'abord sur « $mine » (ctrl+shift+s)." >&2
+    return 1
+  fi
+
   _wez_win=$(_wez_ws_window "$json")
   # Titres sans l'espace de marge ajouté par _wez_tab.
   _wez_titles=$(jq -r --arg ws "$_wez_ws" '.[] | select(.workspace == $ws) | .tab_title | rtrimstr(" ")' <<<"$json")
@@ -229,10 +248,12 @@ _wez_short_title() {
   REPLY="${REPLY[1,14]}"
 }
 
-# Ajoute un terminal en bas du pane donné (pourcentage = hauteur du bas).
+# Ajoute un terminal en bas du pane donné (pourcentage = hauteur du bas), en
+# laissant le focus sur le pane du haut (nvim), comme `--keep-focus` dans kitty.
 #   Usage : _wez_split_bottom <pane_id> <cwd> [percent]
 _wez_split_bottom() {
   _wezcli split-pane --pane-id "$1" --bottom --percent "${3:-50}" --cwd "$2" >/dev/null 2>&1
+  _wezcli activate-pane --pane-id "$1" >/dev/null 2>&1
 }
 
 # Ferme le shell temporaire (si de vrais onglets ont été ouverts) et active
@@ -457,6 +478,9 @@ _marvin_wt_session() {
     for repo in $repos; do
       if [[ "$repo" == "$wt_root" ]]; then
         name="atelier"
+      elif [[ "$repo" == "$main_repo" ]]; then
+        # Dépôt principal : nom complet (seuls les worktrees sont raccourcis).
+        name="${repo:t}"
       else
         _wez_short_title "$_wez_ws" "${repo:t}"
         name="$REPLY"
