@@ -6,7 +6,7 @@
 #   powershell -ExecutionPolicy Bypass -File .\installer.ps1
 #
 # Fait, dans l'ordre :
-#   1. Français (Belgique) avec deux claviers : Belge, puis BÉPO ;
+#   1. deux claviers sous la langue française : Belge, puis BÉPO ;
 #   2. retire l'ancien « BÉPO hybride » s'il est là ;
 #   3. installe AutoHotkey v2 (winget, sinon téléchargement) ;
 #   4. copie bepo-correctifs.ahk, le lance et l'ajoute au démarrage.
@@ -16,8 +16,8 @@
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-$BELGE = "080C:0000080C"   # Français (Belgique) · clavier Belge (période)
-$BEPO = "080C:0002040C"    # Français (Belgique) · clavier Français (Standard, BÉPO)
+$BELGE = "080C:0000080C"   # clavier Belge (période)
+$BEPO = "080C:0002040C"    # clavier Français (Standard, BÉPO)
 
 $dest = Join-Path $env:LOCALAPPDATA "bepo"
 $script = Join-Path $dest "bepo-correctifs.ahk"
@@ -61,22 +61,26 @@ Write-Host "❯ clavier · Belge + BÉPO (ThinkPad AZERTY belge)" -ForegroundCol
 Write-Host ""
 
 # 1. Dispositions --------------------------------------------------------------
-# Belge en premier (défaut, ce qui est imprimé), BÉPO en second. Les autres
-# langues éventuelles ne sont pas touchées.
+# Belge en premier (défaut, ce qui est imprimé), BÉPO en second, rangés sous la
+# langue française déjà présente (fr-FR quand Windows est affiché en français
+# de France : sinon Windows rajoute la langue d'affichage et ses claviers dans
+# la liste de la barre des tâches). Les autres langues ne sont pas touchées.
 Step "claviers Belge + BÉPO" {
     if (-not (Test-Path "HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layouts\0002040C")) {
         throw "cette version de Windows n'a pas la BÉPO native (Windows 10 1903 ou plus récent requis)"
     }
     $list = Get-WinUserLanguageList
-    $fr = $list | Where-Object { $_.LanguageTag -eq "fr-BE" } | Select-Object -First 1
-    if ($fr -and ($fr.InputMethodTips -join ",") -eq "$BELGE,$BEPO") { return "skip" }
+    $fr = $list | Where-Object { $_.LanguageTag -like "fr*" } | Select-Object -First 1
     if (-not $fr) {
-        $list.Insert(0, "fr-BE")
-        $fr = $list | Where-Object { $_.LanguageTag -eq "fr-BE" }
+        $list.Insert(0, "fr-FR")
+        $fr = $list | Where-Object { $_.LanguageTag -eq "fr-FR" }
     }
+    # Le préfixe d'un clavier est l'identifiant de sa langue (fr-FR 040C, fr-BE 080C).
+    $lcid = "{0:X4}" -f [Globalization.CultureInfo]::GetCultureInfo($fr.LanguageTag).LCID
+    $tips = @("${lcid}:$($BELGE.Split(':')[1])", "${lcid}:$($BEPO.Split(':')[1])")
+    if (($fr.InputMethodTips -join ",") -eq ($tips -join ",")) { return "skip" }
     $fr.InputMethodTips.Clear()
-    $fr.InputMethodTips.Add($BELGE)
-    $fr.InputMethodTips.Add($BEPO)
+    foreach ($t in $tips) { $fr.InputMethodTips.Add($t) }
     Set-WinUserLanguageList $list -Force -WarningAction SilentlyContinue
 }
 
