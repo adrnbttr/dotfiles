@@ -39,7 +39,8 @@ try {
 }
 
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
-foreach ($file in @("bepo-belge.ahk", "installer.ps1", "desinstaller.ps1", "README.md")) {
+foreach ($file in @("bepo-belge.ahk", "installer.ps1", "desinstaller.ps1",
+                    "test-clavier.ahk", "README.md")) {
     try {
         Invoke-WebRequest -UseBasicParsing -Uri "$Base/windows/clavier/$file" `
             -OutFile (Join-Path $dir $file)
@@ -59,4 +60,5 @@ if (-not $ps) { $ps = "powershell.exe" }
 Write-Host ""
 Write-Host ("Les fichiers restent dans {0}" -f $dir) -ForegroundColor DarkGray
 Write-Host "  · README.md        ce que tape chaque touche"
+Write-Host "  · test-clavier.ahk vérifie les 37 cas tout seul"
 Write-Host "  · desinstaller.ps1 pour tout retirer"

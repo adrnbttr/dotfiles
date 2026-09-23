@@ -139,6 +139,28 @@ cohérent avec ce qui est imprimé.
 
 ## Vérifier que tout fonctionne
 
+### Sans rien taper : `test-clavier.ahk`
+
+Le script `bepo-belge.ahk` doit tourner (icône dans la zone de notification) ;
+lance ensuite le harnais :
+
+```powershell
+& "$env:ProgramFiles\AutoHotkey\v2\AutoHotkey64.exe" .\test-clavier.ahk
+# si AutoHotkey est installé dans le profil utilisateur :
+& "$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe" .\test-clavier.ahk
+```
+
+Il appuie lui-même sur chaque touche **par code de scan**, dans sa propre zone
+de texte, et compare ce qui en sort à l'attendu : 37 cas couvrant les 35
+lettres, les majuscules, les accents morts, les symboles rendus sur `AltGr` /
+`AltGr+Shift`, et ceux qui ne doivent pas bouger. Le récapitulatif s'affiche
+dans la fenêtre et part dans `resultat-test.txt`, à côté du script. `Échap`
+ferme.
+
+C'est l'outil à relancer après chaque retouche du mapping.
+
+### À la main
+
 Ouvre le Bloc-notes et tape :
 
 | Tu tapes | Attendu |
