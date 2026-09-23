@@ -3,10 +3,17 @@
 ; ---------------------------------------------------------------------------
 ; BÉPO hybride sur clavier AZERTY belge (ThinkPad T14 gen 3)
 ;
-; Remplace UNIQUEMENT les trois rangées de lettres par la disposition BÉPO.
-; Tout le reste continue de se comporter comme c'est imprimé sur les touches :
-; rangée des chiffres, AltGr (@ # { } [ ] | € ~ …), ponctuation de droite,
-; touches de fonction, Ctrl/Alt et tous les raccourcis.
+; Principe : les lettres sont en BÉPO, les caractères spéciaux restent ceux
+; qui sont imprimés sur les touches.
+;
+; Le BÉPO a 35 lettres pour 26 touches marquées A-Z : neuf lettres débordent
+; sur les touches à symboles qui entourent le bloc (^ $ ù µ < ?, ;. :/ +=).
+; Les symboles de ces touches ne disparaissent pas pour autant : ils reviennent
+; avec AltGr et AltGr+Shift, sur la touche où ils sont imprimés.
+;
+;   Rangée des chiffres, AltGr (@ # { } [ | \ ^ €…)     : inchangés
+;   AltGr sur une touche remappée                       : légende du bas-droite
+;   AltGr+Shift sur une touche remappée                 : légende manquante
 ;
 ; Prérequis : disposition Windows réglée sur « Français (Belgique) ».
 ;
@@ -41,18 +48,55 @@ keys := Map(
     "033", ["g", "G"],  "034", ["h", "H"],  "035", ["f", "F"]
 )
 
-; Circonflexe mort : caractère composé attendu après « ^ ».
-circonflexe := Map(
-    "a", "â", "A", "Â", "e", "ê", "E", "Ê", "i", "î", "I", "Î",
-    "o", "ô", "O", "Ô", "u", "û", "U", "Û"
+; --- Symboles imprimés rendus aux touches remappées ------------------------
+; AltGr : on ne remplace que deux légendes, parce qu'elles existent ailleurs
+; sur le clavier belge (l'accent aigu est aussi sur AltGr+M, la barre oblique
+; inverse est aussi sur AltGr+« ) »). Tout le reste du niveau AltGr est intact.
+symbolesAltGr := Map(
+    "028", "ù",     ; touche « ù % »  (AltGr+M garde l'accent aigu)
+    "056", "<"      ; touche « < > \ » (AltGr+« ) » garde le \)
 )
-enAttenteCirconflexe := false
+
+; AltGr+Shift : niveau resté libre sur le clavier belge (¼, ⅜, °, ™…).
+; On y remet les légendes que le BÉPO a recouvertes, sur leur propre touche ;
+; et, sur la rangée des chiffres, les symboles BÉPO les plus fréquents, à leur
+; position BÉPO habituelle (7 + · 9 / · 0 * · ) = · - %).
+symbolesAltGrMaj := Map(
+    "01A", "¨",     ; touche « ^ ¨ [ »   (tréma, accent mort)
+    "01B", "$",     ; touche « $ * ] »
+    "028", "%",     ; touche « ù % »
+    "02B", "µ",     ; touche « µ £ »     (£ reste sur AltGr+Shift+3, d'origine)
+    "056", ">",     ; touche « < > \ »
+    "032", "?",     ; touche « ? , »
+    "033", ";",     ; touche « ; . »
+    "034", "/",     ; touche « : / »
+    "035", "=",     ; touche « = + ~ »   (~ reste sur AltGr, d'origine)
+    ; --- rangée des chiffres, aux positions BÉPO ---
+    "008", "+",     ; 7
+    "00A", "/",     ; 9
+    "00B", "*",     ; 0
+    "00C", "=",     ; )
+    "00D", "%"      ; -
+)
+
+; --- Accents morts ----------------------------------------------------------
+accents := Map(
+    "^", Map("a", "â", "A", "Â", "e", "ê", "E", "Ê", "i", "î", "I", "Î",
+             "o", "ô", "O", "Ô", "u", "û", "U", "Û"),
+    "¨", Map("a", "ä", "A", "Ä", "e", "ë", "E", "Ë", "i", "ï", "I", "Ï",
+             "o", "ö", "O", "Ö", "u", "ü", "U", "Ü", "y", "ÿ", "Y", "Ÿ")
+)
+accentEnAttente := ""
 
 ; --- Enregistrement des touches --------------------------------------------
 for scanCode, paire in keys {
     Hotkey("SC" . scanCode, frappe(paire[1], paire[2]))     ; sans Shift
     Hotkey("+SC" . scanCode, frappe(paire[2], paire[2]))    ; avec Shift
 }
+for scanCode, caractere in symbolesAltGr
+    Hotkey("<^>!SC" . scanCode, symbole(caractere))         ; AltGr
+for scanCode, caractere in symbolesAltGrMaj
+    Hotkey("<^>!+SC" . scanCode, symbole(caractere))        ; AltGr+Shift
 
 ; Dernière instruction avant les raccourcis : au-delà, plus rien ne s'exécute
 ; au démarrage (fin de la section automatique).
@@ -63,36 +107,45 @@ frappe(bas, haut) {
     return (*) => envoyer(bas, haut)
 }
 
+; Fabrique le gestionnaire d'un symbole (AltGr / AltGr+Shift).
+symbole(caractere) {
+    return (*) => ecrire(caractere)
+}
+
 envoyer(bas, haut) {
-    global enAttenteCirconflexe, circonflexe
-
     ; Verr. Maj inverse la casse, comme sur une disposition normale.
-    caractere := (GetKeyState("CapsLock", "T") && bas != haut) ? haut : bas
+    ecrire((GetKeyState("CapsLock", "T") && bas != haut) ? haut : bas)
+}
 
-    ; Touche « ^ » : on attend la voyelle suivante.
-    if (caractere = "^" && !enAttenteCirconflexe) {
-        enAttenteCirconflexe := true
+; Écrit un caractère en tenant compte de l'accent mort en attente.
+ecrire(caractere) {
+    global accentEnAttente, accents
+
+    if (accentEnAttente != "") {
+        accent := accentEnAttente
+        accentEnAttente := ""
+        if (accents[accent].Has(caractere)) {
+            SendText accents[accent][caractere]
+            return
+        }
+        SendText accent            ; pas une voyelle : on écrit l'accent seul
+    }
+
+    if (accents.Has(caractere)) {  ; « ^ » et « ¨ » attendent la voyelle
+        accentEnAttente := caractere
         return
     }
 
-    if (enAttenteCirconflexe) {
-        enAttenteCirconflexe := false
-        if (circonflexe.Has(caractere)) {
-            Send "{Text}" circonflexe[caractere]
-            return
-        }
-        Send "{Text}^"          ; pas une voyelle : on écrit l'accent puis la touche
-    }
-
-    Send "{Text}" caractere
+    SendText caractere
 }
 
-; Espace après « ^ » : écrit l'accent seul, comme une disposition classique.
+; Espace après un accent mort : écrit l'accent seul, comme ailleurs sous Windows.
 SC039:: {
-    global enAttenteCirconflexe
-    if (enAttenteCirconflexe) {
-        enAttenteCirconflexe := false
-        Send "{Text}^"
+    global accentEnAttente
+    if (accentEnAttente != "") {
+        accent := accentEnAttente
+        accentEnAttente := ""
+        SendText accent
         return
     }
     Send "{Space}"
@@ -106,7 +159,7 @@ SC039:: {
         TrayTip "Le clavier redevient un AZERTY belge.", "BÉPO désactivé", 1
     } else {
         A_IconTip := "BÉPO hybride (clavier belge)"
-        TrayTip "Lettres en BÉPO, caractères spéciaux inchangés.", "BÉPO activé", 1
+        TrayTip "Lettres en BÉPO, symboles imprimés sur AltGr.", "BÉPO activé", 1
     }
 }
 

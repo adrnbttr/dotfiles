@@ -1,5 +1,32 @@
 # Clavier ThinkPad : AZERTY belge, et BÉPO hybride par-dessus
 
+## En une commande
+
+Ouvre **PowerShell** (menu Démarrer → « PowerShell », pas besoin
+d'administrateur) et colle :
+
+```powershell
+irm https://raw.githubusercontent.com/adrnbttr/dotfiles/master/windows/clavier/get.ps1 | iex
+```
+
+Depuis un terminal **WSL**, la même chose :
+
+```bash
+powershell.exe -NoProfile -c "irm https://raw.githubusercontent.com/adrnbttr/dotfiles/master/windows/clavier/get.ps1 | iex"
+```
+
+La commande fait tout : disposition Windows en *Français (Belgique)*,
+installation d'**AutoHotkey v2** (winget, ou téléchargement direct s'il manque),
+copie du script, lancement immédiat et démarrage automatique à l'ouverture de
+session. Elle est réexécutable sans risque.
+
+| Raccourci | Effet |
+|---|---|
+| `Ctrl+Alt+Shift+B` | active / désactive le BÉPO (retour à l'AZERTY belge) |
+| `Ctrl+Alt+Shift+Q` | quitte le script |
+
+Pour tout retirer : `& "$env:TEMP\bepo-belge-setup\desinstaller.ps1"`.
+
 ## Le diagnostic
 
 Le clavier du ThinkPad T14 est un **AZERTY belge (fr-BE)**, pas un AZERTY
@@ -26,13 +53,16 @@ le fait aussi tout seul.
 
 ## Le BÉPO hybride
 
-Une fois la disposition belge en place, `bepo-belge.ahk` remplace **uniquement
-les trois rangées de lettres** par le BÉPO. Tout le reste ne bouge pas :
-chiffres, `AltGr` (`@ # { } [ ] | € ~`…), ponctuation de droite, touches de
-fonction, Ctrl/Alt et tous les raccourcis restent ceux imprimés sur les touches.
+Une fois la disposition belge en place, `bepo-belge.ahk` met **les lettres en
+BÉPO** et laisse **les caractères spéciaux là où ils sont imprimés**. Tu tapes
+les lettres les yeux fermés, et quand tu cherches un symbole, tu le lis sur la
+touche comme aujourd'hui.
 
-Autrement dit : tu apprends les lettres en BÉPO, et quand tu cherches un
-caractère spécial, tu le lis sur le clavier comme aujourd'hui.
+Il y a une contrainte physique : le BÉPO compte 35 lettres pour 26 touches
+marquées A-Z. Neuf lettres (`z w m ç ê q g h f`) débordent donc sur les touches
+à symboles qui entourent le bloc — `^` `$` `ù` `µ` `<` `?,` `;.` `:/` `+=`.
+Leurs symboles ne sont pas perdus pour autant : **ils reviennent sur leur propre
+touche, avec `AltGr` ou `AltGr+Shift`.**
 
 ### Ce que tapent les touches
 
@@ -48,32 +78,60 @@ Rangée du bas (touches < W X C V B N ? ; / +) :
 ```
 
 - `é è à ç ê` s'obtiennent directement, sans la rangée du haut.
-- `^` est un accent mort : `^` puis `a` donne `â` ; `^` puis espace donne `^`.
-- `;` `:` `?` `!` sont sur Shift des touches `,` `.` `'` `^`, comme en BÉPO.
+- `^` et `¨` sont des accents morts : `^` puis `a` → `â`, `¨` puis `e` → `ë`,
+  suivis d'espace ils s'écrivent seuls.
+- `,` `;` `.` `:` `?` `!` sont là où le BÉPO les met (touches `G` `V` `N` `Y`).
 - Verr. Maj fonctionne sur les lettres remappées.
+
+### Les symboles des touches recouvertes
+
+Sur ces neuf touches, la règle est simple : **`AltGr` donne la légende de droite
+(inchangée), `AltGr+Shift` rend la légende recouverte.**
+
+| Touche imprimée | `AltGr` | `AltGr+Shift` |
+|---|---|---|
+| `^ ¨ [` | `[` | `¨` |
+| `$ * ]` | `]` | `$` |
+| `ù %` | `ù` | `%` |
+| `µ £` | `` ` `` | `µ` |
+| `< > \` | `<` | `>` |
+| `? ,` | — | `?` |
+| `; .` | — | `;` |
+| `: /` | — | `/` |
+| `= + ~` | `~` | `=` |
+
+Deux légendes `AltGr` ont laissé la place (`´` et `\`) parce qu'elles existent
+déjà ailleurs sur le clavier belge : `´` sur `AltGr+M`, `\` sur `AltGr+)`.
+
+En prime, les symboles de programmation les plus fréquents sont aussi sur la
+rangée des chiffres en `AltGr+Shift`, **à leur position BÉPO** — celle que tes
+doigts connaissent déjà sous Linux :
+
+| `AltGr+Shift+7` | `AltGr+Shift+9` | `AltGr+Shift+0` | `AltGr+Shift+)` | `AltGr+Shift+-` |
+|---|---|---|---|---|
+| `+` | `/` | `*` | `=` | `%` |
 
 ### Ce qui ne change pas
 
-- `AltGr+2` = `@`, `AltGr+9` = `{`, `AltGr+0` = `}`, `AltGr+6` = `^`,
-  `AltGr+1` = `|`, `AltGr+E` = `€` : exactement ce qui est imprimé.
-- La rangée des chiffres (`&é"'(§è!çà`), les touches `¨^[`, `*$]`, `%ù`, `£µ`.
+- Toute la rangée des chiffres : `& é " ' ( § è ! ç à ) -`, les chiffres sur
+  Shift, et `AltGr` (`| @ # { [ { } \ ^`…).
+- `AltGr+E` = `€`, `AltGr+2` = `@`, `AltGr+9` = `{`, `AltGr+0` = `}` :
+  exactement ce qui est imprimé.
 - **Les raccourcis restent aux positions AZERTY** : `Ctrl+C`, `Ctrl+V`,
   `Ctrl+Z` gardent leur place habituelle sous les doigts.
 
-## Installation
+> Vérifié caractère par caractère contre la définition officielle du clavier
+> belge : **aucun des 79 symboles imprimés n'est devenu injoignable.**
+
+## Installation à la main (si tu as le dépôt en local)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\installer.ps1
 ```
 
-Le script règle la disposition belge, installe AutoHotkey v2 (winget), copie
-le script dans `%LOCALAPPDATA%\bepo-belge`, le lance et l'ajoute au démarrage
-de session. Il est réexécutable sans risque.
-
-| Raccourci | Effet |
-|---|---|
-| `Ctrl+Alt+Shift+B` | active / désactive le BÉPO (retour à l'AZERTY belge) |
-| `Ctrl+Alt+Shift+Q` | quitte le script |
+Même chose que la commande unique, sans le téléchargement. Le script règle la
+disposition belge, installe AutoHotkey v2, copie le script dans
+`%LOCALAPPDATA%\bepo-belge`, le lance et l'ajoute au démarrage de session.
 
 Pour tout retirer : `powershell -ExecutionPolicy Bypass -File .\desinstaller.ps1`.
 La disposition belge, elle, reste en place : c'est elle qui rend le clavier
@@ -87,9 +145,12 @@ Ouvre le Bloc-notes et tape :
 |---|---|
 | les touches `A S D F` | `a u i e` |
 | les touches `Q W E R` (rangée du haut) | `b é p o` |
-| `AltGr+2`, `AltGr+9`, `AltGr+0` | `@`, `{`, `}` |
-| `^` puis `a` | `â` |
-| `Shift+,` puis `Shift+.` | `;` puis `:` |
+| `AltGr+2`, `AltGr+9`, `AltGr+0`, `AltGr+E` | `@`, `{`, `}`, `€` |
+| `^` puis `a` · `AltGr+Shift+^` puis `e` | `â` · `ë` |
+| `Shift+G` puis `Shift+V` (BÉPO) | `;` puis `:` |
+| `AltGr+Shift` sur les touches `=+~`, `:/`, `ù%` | `=`, `/`, `%` |
+| `AltGr` puis `AltGr+Shift` sur la touche `<>\` | `<` puis `>` |
+| `AltGr+Shift+7`, `+9`, `+0` | `+`, `/`, `*` |
 | `Ctrl+Alt+Shift+B` puis les touches `A S D F` | `q s d f` (BÉPO désactivé) |
 
 ## Et si le BÉPO ne te convient pas

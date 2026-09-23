@@ -119,6 +119,16 @@ et par `script/get.ps1` côté Windows (cf. Installation).
 Sous Windows, WezTerm ouvre la distribution WSL (Ubuntu en priorité) : lancer
 ensuite `./script/install` dans WSL pour zsh, nvim et les sessions.
 
+*Clavier BÉPO sur un portable AZERTY (Windows)* : `windows/clavier/` pose les
+lettres en BÉPO tout en gardant les caractères spéciaux imprimés sur les touches
+(ThinkPad belge). Une commande dans PowerShell, AutoHotkey installé au passage :
+
+#+begin_src powershell
+irm https://raw.githubusercontent.com/adrnbttr/dotfiles/master/windows/clavier/get.ps1 | iex
+#+end_src
+
+Détails et tableau des touches : `windows/clavier/README.md`.
+
 Dispositions clavier : les raccourcis suivent le *caractère* produit (Ctrl+Alt+z
 reste sur la touche « z » en BÉPO comme en AZERTY) et Alt+1…9 les touches
 *physiques* du haut (pas de Shift). Seules les lettres de Ctrl+Alt+a / x

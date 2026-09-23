@@ -22,6 +22,20 @@ $index = 0
 $total = 4
 $results = @()
 
+# Chemin de l'exécutable AutoHotkey v2, où qu'il ait été installé.
+function Trouve-AutoHotkey {
+    $cmd = Get-Command AutoHotkey64.exe, AutoHotkey.exe -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($cmd) { return $cmd.Source }
+    return @(
+        "$env:ProgramFiles\AutoHotkey\v2\AutoHotkey64.exe",
+        "$env:ProgramFiles\AutoHotkey\v2\AutoHotkey32.exe",
+        "${env:ProgramFiles(x86)}\AutoHotkey\v2\AutoHotkey64.exe",
+        "$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe",
+        "$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey32.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+
 function Step($label, $block) {
     $script:index++
     $bar = ("█" * [math]::Floor($script:index * 12 / $total)).PadRight(12, "·")
@@ -58,14 +72,25 @@ Step "disposition Français (Belgique)" {
 
 # 2. AutoHotkey v2 -------------------------------------------------------------
 Step "AutoHotkey v2" {
-    $ahk = Get-Command AutoHotkey64.exe, AutoHotkey.exe -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if ($ahk) { return "skip" }
-    if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
-        throw "winget introuvable : installe AutoHotkey v2 depuis https://www.autohotkey.com"
+    if (Trouve-AutoHotkey) { return "skip" }
+
+    if (Get-Command winget.exe -ErrorAction SilentlyContinue) {
+        winget install --id AutoHotkey.AutoHotkey --exact --silent `
+            --accept-package-agreements --accept-source-agreements | Out-Null
+        if (Trouve-AutoHotkey) { return }
     }
-    winget install --id AutoHotkey.AutoHotkey --exact --silent `
-        --accept-package-agreements --accept-source-agreements | Out-Null
+
+    # Pas de winget (ou installation muette refusée) : téléchargement direct,
+    # dans le dossier de l'utilisateur, sans droits administrateur.
+    $setup = Join-Path $env:TEMP "ahk-v2-setup.exe"
+    Invoke-WebRequest -UseBasicParsing -Uri "https://www.autohotkey.com/download/ahk-v2.exe" `
+        -OutFile $setup
+    $cible = Join-Path $env:LOCALAPPDATA "Programs\AutoHotkey"
+    Start-Process $setup -ArgumentList "/silent", "/installto", "`"$cible`"" -Wait
+    Remove-Item $setup -Force -ErrorAction SilentlyContinue
+    if (-not (Trouve-AutoHotkey)) {
+        throw "AutoHotkey v2 n'a pas pu être installé : télécharge-le depuis https://www.autohotkey.com"
+    }
 }
 
 # 3. Copie du script -----------------------------------------------------------
@@ -81,14 +106,7 @@ Step "script BÉPO" {
 
 # 4. Démarrage automatique + lancement -----------------------------------------
 Step "démarrage automatique" {
-    $exe = (Get-Command AutoHotkey64.exe, AutoHotkey.exe -ErrorAction SilentlyContinue |
-        Select-Object -First 1).Source
-    if (-not $exe) {
-        $exe = @(
-            "$env:ProgramFiles\AutoHotkey\v2\AutoHotkey64.exe",
-            "$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe"
-        ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-    }
+    $exe = Trouve-AutoHotkey
     if (-not $exe) { throw "AutoHotkey v2 introuvable : rouvre un terminal et relance ce script" }
 
     Get-Process AutoHotkey64, AutoHotkey -ErrorAction SilentlyContinue |
@@ -120,5 +138,10 @@ Write-Host "  .\desinstaller.ps1 tout retirer"
 Write-Host ""
 Write-Host "Test rapide (ouvre le Bloc-notes et tape) :" -ForegroundColor White
 Write-Host "  · les touches A S D F G H J K L donnent : a u i e , c t s r"
-Write-Host "  · AltGr+2 donne @ · AltGr+9 donne { · AltGr+0 donne }"
-Write-Host "  · ^ puis a donne â · Shift+, donne ; · Shift+. donne :"
+Write-Host "  · AltGr+2 donne @ · AltGr+9 donne { · AltGr+E donne €"
+Write-Host "  · ^ puis a donne â · AltGr+Shift+^ puis e donne ë"
+Write-Host ""
+Write-Host "Les symboles recouverts par les lettres BÉPO reviennent sur leur touche :" -ForegroundColor White
+Write-Host "  · AltGr = la légende de droite · AltGr+Shift = la légende recouverte"
+Write-Host "  · exemples : AltGr+Shift sur « =+~ » donne = · sur « :/ » donne /"
+Write-Host "  · rangée des chiffres, AltGr+Shift : 7=+  9=/  0=*  )==  -=%"
