@@ -16,6 +16,7 @@ Get-CimInstance Win32_Process -Filter "Name like 'AutoHotkey%'" |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Write-Host "  ✓ correctifs arrêtés"
 
+Unregister-ScheduledTask -TaskName "bepo-correctifs" -Confirm:$false -ErrorAction SilentlyContinue
 foreach ($f in @("bepo-correctifs.lnk", "bepo-belge.lnk")) {
     Remove-Item (Join-Path $startupDir $f) -Force -ErrorAction SilentlyContinue
 }

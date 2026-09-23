@@ -21,10 +21,18 @@ Depuis WSL :
 powershell.exe -NoProfile -c "irm https://raw.githubusercontent.com/adrnbttr/dotfiles/master/windows/clavier/get.ps1 | iex"
 ```
 
-La commande ajoute la BÉPO à côté du Belge, retire l'ancien « BÉPO hybride »
-s'il était installé, installe AutoHotkey v2 et lance les correctifs (voir
-plus bas) au démarrage de session. Réexécutable sans risque.
+La commande range le Belge et la BÉPO sous la langue d'affichage de Windows
+(sinon Windows la rajoute avec ses propres claviers et la liste s'allonge),
+purge le cache de la barre de langue, retire l'ancien « BÉPO hybride » s'il
+était installé, installe AutoHotkey v2 et lance les correctifs (voir plus bas)
+à chaque ouverture de session, via la tâche planifiée `bepo-correctifs`
+(10 s de délai, relancée en cas d'échec). Réexécutable sans risque.
 Retrait : `desinstaller.ps1` (le Belge reste).
+
+> À lancer depuis un PowerShell ordinaire. Depuis une application empaquetée
+> (l'application Claude, par exemple), Windows redirige les écritures dans
+> `AppData` vers un dossier privé : l'installation n'y serait visible que de
+> cette application.
 
 ## Pourquoi la BÉPO native, et plus l'hybride
 

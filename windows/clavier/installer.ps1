@@ -22,9 +22,10 @@ $BEPO = "080C:0002040C"    # clavier Français (Standard, BÉPO)
 $dest = Join-Path $env:LOCALAPPDATA "bepo"
 $script = Join-Path $dest "bepo-correctifs.ahk"
 $startupDir = [Environment]::GetFolderPath("Startup")
-$startup = Join-Path $startupDir "bepo-correctifs.lnk"
+$startup = Join-Path $startupDir "bepo-correctifs.lnk"   # ancien démarrage, retiré
+$task = "bepo-correctifs"
 $index = 0
-$total = 4
+$total = 5
 $results = @()
 
 # Chemin de l'exécutable AutoHotkey v2, où qu'il ait été installé.
@@ -62,26 +63,58 @@ Write-Host ""
 
 # 1. Dispositions --------------------------------------------------------------
 # Belge en premier (défaut, ce qui est imprimé), BÉPO en second, rangés sous la
-# langue française déjà présente (fr-FR quand Windows est affiché en français
-# de France : sinon Windows rajoute la langue d'affichage et ses claviers dans
-# la liste de la barre des tâches). Les autres langues ne sont pas touchées.
+# langue d'affichage de Windows si elle est française. Windows ajoute d'office
+# la langue d'affichage (et ses claviers) à la liste de la barre des tâches :
+# ranger les claviers ailleurs (fr-BE sous un Windows en fr-FR) les doublait.
+# Les autres langues gardent leurs claviers, sauf ces deux-là ; une langue qui
+# n'avait qu'eux disparaît.
 Step "claviers Belge + BÉPO" {
     if (-not (Test-Path "HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layouts\0002040C")) {
         throw "cette version de Windows n'a pas la BÉPO native (Windows 10 1903 ou plus récent requis)"
     }
     $list = Get-WinUserLanguageList
-    $fr = $list | Where-Object { $_.LanguageTag -like "fr*" } | Select-Object -First 1
-    if (-not $fr) {
-        $list.Insert(0, "fr-FR")
-        $fr = $list | Where-Object { $_.LanguageTag -eq "fr-FR" }
-    }
+    $affichage = (Get-WinUILanguageOverride).Name
+    if (-not $affichage) { $affichage = (Get-UICulture).Name }
+    $tag = if ($affichage -like "fr*") { $affichage }
+           elseif ($f = $list | Where-Object { $_.LanguageTag -like "fr*" } | Select-Object -First 1) { $f.LanguageTag }
+           else { "fr-FR" }
+
     # Le préfixe d'un clavier est l'identifiant de sa langue (fr-FR 040C, fr-BE 080C).
-    $lcid = "{0:X4}" -f [Globalization.CultureInfo]::GetCultureInfo($fr.LanguageTag).LCID
+    $lcid = "{0:X4}" -f [Globalization.CultureInfo]::GetCultureInfo($tag).LCID
     $tips = @("${lcid}:$($BELGE.Split(':')[1])", "${lcid}:$($BEPO.Split(':')[1])")
-    if (($fr.InputMethodTips -join ",") -eq ($tips -join ",")) { return "skip" }
-    $fr.InputMethodTips.Clear()
-    foreach ($t in $tips) { $fr.InputMethodTips.Add($t) }
-    Set-WinUserLanguageList $list -Force -WarningAction SilentlyContinue
+    $nos = { param($t) $t -like "*:0000080C" -or $t -like "*:0002040C" }
+
+    $cible = $list | Where-Object { $_.LanguageTag -eq $tag } | Select-Object -First 1
+    $autres = @($list | Where-Object { $_.LanguageTag -ne $tag })
+    $doublons = @($autres | Where-Object { @($_.InputMethodTips | Where-Object { & $nos $_ }).Count })
+    if ($cible -and ($cible.InputMethodTips -join ",") -eq ($tips -join ",") -and -not $doublons) { return "skip" }
+
+    $nouvelle = New-WinUserLanguageList $tag
+    $nouvelle[0].InputMethodTips.Clear()
+    foreach ($t in $tips) { $nouvelle[0].InputMethodTips.Add($t) }
+    foreach ($lang in $autres) {
+        $garde = @($lang.InputMethodTips | Where-Object { -not (& $nos $_) })
+        if (-not $garde) { continue }
+        $nouvelle.Add($lang.LanguageTag)
+        $l = $nouvelle[$nouvelle.Count - 1]
+        $l.InputMethodTips.Clear()
+        foreach ($t in $garde) { $l.InputMethodTips.Add($t) }
+    }
+    Set-WinUserLanguageList $nouvelle -Force -WarningAction SilentlyContinue
+}
+
+# Cache de la barre de langue : les langues retirées (tchèque, anglais…) y
+# restent et réapparaissent dans la liste de la barre des tâches. On ne garde
+# que celles de la liste actuelle.
+Step "cache de la barre de langue" {
+    $gardees = Get-WinUserLanguageList | ForEach-Object {
+        "0x{0:x8}" -f [Globalization.CultureInfo]::GetCultureInfo($_.LanguageTag).LCID
+    }
+    $cache = "HKCU:\Software\Microsoft\CTF\SortOrder\AssemblyItem"
+    $vieux = @(Get-ChildItem $cache -ErrorAction SilentlyContinue |
+        Where-Object { $gardees -notcontains $_.PSChildName.ToLower() })
+    if (-not $vieux) { return "skip" }
+    $vieux | Remove-Item -Recurse -Force
 }
 
 # 2. Ancien « BÉPO hybride » (lettres BÉPO sur symboles belges) -----------------
@@ -129,13 +162,23 @@ Step "correctifs BÉPO" {
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
     Copy-Item $source $script -Force
 
-    $shell = New-Object -ComObject WScript.Shell
-    $lnk = $shell.CreateShortcut($startup)
-    $lnk.TargetPath = $exe
-    $lnk.Arguments = '"' + $script + '"'
-    $lnk.WorkingDirectory = $dest
-    $lnk.Description = "BÉPO : correctifs pour taper comme sous Linux"
-    $lnk.Save()
+    # Démarrage : tâche planifiée plutôt qu'un raccourci dans Démarrage. À
+    # l'ouverture de session, le fichier peut être brièvement illisible (analyse
+    # antivirus) : AutoHotkey affichait alors « Script file not found » et
+    # restait bloqué. Ici : 10 s de délai, et /ErrorStdOut fait quitter
+    # AutoHotkey en échec (sans boîte) pour que la tâche le relance.
+    Remove-Item $startup -Force -ErrorAction SilentlyContinue
+    $user = "$env:USERDOMAIN\$env:USERNAME"
+    $action = New-ScheduledTaskAction -Execute $exe -Argument "/ErrorStdOut `"$script`"" -WorkingDirectory $dest
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
+    $trigger.Delay = "PT10S"
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+        -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
+        -MultipleInstances IgnoreNew
+    $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
+    Register-ScheduledTask -TaskName $task -TaskPath "\" -Action $action -Trigger $trigger `
+        -Settings $settings -Principal $principal -Force `
+        -Description "BÉPO : correctifs pour taper comme sous Linux (dotfiles/windows/clavier)" | Out-Null
 
     # #SingleInstance Force : relancer remplace la version qui tourne.
     Start-Process $exe -ArgumentList "`"$script`""

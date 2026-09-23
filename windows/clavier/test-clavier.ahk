@@ -24,7 +24,21 @@ journal := fenetre.AddEdit("w700 r26 ReadOnly -Wrap")
 fenetre.Show()
 
 ; La fenêtre de test passe en BÉPO (la disposition est propre à chaque fil).
-bepo := DllCall("LoadKeyboardLayout", "Str", "0002040C", "UInt", 0, "Ptr")
+; On prend le clavier BÉPO déjà présent dans la session ; le charger ajouterait
+; une entrée à la liste de la barre des tâches (retirée en fin de test sinon).
+bepoId := 0xF000 | Integer("0x" RegRead("HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layouts\0002040C", "Layout Id", "0"))
+bepo := 0, chargeIci := false
+n := DllCall("GetKeyboardLayoutList", "Int", 0, "Ptr", 0)
+liste := Buffer(n * A_PtrSize)
+DllCall("GetKeyboardLayoutList", "Int", n, "Ptr", liste)
+Loop n {
+    hkl := NumGet(liste, (A_Index - 1) * A_PtrSize, "Ptr")
+    if ((hkl >> 16) & 0xFFFF) = bepoId
+        bepo := hkl
+}
+if !bepo {
+    bepo := DllCall("LoadKeyboardLayout", "Str", "0002040C", "UInt", 0, "Ptr"), chargeIci := true
+}
 if !bepo {
     MsgBox "Disposition BÉPO (0002040C) introuvable : lance installer.ps1."
     ExitApp 2
@@ -57,14 +71,26 @@ cas := [
     ["backtick direct (AltGr+Shift+è)", "^+014", "``"],
 ]
 
+; Les frappes simulées vont à la fenêtre active : si on clique ailleurs pendant
+; le test, elles se perdent. Chaque cas reprend le focus, et il est rejoué
+; (jusqu'à 3 fois) si la fenêtre l'a perdu en cours de route.
 for c in cas {
-    zone.Value := ""
-    zone.Focus()
-    for frappe in StrSplit(c[2], ">")
-        taper(frappe)
-    Sleep 80
-    obtenu := zone.Value
+    Loop 3 {
+        WinActivate fenetre.Hwnd
+        WinWaitActive fenetre.Hwnd,, 2
+        zone.Value := ""
+        zone.Focus()
+        for frappe in StrSplit(c[2], ">")
+            taper(frappe)
+        Sleep 80
+        obtenu := zone.Value
+        focusGarde := WinActive(fenetre.Hwnd)
+        if (obtenu == c[3] || focusGarde)
+            break
+    }
     ok := (obtenu == c[3])
+    if !ok && !focusGarde
+        c[1] .= " (fenêtre de test sans le focus : clic ailleurs pendant le test ?)"
     if !ok
         echecs++
     rapport.Push(Format("{1}  {2}`r`n     attendu « {3} »   obtenu « {4} »",
@@ -93,6 +119,8 @@ journal.Value := texte
 try FileDelete A_ScriptDir "\resultat-test.txt"
 FileAppend texte, A_ScriptDir "\resultat-test.txt", "UTF-8"
 fenetre.Title := echecs ? "Test BÉPO — " echecs " échec(s)" : "Test BÉPO — tout est bon"
+if chargeIci
+    DllCall("UnloadKeyboardLayout", "Ptr", bepo)
 
 if A_Args.Length && A_Args[1] = "--quitter"
     ExitApp echecs ? 1 : 0

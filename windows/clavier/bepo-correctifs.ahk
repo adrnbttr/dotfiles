@@ -29,9 +29,11 @@ KeyHistory 0
 TraySetIcon "shell32.dll", 45
 A_IconTip := "BÉPO : correctifs Linux (apostrophe, underscore)"
 
-; Identifiant de la disposition BÉPO (mot haut du HKL, indépendant de la
-; langue à laquelle elle est rattachée).
-BEPO_ID := (DllCall("LoadKeyboardLayout", "Str", "0002040C", "UInt", 0x80, "Ptr") >> 16) & 0xFFFF
+; Identifiant de la disposition BÉPO : mot haut du HKL (0xF000 | Layout Id),
+; indépendant de la langue à laquelle elle est rattachée. Lu dans le registre :
+; LoadKeyboardLayout ajouterait un clavier à la session (liste de la barre
+; des tâches).
+BEPO_ID := 0xF000 | Integer("0x" RegRead("HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layouts\0002040C", "Layout Id"))
 
 bepoActive() {
     hwnd := WinExist("A")
