@@ -660,6 +660,8 @@ config.keys = {
   -- Splits dans le dossier courant.
   { key = "RightArrow", mods = "CTRL|ALT|SHIFT", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
   { key = "DownArrow", mods = "CTRL|ALT|SHIFT", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
+  -- ctrl+shift+Entrée : raccourci par défaut de kitty (new_window), repris ici.
+  { key = "Enter", mods = "CTRL|SHIFT", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
 
   -- Focus du split voisin.
   { key = "LeftArrow", mods = "CTRL|ALT", action = move_to("Left") },

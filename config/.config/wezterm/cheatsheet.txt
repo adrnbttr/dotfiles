@@ -4,6 +4,7 @@
  SPLITS ─────────────────────────────────────────────────────────────────
   ctrl+alt+shift+→        split à droite (même dossier)
   ctrl+alt+shift+↓        split en bas (même dossier)
+  ctrl+shift+Entrée       split en bas (même dossier)
   ctrl+alt+flèches        aller au split voisin
   ctrl+b                  revenir au split précédent
   ctrl+alt+a              sauter à un split : taper la lettre affichée dessus
