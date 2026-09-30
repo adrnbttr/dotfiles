@@ -134,9 +134,14 @@ _in_wezterm() {
   else
     return 1
   fi
-  # WEZTERM_PANE/TERM_PROGRAM ne traversent pas toujours l'interop WSL : en
-  # dernier recours, on demande à la CLI si elle voit une fenêtre.
+  # Lancé depuis kitty : une fenêtre WezTerm ouverte ailleurs ne compte pas
+  # (TERM_PROGRAM=WezTerm peut aussi être hérité d'un kitty lancé depuis WezTerm).
+  [[ -n "${KITTY_WINDOW_ID:-}" ]] && return 1
   [[ -n "${WEZTERM_PANE:-}" || "${TERM_PROGRAM:-}" == "WezTerm" ]] && return 0
+  # WEZTERM_PANE/TERM_PROGRAM ne traversent pas toujours l'interop WSL : là
+  # seulement, on demande en dernier recours à la CLI si elle voit une fenêtre.
+  # Ailleurs, ce repli répondrait oui dès qu'un WezTerm tourne sur la machine.
+  [[ -n "${WSL_DISTRO_NAME:-}" ]] || return 1
   _wezcli list >/dev/null 2>&1
 }
 
