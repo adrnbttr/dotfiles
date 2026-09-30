@@ -117,6 +117,13 @@ Config: `config/.config/wezterm/wezterm.lua` (même fichier pour Linux et Window
 Installé par `./script/install` (Linux, dépôt apt officiel + terminfo `wezterm`)
 et par `script/get.ps1` côté Windows (cf. Installation).
 
+Quel terminal :
+- Linux : kitty au quotidien. WezTerm reste utilisable, avec l'IME coupé : via
+  XIM (ibus), WezTerm 20240203 accumulait des milliers de fenêtres X jamais
+  détruites, et Xorg gelait tout le bureau plusieurs secondes.
+- Windows : WezTerm natif + WSL, non concerné (pas de X11 ni de XIM).
+- `de-session`, `ms-session`... s'ouvrent dans le terminal d'où on les lance.
+
 Sous Windows, WezTerm ouvre la distribution WSL (Ubuntu en priorité) : lancer
 ensuite `./script/install` dans WSL pour zsh, nvim et les sessions.
 

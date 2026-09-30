@@ -24,6 +24,16 @@ config.check_for_updates = false
 -- faisait tourner l'interface à ~95 % de CPU en continu : raccourcis et clics
 -- d'onglet ignorés. Ne pas le réactiver sans revérifier ce point.
 
+-- Pas d'IME sous Linux : via XIM (ibus), WezTerm 20240203 laisse derrière lui
+-- des fenêtres X de 1x1 jamais détruites, et ibus-x11 une par une en miroir.
+-- Mesuré : ~19 000 fenêtres après 3 h, Xorg à 100 % pendant 1 à 8 s en
+-- parcourant l'arbre des fenêtres (miSpriteTrace, miValidateTree) : tout le
+-- bureau gelait (souris, vidéos, clics d'onglet). Les accents BÉPO et les
+-- touches mortes passent par xkbcommon et marchent sans IME.
+if wezterm.target_triple:find("linux") then
+  config.use_ime = false
+end
+
 -- --- Pas de sessions persistantes ------------------------------------------------
 -- Testé puis retiré : en mode connecté à wezterm-mux-server (unix domain), avec
 -- une dizaine d'onglets LazyVim splittés, le client perd la taille finale d'un
