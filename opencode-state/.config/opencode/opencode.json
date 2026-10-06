@@ -1,9 +1,59 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "openrouter/anthropic/claude-sonnet-5.5",
+  "small_model": "openrouter/deepseek/deepseek-v4.1-flash",
+  "default_agent": "plan",
+  "subagent_depth": 1,
+  "provider": {
+    "openrouter": {
+      "options": {
+        "setCacheKey": true,
+        "timeout": 600000,
+        "chunkTimeout": 60000
+      }
+    }
+  },
+  "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "-y", "@playwright/mcp@latest", "--headless"],
+      "enabled": true
+    }
+  },
+  "attachment": {
+    "image": {
+      "auto_resize": true,
+      "max_width": 1280,
+      "max_height": 1280,
+      "max_base64_bytes": 5242880
+    }
+  },
+  "agent": {
+    "visual": {
+      "description": "Vérifie le rendu d'une page web dans le navigateur et signale les écarts. À utiliser dès qu'une question porte sur l'apparence, la mise en page ou le comportement visible d'une page.",
+      "mode": "subagent",
+      "model": "openrouter/anthropic/claude-sonnet-5.5",
+      "prompt": "{file:./prompts/visual-agent.md}",
+      "tools": { "write": false, "edit": false }
+    },
+    "implementer": {
+      "description": "Implémente UNE tâche cadrée. Ne rend la main que si typecheck, lint, tests et build sont verts.",
+      "mode": "subagent",
+      "model": "openrouter/z-ai/glm-5.3",
+      "prompt": "Tu implémentes exactement la tâche décrite, rien de plus. Interdiction d'élargir le périmètre. Avant de rendre la main : lance typecheck, lint, tests et build. Si l'un échoue, corrige. Si tu échoues deux fois de suite, arrête-toi et explique précisément le blocage au lieu de bricoler. Tu ne peux pas voir d'images : si la tâche demande un jugement visuel, signale-le et rends la main. Renvoie le diff et le résultat des gates."
+    },
+    "chore": {
+      "description": "Travail mécanique uniquement : tests boilerplate, docstrings, renommages, parsing de logs, migrations mécaniques. Aucune décision de design.",
+      "mode": "subagent",
+      "model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "prompt": "Tâche purement mécanique. Tu ne prends aucune décision d'architecture. En cas d'ambiguïté, tu t'arrêtes et tu demandes."
+    }
+  },
   "compaction": {
     "auto": true,
     "prune": true,
     "reserved": 2000
   },
-  "small_model": "openrouter/mistralai/mistral-small-3.2-24b-instruct"
+  "formatter": true,
+  "lsp": true
 }

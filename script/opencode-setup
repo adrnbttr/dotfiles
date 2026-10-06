@@ -40,6 +40,13 @@ apply_optimizations() {
     echo "✓ Updated tui.json"
   fi
   
+  if [[ -f "$repo_root/opencode-state/.config/opencode/prompts/visual-agent.md" ]]; then
+    mkdir -p "$HOME/.config/opencode/prompts"
+    cp -f "$repo_root/opencode-state/.config/opencode/prompts/visual-agent.md" \
+          "$HOME/.config/opencode/prompts/visual-agent.md"
+    echo "✓ Updated prompts/visual-agent.md"
+  fi
+
   if [[ -f "$repo_root/opencode-state/.config/opencode/env.sh" ]]; then
     cp -f "$repo_root/opencode-state/.config/opencode/env.sh" \
           "$HOME/.config/opencode/env.sh"

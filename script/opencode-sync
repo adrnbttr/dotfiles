@@ -74,6 +74,11 @@ case "$cmd" in
       cp -f "$config_dir/env.sh" "$repo_config_dir/env.sh"
       ensure_newline "$repo_config_dir/env.sh"
     fi
+    if [[ -f "$config_dir/prompts/visual-agent.md" ]]; then
+      mkdir -p "$repo_config_dir/prompts"
+      cp -f "$config_dir/prompts/visual-agent.md" "$repo_config_dir/prompts/visual-agent.md"
+      ensure_newline "$repo_config_dir/prompts/visual-agent.md"
+    fi
     ;;
 
   pull)
@@ -89,6 +94,7 @@ case "$cmd" in
       copy_force "$repo_config_dir/opencode.json" "$config_dir/opencode.json"
       copy_force "$repo_config_dir/tui.json" "$config_dir/tui.json"
       copy_force "$repo_config_dir/env.sh" "$config_dir/env.sh"
+      copy_force "$repo_config_dir/prompts/visual-agent.md" "$config_dir/prompts/visual-agent.md"
     else
       copy_if_missing "$repo_dir/kv.json" "$state_dir/kv.json"
       copy_if_missing "$repo_dir/model.json" "$state_dir/model.json"
@@ -98,6 +104,7 @@ case "$cmd" in
       copy_if_missing "$repo_config_dir/opencode.json" "$config_dir/opencode.json"
       copy_if_missing "$repo_config_dir/tui.json" "$config_dir/tui.json"
       copy_if_missing "$repo_config_dir/env.sh" "$config_dir/env.sh"
+      copy_if_missing "$repo_config_dir/prompts/visual-agent.md" "$config_dir/prompts/visual-agent.md"
     fi
     ;;
 
