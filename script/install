@@ -42,6 +42,7 @@ Options:
   --no-gui            Saute les applis graphiques (kitty, wezterm)
   --no-opencode       Saute opencode
   --no-claude         Saute Claude Code
+  --no-codex          Saute Codex (OpenAI)
   --upgrade           Met à jour les paquets Homebrew déjà installés (macOS)
   --dry-run           Affiche ce qui serait fait, sans rien installer
   --only "a b"        N'exécute que ces étapes (cf. --list)
@@ -58,6 +59,7 @@ minimal=false
 no_gui=false
 no_opencode=false
 no_claude=false
+no_codex=false
 upgrade=false
 assume_yes=false
 list_only=false
@@ -75,6 +77,7 @@ while [[ $# -gt 0 ]]; do
     --minimal) minimal=true; shift ;;
     --no-gui) no_gui=true; shift ;;
     --no-opencode) no_opencode=true; shift ;;
+    --no-codex) no_codex=true; shift ;;
     --no-claude) no_claude=true; shift ;;
     --upgrade) upgrade=true; shift ;;
     --dry-run) DOTFILES_DRY_RUN=1; shift ;;
@@ -150,6 +153,155 @@ install_opencode() {
   else
     curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
   fi
+}
+
+# --- Node (npx : Playwright MCP, plugins opencode) -------------------------
+
+load_nvm() {
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+    set +u
+    # shellcheck disable=SC1091
+    . "$NVM_DIR/nvm.sh"
+    set -u
+  fi
+}
+
+ensure_node() {
+  load_nvm
+  if have node && version_ge "$(node -v | tr -d v)" 20; then
+    return 0
+  fi
+  if ! have nvm && [[ ! -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]]; then
+    if ! have curl; then
+      err "curl is required to install nvm"
+      exit 1
+    fi
+    info "installing nvm"
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | PROFILE=/dev/null bash
+    load_nvm
+  fi
+  info "installing Node LTS (nvm)"
+  set +u
+  nvm install --lts
+  set -u
+}
+
+# --- Codex (binaire autonome : insensible aux changements de version nvm) ---
+
+install_codex() {
+  if [[ "$no_codex" == "true" ]]; then
+    return 0
+  fi
+  local arch target tmp url
+  arch="$(uname -m)"
+  case "$os/$arch" in
+    linux/x86_64)  target="x86_64-unknown-linux-musl" ;;
+    linux/aarch64) target="aarch64-unknown-linux-musl" ;;
+    darwin/arm64)  target="aarch64-apple-darwin" ;;
+    *) warn "Codex : plateforme $os/$arch non gérée, étape sautée"; return 0 ;;
+  esac
+  if ! have curl || ! have tar; then
+    err "curl and tar are required to install Codex"
+    exit 1
+  fi
+  url="https://github.com/openai/codex/releases/latest/download/codex-${target}.tar.gz"
+  tmp="$(mktemp -d)"
+  info "installing Codex (latest release, $target)"
+  if ! curl -fsSL "$url" | tar -xz -C "$tmp"; then
+    rm -rf "$tmp"
+    warn "Codex download failed"
+    return 1
+  fi
+  install -m 0755 "$tmp/codex-${target}" "$HOME/.local/bin/codex"
+  rm -rf "$tmp"
+  info "✓ Codex $(codex --version 2>/dev/null || true)"
+}
+
+# --- opencode : version minimale, plugin dictée, Playwright -----------------
+
+OPENCODE_MIN_VERSION="1.18.0"
+
+upgrade_opencode() {
+  [[ "$no_opencode" == "true" ]] && return 0
+  have opencode || return 0
+  local cur
+  cur="$(opencode --version 2>/dev/null | head -n 1 || true)"
+  if [[ -n "$cur" ]] && version_ge "$cur" "$OPENCODE_MIN_VERSION"; then
+    info "opencode $cur (>= $OPENCODE_MIN_VERSION)"
+    return 0
+  fi
+  info "opencode ${cur:-?} < $OPENCODE_MIN_VERSION : mise à jour"
+  opencode upgrade || warn "opencode upgrade failed (essaie: opencode upgrade)"
+}
+
+# Copie la config versionnée vers ~/.config/opencode. Un fichier local qui
+# diffère est sauvegardé (.bak) avant d'être remplacé : le dépôt fait foi.
+apply_opencode_config() {
+  [[ "$no_opencode" == "true" ]] && return 0
+  local src="$repo_root/opencode-state/.config/opencode" dst="$HOME/.config/opencode"
+  local f
+  mkdir -p "$dst/prompts"
+  for f in opencode.json tui.json prompts/visual-agent.md; do
+    [[ -f "$src/$f" ]] || continue
+    if [[ -f "$dst/$f" ]] && ! cmp -s "$src/$f" "$dst/$f"; then
+      cp -f "$dst/$f" "$dst/$f.bak"
+      info "sauvegarde : $dst/$f.bak"
+    fi
+    cp -f "$src/$f" "$dst/$f"
+  done
+  info "config opencode appliquée dans $dst"
+}
+
+WHISPER_MODEL="ggml-small.bin"
+
+install_opencode_voice() {
+  [[ "$no_opencode" == "true" ]] && return 0
+  if ! have apt-get; then
+    warn "dictée opencode : OS non-apt, installe sox + whisper-cli à la main"
+    return 0
+  fi
+  info "installing sox, pulseaudio-utils, build deps"
+  ${sudo_cmd} apt-get install -y sox libsox-fmt-all pulseaudio-utils cmake build-essential git curl
+
+  if grep -qi microsoft /proc/version 2>/dev/null; then
+    if [[ ! -S /mnt/wslg/PulseServer ]]; then
+      warn "WSLg absent (/mnt/wslg/PulseServer) : pas de micro côté WSL."
+      warn "Fais « wsl --update » côté Windows, ou utilise la dictée Windows (Win+H)."
+    fi
+  fi
+
+  if ! have whisper-cli; then
+    local build
+    build="$(mktemp -d)"
+    info "building whisper.cpp (whisper-cli)"
+    git clone --depth 1 https://github.com/ggml-org/whisper.cpp "$build/w"
+    cmake -S "$build/w" -B "$build/w/build" -DCMAKE_BUILD_TYPE=Release \
+      -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF >/dev/null
+    cmake --build "$build/w/build" -j "$(nproc)" --config Release --target whisper-cli
+    install -m 0755 "$build/w/build/bin/whisper-cli" "$HOME/.local/bin/whisper-cli"
+    rm -rf "$build"
+  fi
+
+  local model_dir="$HOME/.local/share/whisper-cpp"
+  if [[ ! -s "$model_dir/$WHISPER_MODEL" ]]; then
+    info "downloading $WHISPER_MODEL (~470 MB)"
+    mkdir -p "$model_dir"
+    curl -fL -o "$model_dir/$WHISPER_MODEL.part" \
+      "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$WHISPER_MODEL"
+    mv "$model_dir/$WHISPER_MODEL.part" "$model_dir/$WHISPER_MODEL"
+  fi
+}
+
+install_playwright() {
+  [[ "$no_opencode" == "true" ]] && return 0
+  load_nvm
+  if ! have npx; then
+    err "npx introuvable : lance d'abord l'étape « node »"
+    exit 1
+  fi
+  info "installing Playwright Chromium (headless, deps système via sudo)"
+  npx -y playwright install --with-deps chromium
 }
 
 install_claude() {
@@ -832,8 +984,13 @@ build_steps() {
         add_step wezterm  "WezTerm + terminfo"      ensure_wezterm_linux
       fi
       add_step pyenv      "plugin pyenv-virtualenv" ensure_pyenv_virtualenv_plugin
+      add_step node       "Node LTS (nvm)"          ensure_node
       [[ "$no_opencode" == "true" ]] || add_step opencode "opencode"        install_opencode
+      [[ "$no_opencode" == "true" ]] || add_step ocupgrade "opencode >= $OPENCODE_MIN_VERSION" upgrade_opencode
+      [[ "$no_opencode" == "true" ]] || add_step ocvoice  "dictée opencode (sox, whisper.cpp)" install_opencode_voice
+      [[ "$no_opencode" == "true" || "$minimal" == "true" ]] || add_step playwright "Playwright MCP (Chromium)" install_playwright
       [[ "$no_claude" == "true" ]]   || add_step claude   "Claude Code"     install_claude
+      [[ "$no_codex" == "true" ]]    || add_step codex    "Codex"           install_codex
       add_step voice      "dictée vocale (Whisper)" install_voice_to_claude
       add_step keys       "raccourcis Cinnamon"     configure_cinnamon_keys
       add_step shell      "zsh shell par défaut"    ensure_login_shell_zsh
@@ -847,9 +1004,12 @@ build_steps() {
       fi
       add_step pyenv      "plugin pyenv-virtualenv" ensure_pyenv_virtualenv_plugin
       [[ "$no_opencode" == "true" ]] || add_step opencode "opencode"        install_opencode
+      [[ "$no_opencode" == "true" ]] || add_step ocupgrade "opencode >= $OPENCODE_MIN_VERSION" upgrade_opencode
       [[ "$no_claude" == "true" ]]   || add_step claude   "Claude Code"     install_claude
+      [[ "$no_codex" == "true" ]]    || add_step codex    "Codex"           install_codex
       ;;
   esac
+  [[ "$no_opencode" == "true" ]] || add_step occonfig "config opencode (dépôt → ~/.config)" apply_opencode_config
   add_step link "liens symboliques (stow)" run_bootstrap
 }
 

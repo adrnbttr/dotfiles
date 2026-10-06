@@ -134,6 +134,20 @@ check "lazydocker" lazydocker lazydocker
 check "psql (vim-dadbod)" psql base
 check "Claude Code" claude claude
 check "opencode" opencode opencode
+check "Codex" codex codex
+if have opencode; then
+  oc_ver="$(opencode --version 2>/dev/null | head -n 1)"
+  if version_ge "${oc_ver:-0}" 1.18.0; then good "opencode $oc_ver (>= 1.18)"; else MISSING_STEPS+=(ocupgrade); meh "opencode ${oc_ver:-?} < 1.18 (étape « ocupgrade »)"; fi
+  if [[ -f "$HOME/.config/opencode/opencode.json" && -f "$HOME/.config/opencode/prompts/visual-agent.md" ]]; then good "config opencode appliquée"; else MISSING_STEPS+=(occonfig); meh "config opencode absente (étape « occonfig »)"; fi
+  if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then good "OPENROUTER_API_KEY définie"; else meh "OPENROUTER_API_KEY absente (à mettre dans ~/.zshrc.local)"; fi
+  check "sox (dictée opencode)" rec ocvoice
+  check "whisper-cli (dictée opencode)" whisper-cli ocvoice
+  if [[ -s "$HOME/.local/share/whisper-cpp/ggml-small.bin" ]]; then good "modèle whisper ggml-small"; else MISSING_STEPS+=(ocvoice); meh "modèle whisper absent (étape « ocvoice »)"; fi
+  if $is_wsl; then
+    if [[ -S /mnt/wslg/PulseServer ]]; then good "WSLg audio (PulseServer)"; else meh "WSLg audio absent : « wsl --update », sinon Win+H"; fi
+  fi
+  if [[ -d "$HOME/.cache/ms-playwright" ]]; then good "Playwright Chromium"; else MISSING_STEPS+=(playwright); meh "Playwright Chromium absent (étape « playwright »)"; fi
+fi
 if have fd || have fdfind; then good "fd"; else MISSING_STEPS+=(base); meh "fd — manquant (étape « base »)"; fi
 if have bat || have batcat; then good "bat"; else MISSING_STEPS+=(base); meh "bat — manquant (étape « base »)"; fi
 if have pyenv; then
