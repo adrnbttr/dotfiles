@@ -75,7 +75,7 @@ cd ~/Documents/github/perso/dotfiles && git pull && ./script/install
 | Terminal  | WezTerm (+ terminfo), kitty, police MesloLGS NF                |
 | Édition   | Neovim (LazyVim), LSP Python/TypeScript/Terraform              |
 | CLI       | fzf, ripgrep, fd, bat, eza, zoxide, delta, bottom, jq, lazygit |
-| IA        | Claude Code, opencode, dictée vocale (Whisper)                 |
+| IA        | Claude Code, opencode, Codex, dictée vocale (Whisper)          |
 
 Pour ne poser que les liens symboliques, sans rien installer :
 =./script/bootstrap= (ou =stow -t ~ zsh config oh-my-zsh-custom bin=).
@@ -319,6 +319,29 @@ This dotfiles supports two AI coding assistants running in parallel:
 2. **Claude Code** (secondary) - For complex reasoning with Claude 4.6 Sonnet
 
 They are independent tools — OpenCode runs a local server, Claude Code is a direct CLI authenticated via browser (Claude Pro/Max subscription).
+
+*** Codex, opencode et Claude dans Neovim
+
+| Outil      | Préfixe     | Toggle        |
+|------------+-------------+---------------|
+| Claude     | =<leader>z= | =<leader>zt=  |
+| opencode   | =<leader>j= | =<leader>jt=  |
+| Codex      | =<leader>w= | =<leader>wt=  |
+
+Codex : =<leader>wa= pose une question (ou envoie la sélection visuelle).
+=<leader>w= seul (sauvegarde) attend =timeoutlen= car =<leader>wt= existe ; =<C-s>= sauvegarde sans délai.
+
+*** opencode : Playwright MCP et dictée
+
+- Config versionnée : =opencode-state/.config/opencode/= (=opencode.json=, =tui.json=, =prompts/=).
+  Appliquée par l'étape =occonfig= de =./script/install= (le fichier local qui diffère est sauvegardé en =.bak=).
+- Agents : =visual= (Sonnet, seul à juger le rendu via Playwright MCP headless), =implementer= (GLM, texte seul), =chore= (DeepSeek).
+- Clé : =OPENROUTER_API_KEY= dans =~/.zshrc.local= (jamais dans le dépôt).
+- Dictée : plugin TUI =@renjfk/opencode-voice= (=ctrl+r=, renommage de session déplacé sur =ctrl+alt+r=).
+  TUI uniquement, pas dans Neovim. Étape =ocvoice= : sox + whisper.cpp + modèle ggml.
+- *WSL* : le micro passe par WSLg (=PULSE_SERVER= posé par =zsh/.zshrc.d/opencode.zsh=). Si ça ne marche pas : =wsl --update=, sinon la dictée Windows =Win+H= écrit dans WezTerm, donc dans opencode.
+- *WSL* : =$HOME= Windows et WSL sont distincts. Tout vit côté WSL ; ne pas installer l'app desktop Windows d'opencode (=opencode web= depuis WSL pour une interface graphique).
+- Mise à jour : =./script/install --only "ocupgrade codex occonfig"= puis =./script/doctor=.
 
 *** opencode
 
