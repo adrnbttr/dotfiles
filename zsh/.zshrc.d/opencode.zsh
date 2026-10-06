@@ -35,3 +35,11 @@ compdef _oc oc
 if [[ -f "$HOME/.config/opencode/env.sh" ]]; then
   source "$HOME/.config/opencode/env.sh"
 fi
+
+# Audio (dictée du plugin TUI) : sous WSL2 le micro passe par WSLg/PulseAudio.
+# Sous Linux natif, PulseAudio/PipeWire est déjà en place : rien à faire.
+if grep -qi microsoft /proc/version 2>/dev/null; then
+  if [[ -S /mnt/wslg/PulseServer && -z "$PULSE_SERVER" ]]; then
+    export PULSE_SERVER=unix:/mnt/wslg/PulseServer
+  fi
+fi
