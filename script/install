@@ -187,35 +187,19 @@ ensure_node() {
   set -u
 }
 
-# --- Codex (binaire autonome : insensible aux changements de version nvm) ---
+# --- Codex (installeur officiel : le binaire seul n'est pas un paquet complet) ---
 
 install_codex() {
   if [[ "$no_codex" == "true" ]]; then
     return 0
   fi
-  local arch target tmp url
-  arch="$(uname -m)"
-  case "$os/$arch" in
-    linux/x86_64)  target="x86_64-unknown-linux-musl" ;;
-    linux/aarch64) target="aarch64-unknown-linux-musl" ;;
-    darwin/arm64)  target="aarch64-apple-darwin" ;;
-    *) warn "Codex : plateforme $os/$arch non gérée, étape sautée"; return 0 ;;
-  esac
-  if ! have curl || ! have tar; then
-    err "curl and tar are required to install Codex"
+  if ! have curl; then
+    err "curl is required to install Codex"
     exit 1
   fi
-  url="https://github.com/openai/codex/releases/latest/download/codex-${target}.tar.gz"
-  tmp="$(mktemp -d)"
-  info "installing Codex (latest release, $target)"
-  if ! curl -fsSL "$url" | tar -xz -C "$tmp"; then
-    rm -rf "$tmp"
-    warn "Codex download failed"
-    return 1
-  fi
-  install -m 0755 "$tmp/codex-${target}" "$HOME/.local/bin/codex"
-  rm -rf "$tmp"
-  info "✓ Codex $(codex --version 2>/dev/null || true)"
+  info "installing Codex (installeur officiel)"
+  # Idempotent : met aussi à jour une installation existante.
+  curl -fsSL https://chatgpt.com/codex/install.sh | sh
 }
 
 # --- opencode : version minimale, plugin dictée, Playwright -----------------
