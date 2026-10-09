@@ -28,6 +28,11 @@ jobs:
             script/get \
             script/install \
             script/lib-ui.sh \
+            script/claude \
+            script/install-claude \
+            claude/.claude/skills/lead/scripts/lead-start.sh \
+            claude/.claude/skills/lead/scripts/lead-stop.sh \
+            claude/.claude/skills/lead/hooks/stop-lead.sh \
             bin/.local/bin/wez-pick
 
       - name: Install steps are listable

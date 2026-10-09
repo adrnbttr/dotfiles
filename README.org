@@ -316,7 +316,7 @@ dconf write /org/cinnamon/desktop/keybindings/custom-list "['custom0']"
 This dotfiles supports two AI coding assistants running in parallel:
 
 1. **OpenCode** (primary) - For general coding tasks
-2. **Claude Code** (secondary) - For complex reasoning with Claude 4.6 Sonnet
+2. **Claude Code** (secondary) - For complex reasoning (lead Fable/Opus + sous-agents Sonnet)
 
 They are independent tools — OpenCode runs a local server, Claude Code is a direct CLI authenticated via browser (Claude Pro/Max subscription).
 
@@ -355,12 +355,48 @@ This repo ships a small, safe subset of opencode state as *templates*:
 
 *** Claude Code
 
-Claude Code stores sessions under =~/.claude/= (managed by the CLI itself).
-This repo tracks only:
-- Global system prompt: =claude-state/CLAUDE.md= → deployed to =~/.claude/CLAUDE.md=
-- Settings: =claude-state/settings.json= → deployed to =~/.claude.json=
+Claude Code range ses données sous =~/.claude/= (sessions, =.credentials.json=…) :
+le CLI en reste propriétaire. Le dépôt ne versionne que le paquet Stow =claude/=,
+posé par =./script/bootstrap= :
 
-Auth is browser-based — no API key needed (requires Claude Pro/Max subscription):
+| Dépôt                                    | Cible                         |
+|------------------------------------------+-------------------------------|
+| =claude/.claude/CLAUDE.md=               | =~/.claude/CLAUDE.md=         |
+| =claude/.claude/agents/=                 | =~/.claude/agents=            |
+| =claude/.claude/skills/lead=             | =~/.claude/skills/lead=       |
+| =claude/.claude/skills/lead-stop=        | =~/.claude/skills/lead-stop=  |
+
+Non versionné :
+- =~/.claude/settings.json= : seule la clé =env= (=claude-state/settings.fragment.json=)
+  y est fusionnée par =./script/claude sync= (sauvegarde =.bak-<date>=, idempotent) ;
+- les sessions et les identifiants ;
+- =~/.claude/skills/synced= (skills installés hors dépôt).
+
+=bootstrap= crée d'abord =~/.claude= et =~/.claude/skills= en vrai : sans eux,
+Stow replierait =~/.claude= entier en un lien vers le dépôt (sessions et
+=.credentials.json= dans git). =~/.claude/agents= devient un lien de dossier
+vers le dépôt (ou des liens fichier par fichier s'il existait déjà en vrai).
+
+*Le dispositif* : le modèle principal orchestre (planifie, délègue, relit) ;
+=worker= et =scout= (Sonnet) exécutent et explorent ; =reviewer= (Opus) relit
+avant toute livraison.
+
+*Modèle de la session* (sans toucher au réglage persistant =/model=) :
+
+#+begin_src sh
+cc-factory   # claude --model opus  : import client (factory new, pipeline, databox, prod)
+cc-dev       # claude --model fable : nouveau développement, refonte, architecture
+#+end_src
+
+*Skills* :
+- =/lead [factory|dev] [--autonome] [--max-iterations N]= : pilote un chantier en
+  mode lead.
+- =/lead-stop= : arrête la boucle autonome.
+
+Attention : le mode =--autonome= relance Claude tant que la promesse de fin n'est
+pas tenue ou que le plafond d'itérations n'est pas atteint (défaut 10).
+
+Auth par navigateur, sans clé d'API (abonnement Claude Pro/Max) :
 
 #+begin_src sh
 claude --login
@@ -427,22 +463,21 @@ ocpull            # Apply templates
 # Run health checks
 ./script/claude doctor
 
-# Sync system prompt / settings to/from dotfiles
-./script/claude sync push        # Save ~/.claude/CLAUDE.md to repo
-./script/claude sync pull        # Apply repo templates to ~/.claude/
+# Fusionne la clé env de settings.fragment.json dans ~/.claude/settings.json
+./script/claude sync
 
 # Shell aliases (added by zsh/.zshrc.d/claude.zsh):
 ccstatus          # Check status
 ccdoctor          # Run health checks
-ccpush            # Save config to dotfiles
-ccpull            # Apply templates
+cc-factory        # Session Opus (import client)
+cc-dev            # Session Fable (développement)
 #+end_src
 
 *** Comparison Table
 
 | Feature | OpenCode | Claude Code |
 |---------|----------|-------------|
-| **Default Model** | user-chosen (model.json) | claude-4.6-sonnet (direct) |
+| **Default Model** | user-chosen (model.json) | fable par défaut (cc-factory = opus) |
 | **Auth** | API key / OpenRouter | Browser login (Claude Pro/Max) |
 | **Architecture** | Local server (long-running) | CLI tool (per-invocation) |
 | **Neovim Prefix** | =<leader>a= | =<leader>z= |
@@ -470,7 +505,8 @@ claude --login
 
 # Apply repo config templates
 ./script/opencode sync pull        # Apply opencode templates
-./script/claude sync pull          # Apply CLAUDE.md system prompt
+./script/bootstrap                 # Liens Stow (CLAUDE.md, agents, skills)
+./script/claude sync               # Fusionne la clé env dans settings.json
 
 # Verify
 ./script/opencode status
@@ -498,8 +534,8 @@ go<motion> Send range to opencode (e.g. goip, gow)
 
 #+begin_src sh
 # Quick start commands
-ocpush && ccpush            # Sync both to dotfiles
-ocpull && ccpull            # Apply templates on new machine
+ocpush                      # Sync opencode to dotfiles
+ocpull && ./script/claude sync   # Apply templates on new machine
 
 # AI assistant summary
 ai-summary                  # Shows side-by-side overview

@@ -20,7 +20,7 @@ Usage:
   ./script/install-claude [options]
 
 Options:
-  --skip-config         Skip applying configuration templates
+  --skip-config         Skip merging settings (script/claude sync)
   --no-deps             Skip installing dependencies check
   --version <version>   Install specific Claude Code version
   -h, --help            Show this help
@@ -115,7 +115,8 @@ install_claude_code_cli() {
     
     # Try to get version
     if claude --version >/dev/null 2>&1; then
-      local version=$(claude --version 2>/dev/null || echo "unknown")
+      local version
+      version=$(claude --version 2>/dev/null || echo "unknown")
       info "  Version: $version"
     fi
   else
@@ -131,8 +132,8 @@ setup_claude_configuration() {
     return 0
   fi
 
-  info "Applying Claude Code config templates..."
-  "$repo_root/script/claude-sync" pull
+  info "Fusion des réglages Claude Code (settings.fragment.json)..."
+  "$repo_root/script/claude" sync
 }
 
 setup_claude_alias() {
@@ -153,7 +154,9 @@ main() {
   info "System: $os"
   info ""
   
-  check_prerequisites
+  if [[ "$no_deps" != "true" ]]; then
+    check_prerequisites
+  fi
   install_claude_code_cli
   setup_claude_configuration
   check_authentication

@@ -3,6 +3,15 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Liens que Stow (paquet `claude`) doit poser dans ~/.claude
+expected_links=(
+  "CLAUDE.md"
+  "agents"
+  "skills/lead"
+  "skills/lead-stop"
+)
+settings_fragment="$repo_root/claude-state/settings.fragment.json"
+
 show_logo() {
   cat <<'EOF'
    ____ _                   _      ___          _
@@ -10,7 +19,7 @@ show_logo() {
  | |   | |/ _` / __/ __|/ _` |   | | | | \ \ / / |
  | |___| | (_| \__ \__ \ (_| |   | |_| | |\ V /|_|
   \____|_|\__,_|___/___/\__,_|    \___/|_| \_/ (_)
-  Claude Code Manager v1.0
+  Claude Code Manager v2.0
 EOF
 }
 
@@ -18,164 +27,274 @@ usage() {
   show_logo
   cat <<'EOF'
 
-Usage:
-  ./script/claude <command> [options]
+Usage :
+  ./script/claude <commande>
 
-Commands:
-  sync         Synchronize configuration with dotfiles
-  status       Show current configuration and status
-  doctor       Run health checks and diagnostics
-  help         Show this help message
+Commandes :
+  sync         Fusionne claude-state/settings.fragment.json dans ~/.claude/settings.json
+  status       Affiche l'état des liens Stow, des réglages et du contenu versionné
+  doctor       Vérifie l'installation (code de sortie 1 si un contrôle échoue)
+  help         Affiche cette aide
 
-Quick reference:
-  ./script/claude sync push        # Save config to dotfiles
-  ./script/claude sync pull        # Apply templates
-  ./script/claude status           # Show current status
-  ./script/claude doctor           # Run health checks
-
-For detailed help on a command:
-  ./script/claude <command> --help
+Rappels :
+  ./script/bootstrap               # pose les liens (Stow, paquet `claude`)
+  ./script/claude sync             # fusionne la clé `env` dans settings.json
+  ./script/claude status
+  ./script/claude doctor
 EOF
 }
 
 sync_usage() {
   cat <<'EOF'
-Claude Code Configuration Synchronizer
+Usage :
+  ./script/claude sync
 
-Usage:
-  ./script/claude sync <command> [options]
-
-Commands:
-  push         Copy local config into repo templates
-  pull         Copy repo templates into local config
-  help         Show this help
-
-Options:
-  --force      Force overwrite local config (with pull)
-
-Examples:
-  ./script/claude sync push             # Save config to dotfiles
-  ./script/claude sync pull             # Apply templates
-  ./script/claude sync pull --force     # Overwrite local config
+Fusionne (en profondeur, le fragment gagne) claude-state/settings.fragment.json
+dans ~/.claude/settings.json. Le fichier est créé s'il n'existe pas ; sinon une
+sauvegarde settings.json.bak-<date> est faite avant toute modification. Sans
+changement, rien n'est écrit. Nécessite jq.
 EOF
+}
+
+# Vrai si ~/.claude/<rel> résout (lien direct ou dossier parent replié par
+# Stow) à l'intérieur de claude/.claude/ du dépôt.
+resolved_in_repo() {
+  local resolved
+  resolved="$(readlink -f "$HOME/.claude/$1" 2>/dev/null || true)"
+  [[ "$resolved" == "$repo_root/claude/.claude/"* ]]
+}
+
+# Vrai si le dossier réel ~/.claude/<rel> contient un lien vers chaque fichier
+# versionné du dossier correspondant du dépôt (et au moins un).
+dir_linked_per_file() {
+  local src="$repo_root/claude/.claude/$1" f name found=false
+  [[ -d "$src" ]] || return 1
+  for f in "$src"/*; do
+    [[ -e "$f" ]] || continue
+    name="$(basename "$f")"
+    found=true
+    resolved_in_repo "$1/$name" || return 1
+  done
+  [[ "$found" == "true" ]]
+}
+
+# link_state <rel> -> ok | autre | fichier | absent
+link_state() {
+  local target="$HOME/.claude/$1"
+  if resolved_in_repo "$1"; then
+    echo ok
+  elif [[ ! -L "$target" && -d "$target" ]] && dir_linked_per_file "$1"; then
+    # Dossier réel dans lequel Stow a posé des liens fichier par fichier
+    echo ok
+  elif [[ -L "$target" ]]; then
+    echo autre
+  elif [[ -e "$target" ]]; then
+    echo fichier
+  else
+    echo absent
+  fi
+}
+
+has_env_key() {
+  local settings="$HOME/.claude/settings.json"
+  command -v jq >/dev/null 2>&1 \
+    && [[ -f "$settings" ]] \
+    && jq -e '.env.CLAUDE_CODE_SUBAGENT_MODEL' "$settings" >/dev/null 2>&1
+}
+
+sync_settings() {
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "erreur : jq est requis (ex. sudo apt install jq)" >&2
+    exit 1
+  fi
+  if [[ ! -f "$settings_fragment" ]]; then
+    echo "erreur : $settings_fragment introuvable" >&2
+    exit 1
+  fi
+
+  local settings="$HOME/.claude/settings.json" target tmp backup stamp
+  mkdir -p "$HOME/.claude"
+
+  if [[ ! -e "$settings" ]]; then
+    cp -f "$settings_fragment" "$settings"
+    echo "✓ $settings créé à partir du fragment"
+    return 0
+  fi
+
+  # On écrit dans la cible réelle : un settings.json symlink reste un lien.
+  target="$(readlink -f "$settings")"
+  if [[ ! -w "$target" || ! -w "$(dirname "$target")" ]]; then
+    echo "erreur : $target n'est pas inscriptible (fichier ou dossier) ; rien n'a été modifié" >&2
+    exit 1
+  fi
+
+  # Temporaire dans le même dossier (mv atomique) ; cp -p garde le mode, et la
+  # redirection de jq tronque sans le changer.
+  tmp="$(mktemp "$target.tmp.XXXXXX")"
+  cp -p "$target" "$tmp"
+  if ! jq -s '.[0] * .[1]' "$target" "$settings_fragment" >"$tmp"; then
+    rm -f "$tmp"
+    echo "erreur : fusion impossible (settings.json est-il du JSON valide ?)" >&2
+    exit 1
+  fi
+
+  if cmp -s <(jq -S . "$target") <(jq -S . "$tmp"); then
+    rm -f "$tmp"
+    echo "✓ $settings déjà à jour"
+    return 0
+  fi
+
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  backup="$(mktemp "$target.bak-$stamp.XXXX")"
+  cp -p "$target" "$backup"
+  mv "$tmp" "$target"
+  echo "✓ $settings mis à jour (sauvegarde : $backup)"
+}
+
+list_versioned() {
+  local dir="$repo_root/claude/.claude" f
+  echo "Agents versionnés :"
+  for f in "$dir"/agents/*.md; do
+    [[ -e "$f" ]] && echo "  - $(basename "$f")"
+  done
+  echo "Skills versionnés :"
+  for f in "$dir"/skills/*/; do
+    [[ -d "$f" ]] && echo "  - $(basename "$f")"
+  done
+  return 0
 }
 
 show_status() {
   echo "=== Claude Code Status ==="
   echo ""
 
-  # Check if the claude CLI is installed
   if command -v claude >/dev/null 2>&1; then
+    local claude_version
     claude_version=$(claude --version 2>/dev/null | head -1 || echo "unknown")
-    echo "  claude CLI: installed ($claude_version)"
+    echo "  CLI claude : installée ($claude_version)"
   else
-    echo "  claude CLI: NOT INSTALLED"
-    echo "  → Run: ./script/install-claude"
+    echo "  CLI claude : NON INSTALLÉE"
+    echo "  → Lancer : ./script/install-claude"
+  fi
+
+  if [[ -d "$HOME/.claude" ]]; then
+    local session_count
+    session_count=$(find "$HOME/.claude/projects" -name "*.jsonl" 2>/dev/null | wc -l | xargs || true)
+    echo "  Sessions   : $session_count conversation(s) dans ~/.claude/projects/"
+  else
+    echo "  Sessions   : pas de ~/.claude/ — lancer 'claude --login'"
+  fi
+  echo ""
+
+  if [[ -L "$HOME/.claude" ]]; then
+    echo "  ✗ ~/.claude est un lien : sessions et identifiants finiraient dans le dépôt"
     echo ""
   fi
 
-  # Check auth (Claude stores sessions under ~/.claude/)
-  if [[ -d "$HOME/.claude" ]]; then
-    session_count=$(find "$HOME/.claude/projects" -name "*.jsonl" 2>/dev/null | wc -l | xargs)
-    echo "  Sessions:   $session_count conversation(s) in ~/.claude/projects/"
-  else
-    echo "  Sessions:   no ~/.claude/ directory — run 'claude --login'"
-  fi
-
+  echo "Liens Stow (paquet claude) :"
+  local rel
+  for rel in "${expected_links[@]}"; do
+    case "$(link_state "$rel")" in
+      ok) echo "  ✓ ~/.claude/$rel → dépôt" ;;
+      autre) echo "  ✗ ~/.claude/$rel est un lien vers l'extérieur du dépôt" ;;
+      fichier) echo "  ✗ ~/.claude/$rel est un fichier réel — à remplacer : ./script/bootstrap" ;;
+      absent) echo "  - ~/.claude/$rel absent — lancer ./script/bootstrap" ;;
+    esac
+  done
   echo ""
 
-  # Check system prompt
-  echo "Config files:"
-  local system_prompt="$HOME/.claude/CLAUDE.md"
-  if [[ -f "$system_prompt" ]]; then
-    echo "  ✓ CLAUDE.md (global system prompt)"
+  echo "Réglages (~/.claude/settings.json) :"
+  if has_env_key; then
+    echo "  ✓ env.CLAUDE_CODE_SUBAGENT_MODEL présent"
   else
-    echo "  - CLAUDE.md not found (optional)"
+    echo "  - env.CLAUDE_CODE_SUBAGENT_MODEL absent — lancer ./script/claude sync"
   fi
-
-  local settings="$HOME/.claude.json"
-  if [[ -f "$settings" ]]; then
-    echo "  ✓ ~/.claude.json (settings)"
-  else
-    echo "  - ~/.claude.json not found (optional)"
-  fi
-
   echo ""
-  echo "Repo templates (claude-state/):"
-  local repo_prompt="$repo_root/claude-state/CLAUDE.md"
-  if [[ -f "$repo_prompt" ]]; then
-    echo "  ✓ CLAUDE.md (system prompt)"
-  else
-    echo "  ✗ CLAUDE.md missing"
-  fi
 
-  echo ""
-  echo "Use './script/claude sync pull' to apply repo templates"
+  list_versioned
 }
 
 run_doctor_checks() {
-  echo "Claude Code Doctor — running health checks..."
+  echo "Claude Code Doctor — contrôles en cours..."
   echo ""
   local ok=true
 
-  # 1. CLI installed
-  echo "1. Claude CLI installation"
+  echo "1. CLI Claude"
   if command -v claude >/dev/null 2>&1; then
+    local claude_version
     claude_version=$(claude --version 2>/dev/null | head -1 || echo "unknown")
-    echo "   ✓ Installed: $claude_version"
+    echo "   ✓ Installée : $claude_version"
   else
-    echo "   ✗ NOT INSTALLED"
-    echo "   → Run: ./script/install-claude"
+    echo "   ✗ NON INSTALLÉE"
+    echo "   → Lancer : ./script/install-claude"
     ok=false
   fi
   echo ""
 
-  # 2. Auth / session directory
-  echo "2. Authentication"
-  if [[ -d "$HOME/.claude" ]]; then
-    echo "   ✓ ~/.claude/ exists (authenticated)"
-    if [[ -d "$HOME/.claude/projects" ]]; then
-      session_count=$(find "$HOME/.claude/projects" -name "*.jsonl" 2>/dev/null | wc -l | xargs)
-      echo "   ✓ $session_count conversation file(s) found"
-    fi
+  echo "2. Répertoire ~/.claude"
+  if [[ -L "$HOME/.claude" ]]; then
+    echo "   ✗ ~/.claude est un lien : sessions et identifiants finiraient dans le dépôt"
+    ok=false
+  elif [[ -d "$HOME/.claude" ]]; then
+    echo "   ✓ ~/.claude/ existe"
   else
-    echo "   ✗ ~/.claude/ not found — not authenticated"
-    echo "   → Run: claude --login"
+    echo "   ✗ ~/.claude/ introuvable — lancer 'claude --login'"
     ok=false
   fi
   echo ""
 
-  # 3. Global system prompt
-  echo "3. Global system prompt (CLAUDE.md)"
-  if [[ -f "$HOME/.claude/CLAUDE.md" ]]; then
-    echo "   ✓ Present"
-  else
-    echo "   - Not present (optional)"
-    echo "   → Run: ./script/claude sync pull  to install from repo"
-  fi
+  echo "3. Liens Stow (paquet claude)"
+  local rel
+  for rel in "${expected_links[@]}"; do
+    case "$(link_state "$rel")" in
+      ok) echo "   ✓ ~/.claude/$rel → dépôt" ;;
+      absent)
+        echo "   ✗ ~/.claude/$rel absent → ./script/bootstrap"
+        ok=false
+        ;;
+      fichier)
+        echo "   ✗ ~/.claude/$rel est un fichier réel → ./script/bootstrap"
+        ok=false
+        ;;
+      *)
+        echo "   ✗ ~/.claude/$rel pointe hors du dépôt → ./script/bootstrap"
+        ok=false
+        ;;
+    esac
+  done
   echo ""
 
-  # 4. Neovim integration
-  echo "4. Neovim integration"
-  local nvim_plugin="$repo_root/config/.config/nvim/lua/config/claude.lua"
-  if [[ -f "$nvim_plugin" ]]; then
-    echo "   ✓ config/claude.lua present"
+  echo "4. Réglages (settings.json)"
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "   ✗ jq manquant (requis pour sync)"
+    ok=false
+  elif has_env_key; then
+    echo "   ✓ env.CLAUDE_CODE_SUBAGENT_MODEL présent"
   else
-    echo "   ✗ config/claude.lua missing"
+    echo "   ✗ env.CLAUDE_CODE_SUBAGENT_MODEL absent → ./script/claude sync"
     ok=false
   fi
   echo ""
 
-  # Summary
+  echo "5. Intégration Neovim"
+  if [[ -f "$repo_root/config/.config/nvim/lua/config/claude.lua" ]]; then
+    echo "   ✓ config/claude.lua présent"
+  else
+    echo "   ✗ config/claude.lua manquant"
+    ok=false
+  fi
+  echo ""
+
   if [[ "$ok" == "true" ]]; then
-    echo "All checks passed."
+    echo "Tous les contrôles passent."
   else
-    echo "Some checks failed — see above for fix instructions."
+    echo "Certains contrôles échouent — voir les remèdes ci-dessus."
+    return 1
   fi
 }
 
 # ---------------------------------------------------------------------------
-# Main command routing
+# Routage des commandes
 # ---------------------------------------------------------------------------
 
 main_command="${1:-}"
@@ -183,23 +302,11 @@ sub_command="${2:-}"
 
 case "$main_command" in
   sync)
-    if [[ ! -f "$repo_root/script/claude-sync" ]]; then
-      echo "Error: script/claude-sync not found" >&2
-      exit 1
-    fi
     case "$sub_command" in
-      push)
-        "$repo_root/script/claude-sync" push
-        ;;
-      pull)
-        force="${3:-}"
-        "$repo_root/script/claude-sync" pull ${force:+"$force"}
-        ;;
-      ""|-h|--help|help)
-        sync_usage
-        ;;
+      "") sync_settings ;;
+      -h|--help|help) sync_usage ;;
       *)
-        echo "Unknown sync command: $sub_command" >&2
+        echo "Option inconnue pour sync : $sub_command" >&2
         sync_usage >&2
         exit 2
         ;;
@@ -219,7 +326,7 @@ case "$main_command" in
     ;;
 
   *)
-    echo "Unknown command: $main_command" >&2
+    echo "Commande inconnue : $main_command" >&2
     usage >&2
     exit 2
     ;;
