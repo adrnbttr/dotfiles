@@ -65,7 +65,31 @@ if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
   git clone https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
 fi
 
-stow -d "$repo_root" -t "$HOME" zsh config oh-my-zsh-custom bin
+# Claude Code : ~/.claude et ~/.claude/skills doivent exister en vrai AVANT le
+# stow. Sans eux, Stow « replierait » ~/.claude entier en un seul lien vers le
+# dépôt, et les sessions ainsi que .credentials.json finiraient dans git.
+# ~/.claude/agents peut en revanche devenir un lien de dossier vers le dépôt
+# (les nouveaux agents sont alors pris sans re-stow) ; s'il existe déjà en vrai,
+# Stow pose des liens fichier par fichier dedans : c'est accepté.
+mkdir -p "$HOME/.claude/skills"
+
+stow_packages=(zsh config oh-my-zsh-custom bin)
+
+# Le paquet claude est posé à part : un conflit dans ~/.claude ne doit pas
+# faire avorter le stow de zsh/config/bin.
+stow -d "$repo_root" -t "$HOME" "${stow_packages[@]}"
+
+# On saute claude si ~/.claude/CLAUDE.md est un fichier réel, ou un lien qui
+# ne résout pas dans le dépôt : Stow échouerait.
+claude_md_dst="$HOME/.claude/CLAUDE.md"
+claude_md_resolved="$(readlink -f "$claude_md_dst" 2>/dev/null || true)"
+if [[ -e "$claude_md_dst" && ! -L "$claude_md_dst" ]]; then
+  echo "note: $claude_md_dst existe et n'est pas un lien ; paquet claude non posé. Déplacez-le puis relancez ./script/bootstrap" >&2
+elif [[ -L "$claude_md_dst" && "$claude_md_resolved" != "$repo_root/claude/.claude/"* ]]; then
+  echo "note: $claude_md_dst est un lien hors du dépôt ; paquet claude non posé. Supprimez-le puis relancez ./script/bootstrap" >&2
+elif ! stow -d "$repo_root" -t "$HOME" claude; then
+  echo "note: paquet claude non posé (conflit dans ~/.claude) ; voir ./script/claude status" >&2
+fi
 
 # Neovim lockfile: keep it versioned without overwriting local files.
 lock_src="$repo_root/config/.config/nvim/lazy-lock.json"

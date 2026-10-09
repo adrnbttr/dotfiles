@@ -1,8 +1,8 @@
 # Claude Code dotfiles management aliases
 
-# Sync shortcuts
-alias ccpush='(cd ~/Documents/github/perso/dotfiles && ./script/claude sync push)'
-alias ccpull='(cd ~/Documents/github/perso/dotfiles && ./script/claude sync pull)'
+# Modèle de la session seule, sans toucher au réglage persistant (/model)
+cc-factory() { claude --model opus "$@"; }   # import client : factory new, pipeline, databox, prod
+cc-dev()     { claude --model fable "$@"; }  # nouveau développement, refonte, architecture
 
 # Status / health
 alias ccstatus='(cd ~/Documents/github/perso/dotfiles && ./script/claude status)'
@@ -32,12 +32,13 @@ ai-summary() {
   echo "OpenCode (opencode.nvim)"
   echo "  Keymaps : <leader>a prefix"
   echo "  Commands: ochelp, ocstatus, ocpush, ocpull"
-  echo "  Model   : claude-4.6-sonnet (via opencode)"
+  echo "  Model   : user-chosen (model.json)"
   echo ""
   echo "Claude Code (Official CLI)"
   echo "  Keymaps : <leader>z prefix"
-  echo "  Commands: cchelp, ccstatus, ccpush, ccpull"
-  echo "  Model   : claude-4.6-sonnet (direct, browser auth)"
+  echo "  Commands: cchelp, ccstatus, ccdoctor, cc-factory, cc-dev"
+  echo "  Model   : fable par défaut ; cc-factory = opus, cc-dev = fable"
+  echo "  Skills  : /lead, /lead-stop"
   echo ""
   echo "Neovim keymaps:"
   echo "  <leader>at / <leader>zt   Toggle split"
