@@ -7,5 +7,5 @@
 # export PATH="$HOME/.local/opt/something/bin:$PATH"
 # alias workvpn="..."
 
-# opencode : clé OpenRouter (modèles + normalisation de la dictée)
-# export OPENROUTER_API_KEY="sk-or-..."
+# opencode : clé OpenCode Zen (modèles + normalisation de la dictée)
+# export OPENCODE_API_KEY="sk-or-..."
