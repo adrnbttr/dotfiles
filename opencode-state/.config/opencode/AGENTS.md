@@ -40,3 +40,13 @@ Les sous-agents coûtent cher à l'heure : `challenger` (GLM-5.3) est ~14× le p
 5. `implementer` : une tâche par appel. Ne lui empile pas trois features dans un brief.
 6. Tu n'as pas besoin de faire relire par `challenger` chaque implémentation : seulement
    celles que tu juges à risque, ou à la demande explicite de l'utilisateur.
+
+## Protocole « plan par lots »
+
+Quand l'utilisateur demande un plan pour un gros travail :
+
+1. Le plan est TOUJOURS écrit dans un fichier `.opencode/plans/<slug>.md` (format strict : frontmatter `status`, sections `## Lot N —`, tâches `- [ ] N.M <tâche> [agent]`). Jamais seulement dans la conversation.
+2. UN LOT = UNE SESSION. Ne traite jamais deux lots dans la même session : le contexte doit rester petit.
+3. Dans une session de lot, lis uniquement la section du lot, délègue les tâches une par une, et coche `[x]` au fur et à mesure.
+4. Commandes disponibles : `/planlot <demande>` écrit le plan (agent plan) ; `/lot N` exécute le lot N dans la session courante.
+5. Pour tout travail multi-étapes sans plan existant, propose `/planlot`.
