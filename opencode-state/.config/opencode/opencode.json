@@ -17,38 +17,6 @@
       }
     }
   },
-  "attachment": {
-    "image": {
-      "auto_resize": true,
-      "max_width": 1280,
-      "max_height": 1280,
-      "max_base64_bytes": 5242880
-    }
-  },
-  "agent": {
-    "visual": {
-      "description": "Vérifie le rendu d'une page web dans le navigateur et signale les écarts. À utiliser dès qu'une question porte sur l'apparence, la mise en page ou le comportement visible d'une page.",
-      "mode": "subagent",
-      "model": "opencode/space-bunny-free",
-      "prompt": "{file:./prompts/visual-agent.md}",
-      "tools": {
-        "write": false,
-        "edit": false
-      }
-    },
-    "implementer": {
-      "description": "Implémente UNE tâche cadrée. Ne rend la main que si typecheck, lint, tests et build sont verts.",
-      "mode": "subagent",
-      "model": "opencode/gpt-6-luna#max",
-      "prompt": "Tu implémentes exactement la tâche décrite, rien de plus. Interdiction d'élargir le périmètre. Avant de rendre la main : lance typecheck, lint, tests et build. Si l'un échoue, corrige. Si tu échoues deux fois de suite, arrête-toi et explique précisément le blocage au lieu de bricoler. Tu ne peux pas voir d'images : si la tâche demande un jugement visuel, signale-le et rends la main. Renvoie le diff et le résultat des gates."
-    },
-    "chore": {
-      "description": "Travail mécanique uniquement : tests boilerplate, docstrings, renommages, parsing de logs, migrations mécaniques. Aucune décision de design.",
-      "mode": "subagent",
-      "model": "opencode/glm-5.3-flash",
-      "prompt": "Tâche purement mécanique. Tu ne prends aucune décision d'architecture. En cas d'ambiguïté, tu t'arrêtes et tu demandes."
-    }
-  },
   "compaction": {
     "auto": true,
     "reserved": 2000
@@ -64,6 +32,64 @@
           }
         }
       }
+    }
+  },
+  "agents": {
+    "visual": {
+      "description": "Vérifie le rendu d'une page web dans le navigateur (Playwright) et signale les écarts. À utiliser dès qu'une question porte sur l'apparence, la mise en page ou le comportement visible d'une page.",
+      "mode": "subagent",
+      "model": "opencode/space-bunny-free",
+      "system": "{file:./prompts/visual-agent.md}",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
+    },
+    "implementer": {
+      "description": "Implémente UNE tâche cadrée, puis rend la main seulement si typecheck, lint, tests et build sont verts. À utiliser quand le plan est validé et qu'il faut coder une tâche précise.",
+      "mode": "subagent",
+      "model": "opencode/gpt-6-luna#max",
+      "system": "Tu implémentes exactement la tâche décrite, rien de plus. Interdiction d'élargir le périmètre. Avant de rendre la main : lance typecheck, lint, tests et build. Si l'un échoue, corrige. Si tu échoues deux fois de suite, arrête-toi et explique précisément le blocage au lieu de bricoler. Tu ne peux pas voir d'images : si la tâche demande un jugement visuel, signale-le et rends la main. Renvoie le diff et le résultat des gates."
+    },
+    "chore": {
+      "description": "Travail mécanique uniquement, sans décision de design : tests boilerplate, docstrings, renommages, parsing de logs, migrations mécaniques. À utiliser pour tout ce qui est répétitif et sans jugement d'architecture.",
+      "mode": "subagent",
+      "model": "opencode/glm-5.3-flash",
+      "system": "Tâche purement mécanique. Tu ne prends aucune décision d'architecture. En cas d'ambiguïté, tu t'arrêtes et tu demandes."
+    },
+    "challenger": {
+      "description": "Second avis indépendant (GLM-5.3, modèle hors famille OpenAI) pour challenger l'architecture et le code. À utiliser pour reviewer/critiquer une décision d'architecture ou une implémentation avant validation, ou en cas de doute sur une approche. Ne code pas : analyse et rapporte.",
+      "mode": "subagent",
+      "model": "opencode/glm-5.3#high",
+      "system": "Tu es le challenger : un reviewer d'architecture et de code intégré au workflow comme second avis indépendant. Ta mission est de challenger ce qu'on te soumet, pas de le complimenter.\n\nPour chaque soumission :\n1. Risques d'architecture : couplage, cohésion, scalabilité, maintenabilité, sécurité.\n2. Cohérence avec le reste du codebase : patterns existants, dette technique, conventions.\n3. Cas limites non couverts, tests manquants, points de rupture.\n4. Verdict explicite : si la solution te semble correcte, dis-le et explique pourquoi.\n\nTu ne modifies aucun fichier. Rends un rapport structuré : Constat / Risque / Recommandation. Sois concis, cite les fichiers et lignes concernés.",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
+    }
+  },
+  "media": {
+    "image": {
+      "auto_resize": true,
+      "max_width": 1280,
+      "max_height": 1280,
+      "max_base64_bytes": 5242880
     }
   }
 }
