@@ -9,7 +9,7 @@ $ARGUMENTS
 
 Règles de découpage — OBLIGATOIRES :
 
-1. Le plan est écrit dans `.opencode/plans/<slug-court>.md` (crée le dossier si besoin). Jamais seulement dans la conversation.
+1. Le plan est écrit dans `.opencode/plans/<slug-court>.md` (crée le dossier si besoin). Jamais seulement dans la conversation. Les plans terminés sont archivés dans `.opencode/plans/done/` — ne prends jamais `done/` comme plan actif.
 2. Un LOT = une session de travail autonome à contexte faible (moins de ~20k tokens), avec un objectif vérifiable. Entre 2 et 6 lots maximum.
 3. Chaque lot contient des TÂCHES atomiques : une tâche = une délégation à un sous-agent. L'agent recommandé est noté entre crochets : [implementer], [chore], [challenger], [visual] ou [explore]. Chaque tâche porte une **recette** : la ou les commandes de test EXACTES qui valident la tâche, vérifiées comme disponibles dans l'environnement (ex : `python3`, pas `python`, si c'est le binaire réel).
 4. Format STRICT du fichier :

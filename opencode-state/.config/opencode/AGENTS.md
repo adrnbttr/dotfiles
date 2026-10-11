@@ -50,3 +50,5 @@ Quand l'utilisateur demande un plan pour un gros travail :
 3. Dans une session de lot, lis uniquement la section du lot, délègue les tâches une par une, et coche `[x]` au fur et à mesure.
 4. Commandes disponibles : `/planlot <demande>` écrit le plan (agent plan) ; `/lot N` exécute le lot N dans la session courante.
 5. Pour tout travail multi-étapes sans plan existant, propose `/planlot`.
+
+5. Dès qu'un plan est entièrement terminé (toutes les tâches cochées) : `status: done` en frontmatter, déplacement dans `.opencode/plans/done/`, puis commit. La racine de `.opencode/plans/` ne doit contenir que les plans actifs.

@@ -19,3 +19,8 @@ Protocole — à suivre à la lettre :
 > Lot suivant : `/lot <N+1>` — à exécuter dans une session NEUVE, sans l'historique de celle-ci.
 
 Rappel : le nettoyage de session entre deux lots est ce qui garde le contexte petit. Ne le saute jamais.
+
+8b. Si ce lot était le DERNIER (plus aucune tâche `- [ ]` non cochée dans le plan) :
+   - passe le frontmatter `status: done` ;
+   - déplace le fichier dans `.opencode/plans/done/` (crée le dossier) ;
+   - commite ce classement. Le poste doit rester propre : plus aucun plan fini à la racine de `.opencode/plans/`.
