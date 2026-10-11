@@ -51,19 +51,22 @@
           "resource": "*",
           "effect": "deny"
         }
-      ]
+      ],
+      "steps": 10
     },
     "implementer": {
       "description": "Implémente UNE tâche cadrée, puis rend la main seulement si typecheck, lint, tests et build sont verts. À utiliser quand le plan est validé et qu'il faut coder une tâche précise.",
       "mode": "subagent",
       "model": "opencode/gpt-6-luna#max",
-      "system": "Tu implémentes exactement la tâche décrite, rien de plus. Interdiction d'élargir le périmètre. Avant de rendre la main : lance typecheck, lint, tests et build. Si l'un échoue, corrige. Si tu échoues deux fois de suite, arrête-toi et explique précisément le blocage au lieu de bricoler. Tu ne peux pas voir d'images : si la tâche demande un jugement visuel, signale-le et rends la main. Renvoie le diff et le résultat des gates."
+      "system": "Tu implémentes exactement la tâche décrite, rien de plus. Interdiction d'élargir le périmètre. Avant de rendre la main : lance typecheck, lint, tests et build. Si l'un échoue, corrige. Si tu échoues deux fois de suite, arrête-toi et explique précisément le blocage au lieu de bricoler. Tu ne peux pas voir d'images : si la tâche demande un jugement visuel, signale-le et rends la main. Renvoie le diff et le résultat des gates.",
+      "steps": 20
     },
     "chore": {
       "description": "Travail mécanique uniquement, sans décision de design : tests boilerplate, docstrings, renommages, parsing de logs, migrations mécaniques. À utiliser pour tout ce qui est répétitif et sans jugement d'architecture.",
       "mode": "subagent",
       "model": "opencode/glm-5.3-flash",
-      "system": "Tâche purement mécanique. Tu ne prends aucune décision d'architecture. En cas d'ambiguïté, tu t'arrêtes et tu demandes."
+      "system": "Tâche purement mécanique. Tu ne prends aucune décision d'architecture. En cas d'ambiguïté, tu t'arrêtes et tu demandes.",
+      "steps": 10
     },
     "challenger": {
       "description": "Second avis indépendant (GLM-5.3, modèle hors famille OpenAI) pour challenger l'architecture et le code. À utiliser pour reviewer/critiquer une décision d'architecture ou une implémentation avant validation, ou en cas de doute sur une approche. Ne code pas : analyse et rapporte.",
@@ -81,7 +84,8 @@
           "resource": "*",
           "effect": "deny"
         }
-      ]
+      ],
+      "steps": 8
     }
   },
   "media": {

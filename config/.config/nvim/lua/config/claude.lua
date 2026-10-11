@@ -322,7 +322,9 @@ M.setup = function()
   end, { desc = "Claude: Paste selection" })
 
   -- ---------------------------------------------------------------------------
-  if not M.is_available() then
+  -- Rappel optionnel : mets `vim.g.claude_warn_missing = true` si tu veux
+  -- etre averti au demarrage que le CLI Claude n'est pas installe.
+  if vim.g.claude_warn_missing and not M.is_available() then
     vim.notify(
       "claude: CLI not found – run ./script/install-claude",
       vim.log.levels.WARN
