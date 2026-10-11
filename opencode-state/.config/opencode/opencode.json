@@ -1,19 +1,20 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "opencode/gpt-5.6-luna",
-  "small_model": "opencode/deepseek-v4-flash",
+  "model": "opencode/glm-5.3-flash",
+  "small_model": "opencode/deepseek-v4.1-flash",
   "default_agent": "plan",
-  "subagent_depth": 1,
   "mcp": {
-    "playwright": {
-      "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "@playwright/mcp@latest",
-        "--headless"
-      ],
-      "enabled": true
+    "servers": {
+      "playwright": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "@playwright/mcp@latest",
+          "--headless"
+        ],
+        "enabled": true
+      }
     }
   },
   "attachment": {
@@ -44,13 +45,12 @@
     "chore": {
       "description": "Travail mécanique uniquement : tests boilerplate, docstrings, renommages, parsing de logs, migrations mécaniques. Aucune décision de design.",
       "mode": "subagent",
-      "model": "opencode/ling-3.0-flash-fin-free",
+      "model": "opencode/glm-5.3-flash",
       "prompt": "Tâche purement mécanique. Tu ne prends aucune décision d'architecture. En cas d'ambiguïté, tu t'arrêtes et tu demandes."
     }
   },
   "compaction": {
     "auto": true,
-    "prune": true,
     "reserved": 2000
   },
   "formatter": true,

@@ -57,23 +57,39 @@ return {
       ---@type opencode.Opts
       vim.g.opencode_opts = {
         events = {
-          reload = function()
-            vim.schedule(function()
-              vim.cmd("checktime")
-            end)
-          end,
+          reload = {
+            enabled = true, -- recharge les buffers edites par OpenCode (checktime)
+          },
         },
       }
 
-      vim.keymap.set({ "n", "x" }, "<leader>ja", function() require("opencode").ask("@this: ", { submit = true }) end, { desc = "Ask (@this)" })
-      vim.keymap.set({ "n" }, "<leader>jn", function() require("opencode").command("session.new") end, { desc = "New session" })
-      vim.keymap.set({ "n" }, "<leader>ju", function() require("opencode").command("session.undo") end, { desc = "Undo last action" })
-      vim.keymap.set({ "n" }, "<leader>jr", function() require("opencode").command("session.redo") end, { desc = "Redo" })
-      vim.keymap.set({ "n" }, "<leader>jc", function() require("opencode").command("session.compact") end, { desc = "Compact session" })
-      vim.keymap.set({ "n" }, "<leader>js", function() require("opencode").command("session.select") end, { desc = "Select session" })
-      vim.keymap.set({ "n" }, "<leader>jS", function() require("opencode").command("session.share") end, { desc = "Share session" })
-      vim.keymap.set({ "n", "t" }, "<leader>jt", function() require("opencode").toggle() end, { desc = "Toggle opencode" })
-      vim.keymap.set({ "n", "x" }, "<leader>jx", function() require("opencode").select() end, { desc = "Execute action" })
+      -- OpenCode v2 : le plugin ne pilote plus le TUI (commandes session.* supprimees),
+      -- il dialogue avec le service en arriere-plan. Le terminal est gere par snacks.
+      local opencode_cmd = "opencode"
+      local opencode_term_opts = {
+        win = {
+          position = "right",
+          width = math.floor(vim.o.columns * 0.35),
+        },
+      }
+      local function opencode_toggle()
+        require("snacks.terminal").toggle(opencode_cmd, opencode_term_opts)
+      end
+
+      -- Affiche le terminal quand OpenCode commence a executer une tache
+      vim.api.nvim_create_autocmd("User", {
+        pattern = { "OpencodeEvent:session.execution.started" },
+        callback = function()
+          local win = require("snacks.terminal").get(opencode_cmd, { create = false })
+          if win then
+            win:show()
+          end
+        end,
+      })
+
+      vim.keymap.set({ "n", "x" }, "<leader>ja", function() require("opencode").ask("@this: ") end, { desc = "Ask OpenCode (@this)" })
+      vim.keymap.set({ "n", "t" }, "<leader>jt", opencode_toggle, { desc = "Toggle opencode" })
+      vim.keymap.set({ "n", "x" }, "<leader>jx", function() require("opencode").select() end, { desc = "OpenCode actions" })
 
       vim.keymap.set({ "n", "x" }, "<leader>jpe", function() require("opencode").prompt("Explain @this and its context") end, { desc = "Explain" })
       vim.keymap.set({ "n", "x" }, "<leader>jpf", function() require("opencode").prompt("Fix @diagnostics") end, { desc = "Fix diagnostics" })
@@ -82,13 +98,10 @@ return {
       vim.keymap.set({ "n", "x" }, "<leader>jpo", function() require("opencode").prompt("Optimize @this for performance and readability") end, { desc = "Optimize" })
       vim.keymap.set({ "n", "x" }, "<leader>jpt", function() require("opencode").prompt("Add tests for @this") end, { desc = "Add tests" })
 
-      vim.keymap.set({ "n" }, "<leader>jbb", function() require("opencode").ask("@buffer: ", { submit = true }) end, { desc = "Send current buffer" })
-      vim.keymap.set({ "n" }, "<leader>jba", function() require("opencode").ask("@buffers: ", { submit = true }) end, { desc = "Send all buffers" })
-      vim.keymap.set({ "n" }, "<leader>jbv", function() require("opencode").ask("@visible: ", { submit = true }) end, { desc = "Send visible text" })
-      vim.keymap.set({ "n" }, "<leader>jbd", function() require("opencode").ask("@diagnostics: ", { submit = true }) end, { desc = "Send diagnostics" })
-
-      vim.keymap.set("n", "<S-C-u>", function() require("opencode").command("session.half.page.up") end, { desc = "opencode half page up" })
-      vim.keymap.set("n", "<S-C-d>", function() require("opencode").command("session.half.page.down") end, { desc = "opencode half page down" })
+      vim.keymap.set("n", "<leader>jbb", function() require("opencode").prompt("@buffer: ") end, { desc = "Send current buffer" })
+      vim.keymap.set("n", "<leader>jba", function() require("opencode").prompt("@buffers: ") end, { desc = "Send all buffers" })
+      vim.keymap.set("n", "<leader>jbv", function() require("opencode").prompt("@visible: ") end, { desc = "Send visible text" })
+      vim.keymap.set("n", "<leader>jbd", function() require("opencode").prompt("@diagnostics: ") end, { desc = "Send diagnostics" })
 
       vim.keymap.set({ "n", "x" }, "go", function() return require("opencode").operator("@this ") end, { expr = true, desc = "Add range to opencode" })
       vim.keymap.set("n", "goo", function() return require("opencode").operator("@this ") .. "_" end, { expr = true, desc = "Add line to opencode" })
