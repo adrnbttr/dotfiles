@@ -1,0 +1,59 @@
+#!/bin/bash
+# ococ — opencode cost : coute des sessions opencode (jour / location / total)
+# Usage: ococ            resume du jour par location
+#        ococ all        toutes les sessions
+#        ococ today      detail du jour
+set -u
+OC="${OPENCODE_BIN:-$HOME/.opencode/bin/opencode}"
+[ -x "$OC" ] || OC=opencode
+
+raw="$($OC api get /api/session 2>/dev/null)"
+[ -z "$raw" ] && { echo "service opencode indisponible"; exit 1; }
+
+today=$(date -u +%Y-%m-%d)
+
+python3 - "$raw" "$today" "$*" <<'PYEOF'
+import json, sys, datetime, collections
+raw, today, mode = sys.argv[1], sys.argv[2], (sys.argv[3:] or [""])[0]
+obj, _ = json.JSONDecoder().raw_decode(raw)
+rows = []
+for s in obj.get("data", []):
+    created = datetime.datetime.fromtimestamp(s.get("time", {}).get("created", 0) / 1000, datetime.timezone.utc)
+    rows.append({
+        "date": created.strftime("%Y-%m-%d"),
+        "loc": (s.get("location") or {}).get("directory", "?"),
+        "cost": float(s.get("cost") or 0),
+        "out": (s.get("tokens") or {}).get("output", 0) or 0,
+        "title": (s.get("title") or "")[:45],
+        "agent": s.get("agent") or "-",
+    })
+if mode == "all":
+    sel = rows
+else:
+    sel = [r for r in rows if r["date"] == today]
+    if not sel:
+        print(f"aucune session aujourd'hui ({today})")
+        raise SystemExit
+
+by_loc = collections.defaultdict(float)
+by_agent = collections.defaultdict(float)
+for r in sel:
+    by_loc[r["loc"]] += r["cost"]
+    by_agent[r["agent"]] += r["cost"]
+total = sum(r["cost"] for r in sel)
+label = "toutes sessions" if mode == "all" else f"jour {today}"
+print(f"=== cout {label} : ${total:.4f} ({len(sel)} sessions) ===")
+print("-- par location --")
+for loc, c in sorted(by_loc.items(), key=lambda x: -x[1]):
+    print(f"  ${c:>8.4f}  {loc}")
+print("-- par agent --")
+for a, c in sorted(by_agent.items(), key=lambda x: -x[1]):
+    print(f"  ${c:>8.4f}  {a}")
+if mode == "all":
+    by_day = collections.defaultdict(float)
+    for r in rows:
+        by_day[r["date"]] += r["cost"]
+    print("-- par jour --")
+    for d, c in sorted(by_day.items()):
+        print(f"  ${c:>8.4f}  {d}")
+PYEOF
