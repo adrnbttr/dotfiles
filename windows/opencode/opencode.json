@@ -1,12 +1,14 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "opencode/step-5-preview-free",
+  "model": "opencode/claude-sonnet-5-5#high",
+  "small_model": "opencode/deepseek-v4.1-flash",
   "default_agent": "plan",
-  "mcp": {
-    "servers": {
-      "playwright": {
-        "type": "local",
-        "command": ["npx", "-y", "@playwright/mcp@latest", "--headless"]
+  "providers": {
+    "opencode": {
+      "models": {
+        "claude-sonnet-5-5": {
+          "settings": { "reasoningEffort": "high" }
+        }
       }
     }
   },
