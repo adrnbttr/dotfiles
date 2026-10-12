@@ -316,7 +316,7 @@ dconf write /org/cinnamon/desktop/keybindings/custom-list "['custom0']"
 This dotfiles supports two AI coding assistants running in parallel:
 
 1. **OpenCode** (primary) - For general coding tasks
-2. **Claude Code** (secondary) - For complex reasoning (lead Fable/Opus + sous-agents Sonnet)
+2. **Claude Code** (secondary) - For complex reasoning (lead Opus/Sonnet + sous-agents Sonnet)
 
 They are independent tools — OpenCode runs a local server, Claude Code is a direct CLI authenticated via browser (Claude Pro/Max subscription).
 
@@ -331,17 +331,53 @@ They are independent tools — OpenCode runs a local server, Claude Code is a di
 Codex : =<leader>wa= pose une question (ou envoie la sélection visuelle).
 =<leader>w= seul (sauvegarde) attend =timeoutlen= car =<leader>wt= existe ; =<C-s>= sauvegarde sans délai.
 
-*** opencode : Playwright MCP et dictée
+*** opencode : tout ce qu'il faut savoir
 
-- Config versionnée : =opencode-state/.config/opencode/= (=opencode.json=, =tui.json=, =prompts/=).
-  Appliquée par l'étape =occonfig= de =./script/install= (le fichier local qui diffère est sauvegardé en =.bak=).
-- Agents : =visual= (Sonnet, seul à juger le rendu via Playwright MCP headless), =implementer= (GLM, texte seul), =chore= (DeepSeek).
-- Clé : =OPENROUTER_API_KEY= dans =~/.zshrc.local= (jamais dans le dépôt).
-- Dictée : plugin TUI =@renjfk/opencode-voice= (=ctrl+r=, renommage de session déplacé sur =ctrl+alt+r=).
-  TUI uniquement, pas dans Neovim. Étape =ocvoice= : sox + whisper.cpp + modèle ggml.
-- *WSL* : le micro passe par WSLg (=PULSE_SERVER= posé par =zsh/.zshrc.d/opencode.zsh=). Si ça ne marche pas : =wsl --update=, sinon la dictée Windows =Win+H= écrit dans WezTerm, donc dans opencode.
-- *WSL* : =$HOME= Windows et WSL sont distincts. Tout vit côté WSL ; ne pas installer l'app desktop Windows d'opencode (=opencode web= depuis WSL pour une interface graphique).
-- Mise à jour : =./script/install --only "ocupgrade codex occonfig"= puis =./script/doctor=.
+*Modèle par tâche* (prix $/M tokens entrée-sortie sur OpenCode Zen) :
+
+| Rôle                          | Modèle                        | Prix      | Pourquoi |
+--------------------------------+-------------------------------+-----------+----------
+| Principal (archi, orchestre)  | =claude-sonnet-5-5#high=       | 2 / 10    | 84/100 en coding public, proche d'Opus à moitié prix |
+| Implementer (code + gates)    | =glm-5.3-flash=               | 0.15 / 0.5 | meilleur agentique/€ (TB 2.1 84.3 %, DeepSWE 63.4 %) |
+| Challenger (2nd avis)         | =glm-5.3#high=                | 1.4 / 4.4 | tier flagship, écart réel vs flash |
+| Chore (mécanique)             | =glm-5.3-flash=               | 0.15 / 0.5 | 13 à 20× moins cher que Sonnet, suffit |
+| Explore / General             | =claude-haiku-5-5=            | 0.1 / 0.5 | épinglé (sinon hérite de Sonnet = surcoût) |
+| Visual (rendu)                | =space-bunny-free=            | gratuit   | seul à juger via Playwright MCP |
+| Titres / résumés              | =deepseek-v4.1-flash=         | 0.14/0.28 | small_model |
+
+*Config versionnée* : =opencode-state/.config/opencode/= (=opencode.json=, =cli.json=,
+=AGENTS.md=, =commands/=, =prompts/=, =env.sh=), déployée par l'étape =occonfig= de
+=./script/install= (le fichier local qui diffère est sauvegardé en =.bak=).
+
+*Délégation automatique* : le modèle principal lit la =description= de chaque sous-agent et
+choisit tout seul à qui déléguer (outil =subagent=). Règles de routage et d'économie
+(quand NE PAS déléguer) dans =AGENTS.md=. Limites de =steps= par agent anti-emballement.
+
+*Workflow plan par lots* — garder le contexte petit :
+
+| Commande     | Effet |
+---------------+-------
+| =/planlot <demande>= | l'agent plan écrit =​.opencode/plans/<slug>.md= : frontmatter =status=, sections =## Lot N=, tâches =​- [ ] N.M <tâche> [agent] — recette : <test>= |
+| =/lot N=     | exécute UN seul lot dans la session : lit uniquement sa section, délègue chaque tâche, coche =[x]= après recette validée |
+
+- Un lot = une session à contexte faible. En fin de lot l'agent DOIT rappeler de faire
+  =/clear= puis =/lot N+1= dans une session neuve.
+- Plan entièrement terminé → =status: done= puis déplacement dans =​.opencode/plans/done/=
+  et commit : le poste reste propre.
+
+*Coût* : script =ococ= (=bin/.local/bin/ococ=) agrège les coûts (=ococ= jour, =ococ all=).
+Ordre de grandeur : ~$0.2-0.3/h avec Sonnet en principal + GLM partout ailleurs ;
+~$0.7-1.0/h si l'implémenteur passe aussi sur Sonnet.
+
+*Clé* : =OPENCODE_API_KEY= (OpenCode Zen) dans =~/.zshrc.local= (jamais dans le dépôt).
+Côté WSL le service doit tourner avec nvm dans le =PATH= pour que le MCP playwright
+(=npx=) démarre.
+
+*Dictée* : plugin TUI =@renjfk/opencode-voice= (=ctrl+r=, renommage de session sur
+=ctrl+alt+r=). TUI uniquement, pas dans Neovim. Transcription locale (whisper.cpp),
+normalisation via Zen. Étape =ocvoice= : sox + whisper.cpp + modèle ggml.
+*WSL* : micro via WSLg (=PULSE_SERVER= posé par =zsh/.zshrc.d/opencode.zsh=).
+Mise à jour : =./script/install --only "ocupgrade codex occonfig"= puis =./script/doctor=.
 
 *** opencode
 
@@ -350,7 +386,7 @@ This repo ships a small, safe subset of opencode state as *templates*:
 - Recent models: `opencode-state/.local/state/opencode/model.json` (deepseek, GPT-5)
 - System prompt: `opencode-state/.local/state/opencode/system_prompt.md`
 - Configuration: `opencode-state/.config/opencode/opencode.json`
-- TUI settings: `opencode-state/.config/opencode/tui.json`
+- TUI settings: `opencode-state/.config/opencode/cli.json` (theme, keybinds, plugins CLI)
 - Environment optimizations: `opencode-state/.config/opencode/env.sh`
 
 *** Claude Code
@@ -384,13 +420,14 @@ avant toute livraison.
 *Modèle de la session* (sans toucher au réglage persistant =/model=) :
 
 #+begin_src sh
-cc-factory   # claude --model opus  : import client (factory new, pipeline, databox, prod)
-cc-dev       # claude --model fable : nouveau développement, refonte, architecture
+cc-factory   # claude --model sonnet : import client (factory new, pipeline, databox, prod)
+cc-dev       # claude --model opus   : nouveau développement, refonte, architecture
 #+end_src
 
 *Skills* :
-- =/lead [factory|dev] [--autonome] [--max-iterations N]= : pilote un chantier en
-  mode lead.
+- =/lead dev [--autonome] …= : chantier d'architecture → **Opus 5.5** (=cc-dev=).
+- =/lead factory [--autonome] …= : import client → **Sonnet 5.5** (=cc-factory=), suffisant et 5× moins cher.
+- Dans les deux cas : =worker= et =scout= sur **Sonnet** (économie), =reviewer= sur **Opus** (relecture adverse).
 - =/lead-stop= : arrête la boucle autonome.
 
 Attention : le mode =--autonome= relance Claude tant que la promesse de fin n'est
@@ -469,16 +506,16 @@ ocpull            # Apply templates
 # Shell aliases (added by zsh/.zshrc.d/claude.zsh):
 ccstatus          # Check status
 ccdoctor          # Run health checks
-cc-factory        # Session Opus (import client)
-cc-dev            # Session Fable (développement)
+cc-factory        # Session Sonnet (import client)
+cc-dev            # Session Opus (developpement, architecture)
 #+end_src
 
 *** Comparison Table
 
 | Feature | OpenCode | Claude Code |
 |---------|----------|-------------|
-| **Default Model** | user-chosen (model.json) | fable par défaut (cc-factory = opus) |
-| **Auth** | API key / OpenRouter | Browser login (Claude Pro/Max) |
+| **Default Model** | Sonnet 5.5 (principal), GLM-5.3-Flash (implementation) | Opus (cc-dev) / Sonnet (cc-factory) |
+| **Auth** | OpenCode Zen (~/.zshrc.local) | Browser login (Claude Pro/Max) |
 | **Architecture** | Local server (long-running) | CLI tool (per-invocation) |
 | **Neovim Prefix** | =<leader>a= | =<leader>z= |
 | **Shell Aliases** | =oc*= | =cc*= |

@@ -80,8 +80,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$SCENARIO" in
-  factory) MODELE="Opus 5.5" ;;
-  dev)     MODELE="Fable 5.1" ;;
+  dev)     MODELE="Opus 5.5" ;;
+  factory) MODELE="Sonnet 5.5" ;;
   *)       MODELE="non précisé (dis à Adrien quel scénario tu supposes)" ;;
 esac
 

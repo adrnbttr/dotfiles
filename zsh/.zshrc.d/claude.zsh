@@ -1,8 +1,8 @@
 # Claude Code dotfiles management aliases
 
 # Modèle de la session seule, sans toucher au réglage persistant (/model)
-cc-factory() { claude --model opus "$@"; }   # import client : factory new, pipeline, databox, prod
-cc-dev()     { claude --model fable "$@"; }  # nouveau développement, refonte, architecture
+cc-factory() { claude --model sonnet "$@"; }  # import client : factory new, pipeline, databox, prod (Sonnet suffit)
+cc-dev()     { claude --model opus "$@"; }   # nouveau développement, refonte, architecture (Opus)
 
 # Status / health
 alias ccstatus='(cd ~/Documents/github/perso/dotfiles && ./script/claude status)'
@@ -37,7 +37,8 @@ ai-summary() {
   echo "Claude Code (Official CLI)"
   echo "  Keymaps : <leader>z prefix"
   echo "  Commands: cchelp, ccstatus, ccdoctor, cc-factory, cc-dev"
-  echo "  Model   : fable par défaut ; cc-factory = opus, cc-dev = fable"
+  echo "  Model   : cc-dev = opus (architecture), cc-factory = sonnet (import)"
+  echo "  Slash   : /lead dev (opus), /lead factory (sonnet)"
   echo "  Skills  : /lead, /lead-stop"
   echo ""
   echo "Neovim keymaps:"

@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "opencode/gpt-6-luna",
+  "model": "opencode/claude-sonnet-5-5#high",
   "small_model": "opencode/deepseek-v4.1-flash",
   "default_agent": "plan",
   "mcp": {
@@ -26,9 +26,9 @@
   "providers": {
     "opencode": {
       "models": {
-        "gpt-6-luna": {
+        "claude-sonnet-5-5": {
           "settings": {
-            "reasoningEffort": "max"
+            "reasoningEffort": "high"
           }
         }
       }
@@ -57,7 +57,7 @@
     "implementer": {
       "description": "Implémente UNE tâche cadrée, puis rend la main seulement si typecheck, lint, tests et build sont verts. À utiliser quand le plan est validé et qu'il faut coder une tâche précise.",
       "mode": "subagent",
-      "model": "opencode/gpt-6-luna#max",
+      "model": "opencode/glm-5.3-flash",
       "system": "Tu implémentes exactement la tâche décrite, rien de plus. Interdiction d'élargir le périmètre. Avant de rendre la main : lance typecheck, lint, tests et build. Si l'un échoue, corrige. Si tu échoues deux fois de suite, arrête-toi et explique précisément le blocage au lieu de bricoler. Tu ne peux pas voir d'images : si la tâche demande un jugement visuel, signale-le et rends la main. Renvoie le diff et le résultat des gates.",
       "steps": 20
     },
@@ -103,6 +103,24 @@
           "effect": "allow"
         }
       ]
+    },
+    "explore": {
+      "description": "Exploration rapide du codebase en lecture seule : trouver des fichiers, tracer un flux, repondre a une question precise sur le code.",
+      "model": "opencode/claude-haiku-5-5",
+      "mode": "subagent",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
+    },
+    "general": {
+      "description": "Recherche et taches multi-etapes generales. A utiliser pour executer plusieurs unites de travail en parallele ou des recherches non cadreées.",
+      "model": "opencode/claude-haiku-5-5",
+      "mode": "subagent",
+      "permissions": []
     }
   },
   "media": {

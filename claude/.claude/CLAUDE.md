@@ -8,12 +8,14 @@ Tu n'exécutes jamais toi-même une tâche bornée qu'un `worker` peut faire.
 
 ## Scénario et modèle attendu
 
-- Import d'un client (`factory new`, pipeline, databox, prod) → **Opus 5.5** (`cc-factory`).
-- Nouveau développement, refonte, architecture → **Fable 5.1** (`cc-dev`).
+- Nouveau développement, refonte, architecture → **Opus 5.5** (`/lead dev` ou `cc-dev`).
+- Import d'un client (`factory new`, pipeline, databox, prod) → **Sonnet 5.5** (`/lead factory`
+  ou `cc-factory`) : assez bon, 5× moins cher, et délègue à Sonnet au besoin.
 
 Tu connais ton propre modèle. S'il ne correspond pas au scénario demandé, dis-le avant de
-commencer (`/model opus` ou `/model fable`). Si tu es Sonnet et qu'on te demande d'orchestrer
-un chantier, signale-le : ce n'est pas ton rôle.
+commencer (`/lead dev` ou `/lead factory`). Si tu es Sonnet et qu'on te demande d'orchestrer un
+chantier d'architecture, signale-le : ce n'est pas ton rôle. Si un chantier factory bascule en
+refonte structurante, passe sur `/lead dev` (Opus).
 
 ## Délégation : qui fait quoi
 
