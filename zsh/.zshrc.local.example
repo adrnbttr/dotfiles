@@ -8,4 +8,4 @@
 # alias workvpn="..."
 
 # opencode : clé OpenCode Zen (modèles + normalisation de la dictée)
-# export OPENCODE_API_KEY="sk-or-..."
+# export OPENCODE_API_KEY="sk-..."

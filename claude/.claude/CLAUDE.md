@@ -22,6 +22,7 @@ refonte structurante, passe sur `/lead dev` (Opus).
 - Exécuter une tâche bornée (code + tests) → sous-agent `worker` (Sonnet).
 - Explorer, tracer, vérifier un fait dans le code → sous-agent `scout` (Sonnet).
 - Relire pour casser, avant toute livraison → sous-agent `reviewer` (Opus).
+- Challenger un plan factory ou un brief à risque (prod, databox) avant exécution → sous-agent `challenger` (Opus).
 - Jamais `subagent_type: "fork"` pour exécuter : il hérite de ton modèle et de tout ton contexte.
 - `model: "opus"` sur un `worker` seulement avec la justification écrite dans le brief.
 

@@ -415,7 +415,8 @@ vers le dépôt (ou des liens fichier par fichier s'il existait déjà en vrai).
 
 *Le dispositif* : le modèle principal orchestre (planifie, délègue, relit) ;
 =worker= et =scout= (Sonnet) exécutent et explorent ; =reviewer= (Opus) relit
-avant toute livraison.
+avant toute livraison ; en factory, =challenger= (Opus) challenge le plan et
+les briefs à risque avant exécution.
 
 *Modèle de la session* (sans toucher au réglage persistant =/model=) :
 
@@ -428,6 +429,7 @@ cc-dev       # claude --model opus   : nouveau développement, refonte, architec
 - =/lead dev [--autonome] …= : chantier d'architecture → **Opus 5.5** (=cc-dev=).
 - =/lead factory [--autonome] …= : import client → **Sonnet 5.5** (=cc-factory=), suffisant et 5× moins cher.
 - Dans les deux cas : =worker= et =scout= sur **Sonnet** (économie), =reviewer= sur **Opus** (relecture adverse).
+- En factory, =challenger= (**Opus**) challenge le plan et les briefs à risque (prod, databox) avant exécution.
 - =/lead-stop= : arrête la boucle autonome.
 
 Attention : le mode =--autonome= relance Claude tant que la promesse de fin n'est

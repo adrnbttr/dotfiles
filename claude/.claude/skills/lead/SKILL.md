@@ -1,6 +1,6 @@
 ---
 name: lead
-description: "Conduit un chantier multi-tâches en mode lead : plan découpé, délégation à worker/scout, relecture adverse par reviewer, rapport final. À lancer par Adrien au début d'un chantier. Arguments : [factory|dev] [--autonome] [--max-iterations N]."
+description: "Conduit un chantier multi-tâches en mode lead : plan découpé, challenge du plan par challenger en factory, délégation à worker/scout, relecture adverse par reviewer, rapport final. À lancer par Adrien au début d'un chantier. Arguments : [factory|dev] [--autonome] [--max-iterations N]."
 argument-hint: "[factory|dev] [--autonome] [--max-iterations N]"
 disable-model-invocation: true
 allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/lead-start.sh:*)
@@ -31,6 +31,16 @@ courant et note l'écart dans le rapport final.
   critère d'acceptation vérifiable, dépendances, et si elle est parallélisable (fichiers disjoints).
 - Les tâches sont petites : un `worker` doit pouvoir la finir et la prouver en un seul passage.
 
+## 1bis. Challenge du plan (scénario factory)
+
+Si le scénario affiché à l'étape 0 est `factory` (ne s'applique pas à `dev`) : une fois le plan
+écrit, confie à `challenger` (Opus) le fichier de plan et le périmètre, sans tes conclusions.
+Pour chaque trou rendu, amende le plan, ou note dans le plan pourquoi tu le rejettes. Puis
+présente le plan.
+
+En mode autonome : tu corriges seul le plan, et tu consignes les trous (retenus et rejetés)
+dans le rapport final.
+
 ## 2. Validation
 
 Hors mode autonome : présente le plan et attends la validation. Une fois validé, propose à Adrien
@@ -59,6 +69,10 @@ Retour attendu : fait / fichiers / commandes et résultats / non vérifié
 - À chaque retour : lis le diff réel (`git diff`), pas le résumé. Si tu ne valides pas,
   re-délègue avec le défaut précis. Ne corrige pas toi-même.
 - Commit local par tâche acceptée, si le plan l'autorise.
+- Escalade en factory (pas en `dev`) : avant de lancer un worker dont la tâche touche prod ou
+  databox, ou fait une écriture non réversible, soumets son brief à `challenger` et amende-le.
+  Si un worker échoue deux fois sur la même tâche, rappelle `challenger` sur la tâche et son
+  brief avant un troisième essai.
 
 ## 4. Tests
 
@@ -70,6 +84,7 @@ Un worker qui dit « vert » ne remplace pas ce passage.
 Confie à `reviewer` le diff complet et les critères d'acceptation, sans le raisonnement des
 workers ni tes conclusions. Pour chaque défaut rendu : correction par `worker`, puis relance
 toi-même le test d'attaque. Une liste vide du reviewer se note telle quelle dans le rapport.
+En factory, cette relecture n'est jamais sautée, mode autonome compris.
 
 ## 6. Rapport final
 

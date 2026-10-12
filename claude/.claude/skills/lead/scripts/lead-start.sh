@@ -124,7 +124,7 @@ scenario: $SCENARIO
 session_id: $SESSION_ID
 started_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ---
-Boucle /lead autonome : reprends le plan à la première tâche non acceptée, puis tests, relecture adverse par \`reviewer\`, rapport final. Écris <promise>LEAD DONE</promise> uniquement quand tout est vrai.
+Boucle /lead autonome : reprends le plan à la première tâche non acceptée (en factory, le plan a d'abord été challengé par \`challenger\`), puis tests, relecture adverse par \`reviewer\`, rapport final. Écris <promise>LEAD DONE</promise> uniquement quand tout est vrai.
 STATE
     } > "$TMP" 2>/dev/null && mv "$TMP" "$STATE_FILE" 2>/dev/null; then
       :
