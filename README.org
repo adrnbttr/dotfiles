@@ -365,9 +365,13 @@ choisit tout seul à qui déléguer (outil =subagent=). Règles de routage et d'
 - Plan entièrement terminé → =status: done= puis déplacement dans =​.opencode/plans/done/=
   et commit : le poste reste propre.
 
-*Coût* : script =ococ= (=bin/.local/bin/ococ=) agrège les coûts (=ococ= jour, =ococ all=).
-Ordre de grandeur : ~$0.2-0.3/h avec Sonnet en principal + GLM partout ailleurs ;
-~$0.7-1.0/h si l'implémenteur passe aussi sur Sonnet.
+*Coût* : script =ococ= (=bin/.local/bin/ococ=) agrège les coûts (=ococ= jour, =ococ all=) ;
+plugin TUI =/cost= pour le taux de la session en cours.
+Simulation mesurée (10 interactions, 17 sessions, mix réel de délégations) : **$0.24**,
+soit **~$0.25-0.45/h** de travail au rythme humain. Détail : l'orchestrateur Sonnet pèse
+**77 %** de la dépense (~$0.01-0.05/tour), les sous-agents GLM seulement 23 %. Pour
+baisser la facture : effort =medium= sur le principal (les tours simples n'en ont pas
+besoin) ou passer les questions ponctuelles sur Haiku via =/models=.
 
 *Clé* : =OPENCODE_API_KEY= (OpenCode Zen) dans =~/.zshrc.local= (jamais dans le dépôt).
 Côté WSL le service doit tourner avec nvm dans le =PATH= pour que le MCP playwright
