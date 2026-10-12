@@ -338,9 +338,9 @@ Codex : =<leader>wa= pose une question (ou envoie la sélection visuelle).
 | Rôle                          | Modèle                        | Prix      | Pourquoi |
 --------------------------------+-------------------------------+-----------+----------
 | Principal (archi, orchestre)  | =claude-sonnet-5-5#high=       | 2 / 10    | 84/100 en coding public, proche d'Opus à moitié prix |
-| Implementer (code + gates)    | =glm-5.3-flash=               | 0.15 / 0.5 | meilleur agentique/€ (TB 2.1 84.3 %, DeepSWE 63.4 %) |
+| Implementer (code + gates)    | =glm-5.3=                     | 1.4 / 4.4 | flagship : qualite maximale en implementation |
 | Challenger (2nd avis)         | =glm-5.3#high=                | 1.4 / 4.4 | tier flagship, écart réel vs flash |
-| Chore (mécanique)             | =glm-5.3-flash=               | 0.15 / 0.5 | 13 à 20× moins cher que Sonnet, suffit |
+| Chore (mécanique)             | =glm-5.3-flash=               | 0.15 / 0.5 | 9 a 20x moins cher que glm-5.3, suffit |
 | Explore / General             | =claude-haiku-5-5=            | 0.1 / 0.5 | épinglé (sinon hérite de Sonnet = surcoût) |
 | Visual (rendu)                | =space-bunny-free=            | gratuit   | seul à juger via Playwright MCP |
 | Titres / résumés              | =deepseek-v4.1-flash=         | 0.14/0.28 | small_model |
