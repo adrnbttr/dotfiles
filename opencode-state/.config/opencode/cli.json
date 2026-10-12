@@ -9,15 +9,7 @@
   },
   "plugins": [
     {
-      "package": "@renjfk/opencode-voice",
-      "options": {
-        "endpoint": "https://opencode.ai/zen/v1",
-        "model": "deepseek-v4.1-flash",
-        "apiKeyEnv": "OPENCODE_API_KEY",
-        "sttLanguage": "fr",
-        "reasoningEffort": "low",
-        "maxTokens": 1024
-      }
+      "package": "./plugins/opencode-cost"
     }
   ],
   "session": {

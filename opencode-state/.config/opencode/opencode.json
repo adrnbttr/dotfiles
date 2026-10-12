@@ -11,7 +11,10 @@
           "npx",
           "-y",
           "@playwright/mcp@latest",
-          "--headless"
+          "--headless",
+          "--browser",
+          "chromium",
+          "--allow-unrestricted-file-access"
         ],
         "enabled": true
       }

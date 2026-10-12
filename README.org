@@ -373,9 +373,21 @@ Ordre de grandeur : ~$0.2-0.3/h avec Sonnet en principal + GLM partout ailleurs 
 Côté WSL le service doit tourner avec nvm dans le =PATH= pour que le MCP playwright
 (=npx=) démarre.
 
-*Dictée* : plugin TUI =@renjfk/opencode-voice= (=ctrl+r=, renommage de session sur
-=ctrl+alt+r=). TUI uniquement, pas dans Neovim. Transcription locale (whisper.cpp),
-normalisation via Zen. Étape =ocvoice= : sox + whisper.cpp + modèle ggml.
+*Dictée* : **désactivée pour l'instant**. Le plugin TUI =@renjfk/opencode-voice=
+(dernière version 0.6.0, sept. 2026) utilise l'ancienne API plugin V1 et échoue au
+chargement sous OpenCode V2 (« Plugin failed »). La pile reste en place (sox +
+whisper.cpp + ggml-small, clé Zen dans =~/.zshrc.local=) : à réactiver dans =cli.json=
+dès que l'auteur publie une version V2. En attendant : dictée Windows =Win+H= dans
+WezTerm, ou =ococ= pour les coûts.
+
+*Coût de session* : plugin local =plugins/opencode-cost= (export =./tui=, compatible V2).
+Commande slash =/cost= (alias =/cout=, =/prix=) ou =ctrl+shift+c= : coût de la session,
+taux =/h estimé, total du jour. Rien à installer (l'import =@opencode/plugin/tui= est
+résolu à l'exécution).
+
+*Visual* : MCP playwright avec =--browser chromium --allow-unrestricted-file-access=.
+Prérequis (WSL) : =npx @playwright/mcp install-browser chrome-for-testing= (le canal
+=chrome= par défaut n'est pas installé).
 *WSL* : micro via WSLg (=PULSE_SERVER= posé par =zsh/.zshrc.d/opencode.zsh=).
 Mise à jour : =./script/install --only "ocupgrade codex occonfig"= puis =./script/doctor=.
 
