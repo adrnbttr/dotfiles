@@ -6,7 +6,7 @@ $agentsDir = Join-Path $dest 'agents'
 New-Item -ItemType Directory -Force -Path $agentsDir | Out-Null
 
 Invoke-WebRequest "$base/opencode.json" -OutFile (Join-Path $dest 'opencode.json')
-foreach ($a in @('visual', 'implementer', 'chore')) {
+foreach ($a in @('implementer', 'chore')) {
   Invoke-WebRequest "$base/agents/$a.md" -OutFile (Join-Path $agentsDir "$a.md")
 }
 
