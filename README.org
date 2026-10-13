@@ -296,6 +296,13 @@ Scripts utilitaires stowés dans =~/.local/bin= via le package =bin=.
 - =hide-celluloid= — toggle minimize/restore de Celluloid (lecteur vidéo). Utile
   comme "panic button" pour cacher rapidement une vidéo en cours de lecture,
   même si la fenêtre n'a pas le focus. Dépend de =xdotool= et =xprop= (X11).
+- =web-pane= — ouvre une URL dans une fenêtre Brave minimaliste (mode app, sans
+  onglets ni barre d'adresse, profil dédié, classe =web-pane=), puis bascule à
+  chaque appel entre minimisée et restaurée avec focus. Le contenu continue de
+  tourner minimisé. L'URL vient de =$1= ou de =~/.config/web-pane/url= (local,
+  non versionné) ; elle n'est utilisée qu'au lancement (ignorée si la fenêtre
+  existe déjà). Toutes les fenêtres du profil dédié sont traitées ensemble.
+  Dépend de =brave-browser=, =xdotool=, =xprop= (X11) et =notify-send=.
 
 Raccourci clavier (Cinnamon, non versionné car dans dconf) — à rejouer une fois
 sur une nouvelle machine :
@@ -309,6 +316,31 @@ dconf write /org/cinnamon/desktop/keybindings/custom-keybindings/custom0/name "'
 dconf write /org/cinnamon/desktop/keybindings/custom-keybindings/custom0/command "'/home/$USER/.local/bin/hide-celluloid'"
 dconf write /org/cinnamon/desktop/keybindings/custom-keybindings/custom0/binding "['XF86Calculator']"
 dconf write /org/cinnamon/desktop/keybindings/custom-list "['custom0']"
+#+end_src
+
+Même principe pour =web-pane= (touche Email) :
+
+#+begin_src sh
+# URL locale (non versionnée)
+mkdir -p ~/.config/web-pane
+echo 'https://example.com' > ~/.config/web-pane/url
+
+# Ajoute custom1 à custom-list sans écraser les entrées existantes (idempotent)
+list=$(dconf read /org/cinnamon/desktop/keybindings/custom-list)
+list=${list#@as }
+[[ -z $list || $list == "[]" ]] && list="[]"
+if [[ $list != *"'custom1'"* ]]; then
+  if [[ $list == "[]" ]]; then list="['custom1']"; else list="${list%]}, 'custom1']"; fi
+  dconf write /org/cinnamon/desktop/keybindings/custom-list "$list"
+fi
+
+# Associe la touche Email au toggle web-pane
+dconf write /org/cinnamon/desktop/keybindings/custom-keybindings/custom1/name "'Web Pane'"
+dconf write /org/cinnamon/desktop/keybindings/custom-keybindings/custom1/command "'/home/$USER/.local/bin/web-pane'"
+dconf write /org/cinnamon/desktop/keybindings/custom-keybindings/custom1/binding "['XF86Mail']"
+
+# Libère la touche Email (par défaut: lance le client mail)
+dconf write /org/cinnamon/desktop/keybindings/media-keys/email "@as []"
 #+end_src
 
 ** AI Coding Assistants

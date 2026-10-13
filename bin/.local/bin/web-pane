@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Toggle d'une fenetre Brave minimaliste (mode app) : la lance si absente,
+# la minimise si visible, la restaure avec le focus si minimisee. Le contenu
+# continue de tourner quand la fenetre est minimisee.
+# Toutes les fenetres du profil dedie (classe web-pane) sont traitees ensemble.
+# L'URL ne sert qu'au lancement : si la fenetre existe deja, l'argument est ignore.
+# URL : $1, sinon premiere ligne non vide de ${XDG_CONFIG_HOME:-~/.config}/web-pane/url
+# Depends on brave-browser, xdotool + xprop (X11 only), notify-send.
+url_file="${XDG_CONFIG_HOME:-$HOME/.config}/web-pane/url"
+profile="${XDG_DATA_HOME:-$HOME/.local/share}/web-pane"
+
+# Chromium cree des fenetres X internes cachees avec la meme classe : on ne
+# garde que les vraies fenetres de premier niveau (WM_STATE Normal ou Iconic,
+# pas Withdrawn).
+windows=()
+for wid in $(xdotool search --class '^web-pane$' 2>/dev/null); do
+    if xprop -id "$wid" WM_STATE 2>/dev/null | grep -qE 'window state: (Normal|Iconic)'; then
+        windows+=("$wid")
+    fi
+done
+
+if (( ${#windows[@]} == 0 )); then
+    url="$1"
+    if [[ -z "$url" && -r "$url_file" ]]; then
+        # Sans CR (fichiers CRLF), sans espaces autour
+        url=$(tr -d '\r' < "$url_file" | grep -m1 -v '^[[:space:]]*$' \
+            | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+    fi
+    if [[ -z "$url" ]]; then
+        notify-send "web-pane" "Aucune URL : creer $url_file (une ligne avec l'URL) ou passer l'URL en argument."
+        exit 1
+    fi
+    # Garde anti double appui : pas de relance si lancement < 5 s
+    stamp="${XDG_RUNTIME_DIR:-/tmp}/web-pane.launch"
+    now=$(date +%s)
+    last=$(cat "$stamp" 2>/dev/null)
+    if [[ "$last" =~ ^[0-9]+$ ]] && (( now - last < 5 )); then
+        exit 0
+    fi
+    echo "$now" > "$stamp"
+    setsid brave-browser --user-data-dir="$profile" --class=web-pane --app="$url" >/dev/null 2>&1 &
+    exit 0
+fi
+
+any_hidden=0
+for wid in "${windows[@]}"; do
+    if xprop -id "$wid" _NET_WM_STATE 2>/dev/null | grep -q _NET_WM_STATE_HIDDEN; then
+        any_hidden=1
+        break
+    fi
+done
+
+if (( any_hidden )); then
+    for wid in "${windows[@]}"; do
+        xdotool windowactivate "$wid" 2>/dev/null
+    done
+else
+    for wid in "${windows[@]}"; do
+        xdotool windowminimize "$wid" 2>/dev/null
+    done
+fi
