@@ -145,6 +145,30 @@ if have opencode; then
   if [[ -s "$HOME/.local/share/whisper-cpp/ggml-small.bin" ]]; then good "modèle whisper ggml-small"; else MISSING_STEPS+=(ocvoice); meh "modèle whisper absent (étape « ocvoice »)"; fi
   if $is_wsl; then
     if [[ -S /mnt/wslg/PulseServer ]]; then good "WSLg audio (PulseServer)"; else meh "WSLg audio absent : « wsl --update », sinon Win+H"; fi
+    if have rec && have sox && [[ -S /mnt/wslg/PulseServer ]]; then
+      mic_f="$(mktemp --suffix=.wav)"
+      trap 'rm -f "$mic_f"' EXIT
+      trap 'rm -f "$mic_f"; exit 130' INT
+      trap 'rm -f "$mic_f"; exit 143' TERM HUP
+      if timeout -k 1 4 rec -q -c 1 -r 16000 "$mic_f" trim 0 1 >/dev/null 2>&1; then
+        mic_stat="$(sox "$mic_f" -n stat 2>&1)"
+        mic_amp="$(awk '/Maximum amplitude/ {print $3}' <<<"$mic_stat")"
+        mic_n="$(awk '/Samples read/ {print $3}' <<<"$mic_stat")"
+        if ! [[ "${mic_n:-0}" =~ ^[0-9]+$ ]] || (( ${mic_n:-0} == 0 )); then
+          meh "micro WSL : enregistrement impossible"
+        elif ! [[ "$mic_amp" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+          meh "micro WSL : mesure illisible"
+        elif awk -v a="$mic_amp" 'BEGIN{exit !(a < 0.01)}'; then
+          meh "micro WSL muet (niveau quasi nul) : autoriser le micro aux applis de bureau dans Windows, vérifier F4/mute, puis « wsl --shutdown »"
+        else
+          good "micro WSL (niveau $mic_amp)"
+        fi
+      else
+        meh "micro WSL : enregistrement impossible"
+      fi
+      rm -f "$mic_f"
+      trap - EXIT INT TERM HUP
+    fi
   fi
   if [[ -d "$HOME/.cache/ms-playwright" ]]; then good "Playwright Chromium"; else MISSING_STEPS+=(playwright); meh "Playwright Chromium absent (étape « playwright »)"; fi
 fi
