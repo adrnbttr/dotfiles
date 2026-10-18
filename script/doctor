@@ -150,7 +150,13 @@ if have opencode; then
       trap 'rm -f "$mic_f"' EXIT
       trap 'rm -f "$mic_f"; exit 130' INT
       trap 'rm -f "$mic_f"; exit 143' TERM HUP
-      if timeout -k 1 4 rec -q -c 1 -r 16000 "$mic_f" trim 0 1 >/dev/null 2>&1; then
+      mic_log=/mnt/wslg/wlog.log
+      mic_audin_count() { grep -c 'channels.audin.server.*failed' "$mic_log" 2>/dev/null || true; }
+      mic_before="$(mic_audin_count)"
+      printf '  %smicro WSL : parle pendant 3 s…%s\n' "$UI_DIM" "$UI_RESET"
+      if timeout -k 1 6 rec -q -c 1 -r 16000 "$mic_f" trim 0 3 >/dev/null 2>&1; then
+        sleep 0.5
+        mic_after="$(mic_audin_count)"
         mic_stat="$(sox "$mic_f" -n stat 2>&1)"
         mic_amp="$(awk '/Maximum amplitude/ {print $3}' <<<"$mic_stat")"
         mic_n="$(awk '/Samples read/ {print $3}' <<<"$mic_stat")"
@@ -159,7 +165,7 @@ if have opencode; then
         elif ! [[ "$mic_amp" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
           meh "micro WSL : mesure illisible"
         elif awk -v a="$mic_amp" 'BEGIN{exit !(a < 0.01)}'; then
-          if [[ -r /mnt/wslg/wlog.log ]] && grep -q 'channels.audin.server.*failed' /mnt/wslg/wlog.log 2>/dev/null; then
+          if (( ${mic_after:-0} > ${mic_before:-0} )); then
             meh "micro WSL muet : canal micro WSLg en erreur (audin, voir /mnt/wslg/wlog.log) → « wsl --shutdown » depuis Windows ; en attendant Win+H"
           else
             meh "micro WSL muet (niveau quasi nul) : autoriser le micro aux applis de bureau dans Windows, vérifier F4/mute, puis « wsl --shutdown »"
