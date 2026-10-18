@@ -159,7 +159,11 @@ if have opencode; then
         elif ! [[ "$mic_amp" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
           meh "micro WSL : mesure illisible"
         elif awk -v a="$mic_amp" 'BEGIN{exit !(a < 0.01)}'; then
-          meh "micro WSL muet (niveau quasi nul) : autoriser le micro aux applis de bureau dans Windows, vérifier F4/mute, puis « wsl --shutdown »"
+          if [[ -r /mnt/wslg/wlog.log ]] && grep -q 'channels.audin.server.*failed' /mnt/wslg/wlog.log 2>/dev/null; then
+            meh "micro WSL muet : canal micro WSLg en erreur (audin, voir /mnt/wslg/wlog.log) → « wsl --shutdown » depuis Windows ; en attendant Win+H"
+          else
+            meh "micro WSL muet (niveau quasi nul) : autoriser le micro aux applis de bureau dans Windows, vérifier F4/mute, puis « wsl --shutdown »"
+          fi
         else
           good "micro WSL (niveau $mic_amp)"
         fi
