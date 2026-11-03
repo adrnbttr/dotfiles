@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# voice-transcribe — transcrit un WAV en francais via whisper.cpp (hors ligne).
+#
+# Usage : voice-transcribe <fichier.wav>
+# Imprime la transcription sur stdout (une ligne, sans espaces de tete/fin) ;
+# sortie vide = aucune parole detectee.
+# Surcharges : WHISPER_CLI (binaire), WHISPER_MODEL (modele ggml).
+
+set -euo pipefail
+
+# Binaire : ~/.local/bin/whisper-cli s'il est executable, sinon celui du PATH.
+if [[ -z "${WHISPER_CLI:-}" ]]; then
+  if [[ -x "$HOME/.local/bin/whisper-cli" ]]; then
+    WHISPER_CLI="$HOME/.local/bin/whisper-cli"
+  else
+    WHISPER_CLI="$(command -v whisper-cli || true)"
+  fi
+fi
+WHISPER_MODEL="${WHISPER_MODEL:-$HOME/.local/share/whisper-cpp/ggml-small.bin}"
+WHISPER_VAD_MODEL="${WHISPER_VAD_MODEL:-$HOME/.local/share/whisper-cpp/ggml-silero-v5.1.2.bin}"
+WHISPER_LANG="${WHISPER_LANG:-fr}" # surcharge pour les tests uniquement
+
+if [[ $# -ne 1 ]]; then
+  echo "usage: voice-transcribe <fichier.wav>" >&2
+  exit 2
+fi
+WAV="$1"
+
+if [[ ! -x "$WHISPER_CLI" ]]; then
+  echo "voice-transcribe: binaire whisper introuvable: $WHISPER_CLI" >&2
+  exit 1
+fi
+if [[ ! -f "$WHISPER_MODEL" ]]; then
+  echo "voice-transcribe: modele introuvable: $WHISPER_MODEL" >&2
+  exit 1
+fi
+if [[ ! -s "$WAV" ]]; then
+  echo "voice-transcribe: fichier audio absent ou vide: $WAV" >&2
+  exit 1
+fi
+
+# Pas de limite de duree : whisper.cpp decoupe en fenetres de 30 s et ecrit un
+# segment par ligne, rejoints plus bas. -t : tous les coeurs.
+# -np : rien d'autre que le resultat ; -nt : sans timestamps ; -sns : pas de tokens non verbaux.
+# Logs (stderr) supprimes sauf en cas d'echec.
+# Avec le VAD Silero (silences ecartes avant decodage) : decodage glouton (-bs 1 -bo 1),
+# bien plus rapide. Sans VAD, le glouton invente du texte sur les silences : beam 5 par defaut.
+ARGS=(-m "$WHISPER_MODEL" -f "$WAV" -l "$WHISPER_LANG" -t "$(nproc)" -nt -np -sns)
+if [[ -f "$WHISPER_VAD_MODEL" ]]; then
+  ARGS+=(--vad -vm "$WHISPER_VAD_MODEL" -bs 1 -bo 1)
+fi
+ERR="$(mktemp)"
+trap 'rm -f "$ERR"' EXIT
+if ! OUT="$("$WHISPER_CLI" "${ARGS[@]}" 2>"$ERR")"; then
+  cat "$ERR" >&2
+  exit 1
+fi
+
+# Nettoyage segment par segment (un segment par ligne) : seules les balises non verbales
+# EXACTES connues sont retirees (casse ignoree, espaces toleres), et les segments qui sont
+# exactement une hallucination connue de whisper sur silence ou musique. Rien de generique :
+# "tab[i]", "2 * 3 * 4" ou "(sont en lecture seule)" restent intacts.
+TAGS='\[ *(blank_audio|musique|music) *\]|\( *(musique|musique douce|rires?|propos inaudibles?|inaudible|silence|bruit|applaudissements) *\)|\* *musique *\*'
+HALLU_RE="^(sous-titres? (réalisés?|realises?) par la communauté d'amara\.org|sous-titres? (réalisés?|realises?) par la communaute d'amara\.org|sous-titrage st'? ?501|merci d'avoir regardé( cette vidéo)?|merci d'avoir regarde( cette video)?)[ .!]*$"
+TEXT=""
+while IFS= read -r seg || [[ -n "$seg" ]]; do
+  seg="$(printf '%s' "$seg" | sed -E "s/$TAGS//Ig; s/[[:space:]]+/ /g; s/^ //; s/ $//")"
+  # segment qui n'est qu'une note de musique
+  if [[ "$seg" =~ ^(♪| )*$ ]]; then continue; fi
+  if printf '%s' "$seg" | grep -qiE "$HALLU_RE"; then continue; fi
+  # rien d'alphanumerique (ex. "...") : pas de parole
+  [[ "$seg" =~ [[:alnum:]] ]] || continue
+  TEXT+="${TEXT:+ }$seg"
+done <<<"$OUT"
+[[ -n "$TEXT" ]] && printf '%s\n' "$TEXT"
+exit 0

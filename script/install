@@ -238,6 +238,7 @@ apply_opencode_config() {
 }
 
 WHISPER_MODEL="ggml-small.bin"
+WHISPER_VAD_MODEL="ggml-silero-v5.1.2.bin"
 
 install_opencode_voice() {
   [[ "$no_opencode" == "true" ]] && return 0
@@ -274,6 +275,15 @@ install_opencode_voice() {
     curl -fL -o "$model_dir/$WHISPER_MODEL.part" \
       "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$WHISPER_MODEL"
     mv "$model_dir/$WHISPER_MODEL.part" "$model_dir/$WHISPER_MODEL"
+  fi
+
+  # VAD Silero (~1 Mo) : evite que whisper invente du texte sur les silences
+  if [[ ! -s "$model_dir/$WHISPER_VAD_MODEL" ]]; then
+    info "downloading $WHISPER_VAD_MODEL (~1 MB)"
+    mkdir -p "$model_dir"
+    curl -fL -o "$model_dir/$WHISPER_VAD_MODEL.part" \
+      "https://huggingface.co/ggml-org/whisper-vad/resolve/main/$WHISPER_VAD_MODEL"
+    mv "$model_dir/$WHISPER_VAD_MODEL.part" "$model_dir/$WHISPER_VAD_MODEL"
   fi
 }
 
@@ -325,27 +335,15 @@ install_voice_to_claude() {
     return 0
   fi
 
-  info "installing voice-to-claude system deps (python3-venv, pulseaudio, notify, ffmpeg)"
+  info "installing voice-to-claude system deps (pulseaudio, notify, ffmpeg)"
   ${sudo_cmd} apt-get install -y \
-    python3-venv \
     pulseaudio-utils \
     libnotify-bin \
     ffmpeg
 
-  local venv="$HOME/.local/share/voice-to-claude/venv"
-  if [[ ! -x "$venv/bin/python" ]]; then
-    info "creating faster-whisper venv at $venv"
-    mkdir -p "$(dirname "$venv")"
-    python3 -m venv "$venv"
-    "$venv/bin/pip" install --upgrade pip
-    "$venv/bin/pip" install faster-whisper
-  fi
-
-  info "pre-downloading Whisper 'small' model (~150 MB on first run)"
-  "$venv/bin/python" - <<'PY' || warn "model pre-download failed (will retry at first use)"
-from faster_whisper import WhisperModel
-WhisperModel("small", device="cpu", compute_type="int8")
-PY
+  # voice-transcribe a besoin de whisper-cli + du modele : meme code que l'etape ocvoice
+  # (idempotent), meme avec --no-opencode.
+  no_opencode=false install_opencode_voice
 }
 
 configure_cinnamon_keybind() {

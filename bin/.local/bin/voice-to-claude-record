@@ -2,7 +2,7 @@
 # voice-to-claude-record — background worker.
 #
 # Records mic audio via parecord until it receives SIGTERM (from a second
-# invocation of voice-to-claude), then runs faster-whisper and pipes the
+# invocation of voice-to-claude), then runs voice-transcribe (whisper.cpp) and pipes the
 # transcript into the last-focused nvim's Claude split.
 
 set -uo pipefail
@@ -13,14 +13,22 @@ WAV_FILE="$STATE_DIR/record.wav"
 TRANSCRIPT_FILE="$STATE_DIR/transcript.txt"
 SOCKET_FILE="$STATE_DIR/nvim-socket"
 
-VENV="$HOME/.local/share/voice-to-claude/venv"
-TRANSCRIBE="$HOME/.local/bin/voice-to-claude-transcribe"
 
 mkdir -p "$STATE_DIR"
+# Un wav non transcrit (echec precedent) n'est jamais ecrase : on le garde horodate.
+if [[ -s "$WAV_FILE" ]]; then
+  mv "$WAV_FILE" "$STATE_DIR/record-$(date +%Y%m%d-%H%M%S).wav"
+fi
 rm -f "$WAV_FILE" "$TRANSCRIPT_FILE"
 
 notify() { notify-send -a "Voice to Claude" -t 2500 "Voice to Claude" "$1" || true; }
-fail()   { notify-send -a "Voice to Claude" -t 4000 -u critical "Voice to Claude" "$1" || true; exit 1; }
+# Apres un enregistrement, tout echec donne le chemin du wav conserve.
+fail() {
+  local msg="$1"
+  [[ -s "$WAV_FILE" ]] && msg="$msg (audio conserve : $WAV_FILE)"
+  notify-send -a "Voice to Claude" -t 4000 -u critical "Voice to Claude" "$msg" || true
+  exit 1
+}
 
 notify "🎤 Recording… press Super+V again to stop"
 
@@ -38,11 +46,11 @@ fi
 
 notify "⏳ Transcribing…"
 
-if [[ ! -x "$VENV/bin/python" ]]; then
-  fail "Python venv missing — run ./script/install"
+TRANSCRIBE="$(dirname "$(readlink -f "$0")")/voice-transcribe"
+ERR_FILE="$STATE_DIR/transcribe.err"
+if ! TEXT="$("$TRANSCRIBE" "$WAV_FILE" 2>"$ERR_FILE")"; then
+  fail "Transcription failed: $(head -c 300 "$ERR_FILE")"
 fi
-
-TEXT="$("$VENV/bin/python" "$TRANSCRIBE" "$WAV_FILE" 2>/dev/null || true)"
 
 if [[ -z "${TEXT// }" ]]; then
   notify "No speech detected"
@@ -66,3 +74,4 @@ if ! nvim --server "$SOCKET" --remote-expr \
 fi
 
 notify "✓ Sent: ${TEXT:0:80}"
+rm -f "$WAV_FILE"
