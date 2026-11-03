@@ -369,13 +369,14 @@ Codex : =<leader>wa= pose une question (ou envoie la sélection visuelle).
 
 | Rôle                          | Modèle                        | Prix      | Pourquoi |
 --------------------------------+-------------------------------+-----------+----------
-| Principal (archi, orchestre)  | =claude-sonnet-5-5#high=       | 2 / 10    | 84/100 en coding public, proche d'Opus à moitié prix |
-| Implementer (code + gates)    | =glm-5.3=                     | 1.4 / 4.4 | flagship : qualite maximale en implementation |
-| Challenger (2nd avis)         | =glm-5.3#high=                | 1.4 / 4.4 | tier flagship, écart réel vs flash |
-| Chore (mécanique)             | =glm-5.3-flash=               | 0.15 / 0.5 | 9 a 20x moins cher que glm-5.3, suffit |
-| Explore / General             | =claude-haiku-5-5=            | 0.1 / 0.5 | épinglé (sinon hérite de Sonnet = surcoût) |
-| Visual (rendu)                | =space-bunny-free=            | gratuit   | seul à juger via Playwright MCP |
-| Titres / résumés              | =deepseek-v4.1-flash=         | 0.14/0.28 | small_model |
+| Principal / plan (archi, orchestre) | =zai-coding-plan/glm-5.3#high= | forfait | forfait Z.ai Coding Plan Lite |
+| Build / Implementer / Chore   | =opencode/deepseek-v4.1-flash= | 0.3 / 1.2 | bon marché, suffit pour exécuter |
+| Explore / General             | =opencode/deepseek-v4.1-flash= | 0.3 / 1.2 | épinglé (sinon hérite du modèle principal) |
+| Challenger (2nd avis)         | =opencode/deepseek-v4-pro#high= | 1.74 / 3.48 | famille différente ; sert aussi au debug complexe |
+| Visual (rendu)                | =zai-coding-plan/glm-5.3-flash= | forfait   | voit les images (Playwright MCP) |
+| Titres / résumés / compaction | =opencode/deepseek-v4.1-flash= | 0.3 / 1.2 | small_model + agents cachés compaction et summary |
+
+La clé Z.ai s'enregistre via =opencode auth login= (jamais dans le dépôt).
 
 *Config versionnée* : =opencode-state/.config/opencode/= (=opencode.json=, =cli.json=,
 =AGENTS.md=, =commands/=, =prompts/=, =env.sh=), déployée par l'étape =occonfig= de
@@ -564,8 +565,8 @@ cc-dev            # Session Opus (developpement, architecture)
 
 | Feature | OpenCode | Claude Code |
 |---------|----------|-------------|
-| **Default Model** | Sonnet 5.5 (principal), GLM-5.3-Flash (implementation) | Opus (cc-dev) / Sonnet (cc-factory) |
-| **Auth** | OpenCode Zen (~/.zshrc.local) | Browser login (Claude Pro/Max) |
+| **Default Model** | GLM-5.3 high (principal, forfait Z.ai), DeepSeek V4.1 Flash (implementation) | Opus (cc-dev) / Sonnet (cc-factory) |
+| **Auth** | OpenCode Zen (~/.zshrc.local) + Z.ai Coding Plan (=opencode auth login=) | Browser login (Claude Pro/Max) |
 | **Architecture** | Local server (long-running) | CLI tool (per-invocation) |
 | **Neovim Prefix** | =<leader>a= | =<leader>z= |
 | **Shell Aliases** | =oc*= | =cc*= |
