@@ -414,9 +414,9 @@ Côté WSL le service doit tourner avec nvm dans le =PATH= pour que le MCP playw
 depuis le TUI) démarre l'enregistrement au 1er appui, l'arrête au 2e (durée libre, 1 à 5 min)
 et transcrit en français hors ligne avec whisper.cpp (=bin/.local/bin/voice-transcribe=,
 modèle =ggml-small= + VAD Silero). Le texte est copié dans le presse-papiers puis ouvert dans
-une *fenêtre flottante de relecture* (éditable, en mode normal) : =<C-s>= (ou =<leader><CR>=)
-l'envoie tel quel à la session opencode du répertoire courant, sans substitution de contexte ;
-=q= ou =Échap= ferment sans envoyer et recopient le texte corrigé dans le presse-papiers. Sans
+une *fenêtre flottante de relecture* (éditable, en mode normal) : =Échap= en mode normal (ou =<C-s>=,
+=<leader><CR>=) l'envoie tel quel à la session opencode du répertoire courant, sans substitution
+de contexte ; en insertion, =Échap= revient juste en normal. =q= ferme sans envoyer et recopient le texte corrigé dans le presse-papiers. Sans
 session opencode, rien n'est envoyé : la fenêtre reste ouverte, le terminal opencode s'ouvre,
 lance une session puis =<C-s>=. Micro muet (panne WSLg « audin ») : =wsl --shutdown= depuis
 Windows. Le plugin TUI =@renjfk/opencode-voice= reste désactivé (API plugin V1, « Plugin

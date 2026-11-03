@@ -1,6 +1,6 @@
 -- Fenetre flottante de relecture d'une dictee : le texte est editable, en mode normal.
--- Rien ne part sans une touche explicite : <C-s> (normal et insert) ou <leader><CR>.
--- q / <Esc> (normal) ferment sans envoyer et copient le texte final dans le presse-papiers.
+-- Rien ne part sans une touche explicite : <Esc> (normal), <C-s> (normal et insert) ou <leader><CR>.
+-- En insert, <Esc> ne fait que revenir en normal. q ferme sans envoyer et copie le texte final.
 
 local M = {}
 
@@ -35,7 +35,7 @@ function M.open(text, opts)
     col = math.floor((vim.o.columns - width) / 2),
     style = "minimal",
     border = "rounded",
-    title = " Dictee : <C-s> ou <leader><CR> envoie | q ferme (copie) ",
+    title = " Dictee : <Esc> envoie | q ferme (copie) ",
     title_pos = "center",
   })
   vim.wo[win].wrap = true
@@ -90,7 +90,7 @@ function M.open(text, opts)
   vim.keymap.set({ "n", "i" }, "<C-s>", send, vim.tbl_extend("force", o, { desc = "Envoyer la dictee" }))
   vim.keymap.set("n", "<leader><CR>", send, vim.tbl_extend("force", o, { desc = "Envoyer la dictee" }))
   vim.keymap.set("n", "q", dismiss, vim.tbl_extend("force", o, { desc = "Fermer sans envoyer" }))
-  vim.keymap.set("n", "<Esc>", dismiss, vim.tbl_extend("force", o, { desc = "Fermer sans envoyer" }))
+  vim.keymap.set("n", "<Esc>", send, vim.tbl_extend("force", o, { desc = "Envoyer la dictee" }))
 end
 
 return M
