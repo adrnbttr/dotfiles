@@ -75,7 +75,7 @@ cd ~/Documents/github/perso/dotfiles && git pull && ./script/install
 | Terminal  | WezTerm (+ terminfo), kitty, police MesloLGS NF                |
 | Édition   | Neovim (LazyVim), LSP Python/TypeScript/Terraform              |
 | CLI       | fzf, ripgrep, fd, bat, eza, zoxide, delta, bottom, jq, lazygit |
-| IA        | Claude Code, opencode, Codex, dictée vocale (Whisper)          |
+| IA        | Claude Code, opencode, dictée vocale (Whisper)                 |
 
 Pour ne poser que les liens symboliques, sans rien installer :
 =./script/bootstrap= (ou =stow -t ~ zsh config oh-my-zsh-custom bin=).
@@ -352,16 +352,14 @@ This dotfiles supports two AI coding assistants running in parallel:
 
 They are independent tools — OpenCode runs a local server, Claude Code is a direct CLI authenticated via browser (Claude Pro/Max subscription).
 
-*** Codex, opencode et Claude dans Neovim
+*** opencode et Claude dans Neovim
 
 | Outil      | Préfixe     | Toggle        |
 |------------+-------------+---------------|
 | Claude     | =<leader>z= | =<leader>zt=  |
 | opencode   | =<leader>j= | =<leader>jt=  |
-| Codex      | =<leader>w= | =<leader>wt=  |
 
-Codex : =<leader>wa= pose une question (ou envoie la sélection visuelle).
-=<leader>w= seul (sauvegarde) attend =timeoutlen= car =<leader>wt= existe ; =<C-s>= sauvegarde sans délai.
+=<leader>w= et =<C-s>= sauvegardent sans délai.
 
 *** opencode : tout ce qu'il faut savoir
 
@@ -410,15 +408,12 @@ besoin) ou passer les questions ponctuelles sur Haiku via =/models=.
 Côté WSL le service doit tourner avec nvm dans le =PATH= pour que le MCP playwright
 (=npx=) démarre.
 
-*Dictée* : dans nvim, =<leader>jv= (mode normal) ou =<M-v>= (modes normal et terminal, donc
-depuis le TUI) démarre l'enregistrement au 1er appui, l'arrête au 2e (durée libre, 1 à 5 min)
-et transcrit en français hors ligne avec whisper.cpp (=bin/.local/bin/voice-transcribe=,
-modèle =ggml-small= + VAD Silero). Le texte est copié dans le presse-papiers puis ouvert dans
-une *fenêtre flottante de relecture* (éditable, en mode normal) : =Échap= en mode normal (ou =<C-s>=,
-=<leader><CR>=) l'envoie tel quel à la session opencode du répertoire courant, sans substitution
-de contexte ; en insertion, =Échap= revient juste en normal. =q= ferme sans envoyer et recopient le texte corrigé dans le presse-papiers. Sans
-session opencode, rien n'est envoyé : la fenêtre reste ouverte, le terminal opencode s'ouvre,
-lance une session puis =<C-s>=. Micro muet (panne WSLg « audin ») : =wsl --shutdown= depuis
+*Dictée* : =<M-v>= (Alt+V) est la touche principale, partout dans nvim, y compris dans le TUI
+opencode (=<leader>jv= en mode normal fait pareil). Le texte s'écrit en direct, pendant que tu
+parles, dans un panneau sous le terminal opencode (whisper.cpp hors ligne, français) ; le focus
+reste où il était. Alt+V pour finir, relis dans le panneau, puis =Échap= envoie à la session
+opencode du répertoire courant (ou =<C-s>=) ; =q= annule en copiant le texte dans le presse-papiers.
+Le micro se reconnecte tout seul ; micro muet (panne WSLg « audin ») : =wsl --shutdown= depuis
 Windows. Le plugin TUI =@renjfk/opencode-voice= reste désactivé (API plugin V1, « Plugin
 failed » sous OpenCode V2). Alternative : dictée Windows =Win+H= dans WezTerm.
 
@@ -431,7 +426,7 @@ résolu à l'exécution).
 Prérequis (WSL) : =npx @playwright/mcp install-browser chrome-for-testing= (le canal
 =chrome= par défaut n'est pas installé).
 *WSL* : micro via WSLg (=PULSE_SERVER= posé par =zsh/.zshrc.d/opencode.zsh=).
-Mise à jour : =./script/install --only "ocupgrade codex occonfig"= puis =./script/doctor=.
+Mise à jour : =./script/install --only "ocupgrade occonfig"= puis =./script/doctor=.
 
 *** opencode
 

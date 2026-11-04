@@ -4,7 +4,8 @@
 # Usage : voice-transcribe <fichier.wav>
 # Imprime la transcription sur stdout (une ligne, sans espaces de tete/fin) ;
 # sortie vide = aucune parole detectee.
-# Surcharges : WHISPER_CLI (binaire), WHISPER_MODEL (modele ggml).
+# Surcharges : WHISPER_CLI (binaire), WHISPER_MODEL (modele ggml), WHISPER_AUDIO_CTX (force -ac),
+# WHISPER_PROMPT (fin du texte deja transcrit, passe en --prompt : continuite aux jointures).
 
 set -euo pipefail
 
@@ -40,14 +41,34 @@ if [[ ! -s "$WAV" ]]; then
 fi
 
 # Pas de limite de duree : whisper.cpp decoupe en fenetres de 30 s et ecrit un
-# segment par ligne, rejoints plus bas. -t : tous les coeurs.
+# segment par ligne, rejoints plus bas.
 # -np : rien d'autre que le resultat ; -nt : sans timestamps ; -sns : pas de tokens non verbaux.
 # Logs (stderr) supprimes sauf en cas d'echec.
 # Avec le VAD Silero (silences ecartes avant decodage) : decodage glouton (-bs 1 -bo 1),
 # bien plus rapide. Sans VAD, le glouton invente du texte sur les silences : beam 5 par defaut.
-ARGS=(-m "$WHISPER_MODEL" -f "$WAV" -l "$WHISPER_LANG" -t "$(nproc)" -nt -np -sns)
+# -t : au plus 8 coeurs (au-dela whisper.cpp perd en efficacite et gene le reste de la machine).
+# -ac : l'encodeur traite toujours 30 s par defaut ; on le limite a la duree reelle du wav
+# (50 positions par seconde + marge, plancher 256, plafond 1500 = 30 s) : 2 a 4 fois plus vite.
+THREADS="$(nproc)"; (( THREADS > 8 )) && THREADS=8
+AUDIO_CTX="${WHISPER_AUDIO_CTX:-}"
+if [[ -z "$AUDIO_CTX" ]]; then
+  # duree reelle via soxi (tout format) ; repli : (octets - 44) / 32000 (16 kHz mono 16 bits)
+  DUR="$(soxi -D "$WAV" 2>/dev/null || true)"
+  if [[ -z "$DUR" ]]; then
+    DUR="$(awk -v b="$(stat -c %s "$WAV")" 'BEGIN { printf "%.3f", (b > 44 ? b - 44 : 0) / 32000 }')"
+  fi
+  # ac = ceil(duree x 50) + 64
+  AUDIO_CTX="$(awk -v d="$DUR" 'BEGIN { n = d * 50; c = int(n); if (c < n) c++; print c + 64 }')"
+  (( AUDIO_CTX < 256 )) && AUDIO_CTX=256
+  (( AUDIO_CTX > 1500 )) && AUDIO_CTX=1500
+fi
+ARGS=(-m "$WHISPER_MODEL" -f "$WAV" -l "$WHISPER_LANG" -t "$THREADS" -ac "$AUDIO_CTX" -nt -np -sns)
+if [[ -n "${WHISPER_PROMPT:-}" ]]; then
+  ARGS+=(--prompt "$WHISPER_PROMPT")
+fi
 if [[ -f "$WHISPER_VAD_MODEL" ]]; then
-  ARGS+=(--vad -vm "$WHISPER_VAD_MODEL" -bs 1 -bo 1)
+  # -vt 0.35 (defaut 0.5) : garde les attaques douces ("ask" en debut de morceau, sinon perdu)
+  ARGS+=(--vad -vm "$WHISPER_VAD_MODEL" -vt "${WHISPER_VAD_THRESHOLD:-0.35}" -bs 1 -bo 1)
 fi
 ERR="$(mktemp)"
 trap 'rm -f "$ERR"' EXIT
