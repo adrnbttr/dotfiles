@@ -42,7 +42,6 @@ Options:
   --no-gui            Saute les applis graphiques (kitty, wezterm)
   --no-opencode       Saute opencode
   --no-claude         Saute Claude Code
-  --no-codex          Saute Codex (OpenAI)
   --upgrade           Met à jour les paquets Homebrew déjà installés (macOS)
   --dry-run           Affiche ce qui serait fait, sans rien installer
   --only "a b"        N'exécute que ces étapes (cf. --list)
@@ -59,7 +58,6 @@ minimal=false
 no_gui=false
 no_opencode=false
 no_claude=false
-no_codex=false
 upgrade=false
 assume_yes=false
 list_only=false
@@ -77,7 +75,6 @@ while [[ $# -gt 0 ]]; do
     --minimal) minimal=true; shift ;;
     --no-gui) no_gui=true; shift ;;
     --no-opencode) no_opencode=true; shift ;;
-    --no-codex) no_codex=true; shift ;;
     --no-claude) no_claude=true; shift ;;
     --upgrade) upgrade=true; shift ;;
     --dry-run) DOTFILES_DRY_RUN=1; shift ;;
@@ -185,21 +182,6 @@ ensure_node() {
   set +u
   nvm install --lts
   set -u
-}
-
-# --- Codex (installeur officiel : le binaire seul n'est pas un paquet complet) ---
-
-install_codex() {
-  if [[ "$no_codex" == "true" ]]; then
-    return 0
-  fi
-  if ! have curl; then
-    err "curl is required to install Codex"
-    exit 1
-  fi
-  info "installing Codex (installeur officiel)"
-  # Idempotent : met aussi à jour une installation existante.
-  curl -fsSL https://chatgpt.com/codex/install.sh | sh
 }
 
 # --- opencode : version minimale, plugin dictée, Playwright -----------------
@@ -972,7 +954,6 @@ build_steps() {
       [[ "$no_opencode" == "true" ]] || add_step ocvoice  "dictée opencode (sox, whisper.cpp)" install_opencode_voice
       [[ "$no_opencode" == "true" || "$minimal" == "true" ]] || add_step playwright "Playwright MCP (Chromium)" install_playwright
       [[ "$no_claude" == "true" ]]   || add_step claude   "Claude Code"     install_claude
-      [[ "$no_codex" == "true" ]]    || add_step codex    "Codex"           install_codex
       add_step voice      "dictée vocale (Whisper)" install_voice_to_claude
       add_step keys       "raccourcis Cinnamon"     configure_cinnamon_keys
       add_step shell      "zsh shell par défaut"    ensure_login_shell_zsh
@@ -988,7 +969,6 @@ build_steps() {
       [[ "$no_opencode" == "true" ]] || add_step opencode "opencode"        install_opencode
       [[ "$no_opencode" == "true" ]] || add_step ocupgrade "opencode >= $OPENCODE_MIN_VERSION" upgrade_opencode
       [[ "$no_claude" == "true" ]]   || add_step claude   "Claude Code"     install_claude
-      [[ "$no_codex" == "true" ]]    || add_step codex    "Codex"           install_codex
       ;;
   esac
   [[ "$no_opencode" == "true" ]] || add_step occonfig "config opencode (dépôt → ~/.config)" apply_opencode_config

@@ -134,7 +134,6 @@ check "lazydocker" lazydocker lazydocker
 check "psql (vim-dadbod)" psql base
 check "Claude Code" claude claude
 check "opencode" opencode opencode
-check "Codex" codex codex
 if have opencode; then
   oc_ver="$(opencode --version 2>/dev/null | head -n 1)"
   if version_ge "${oc_ver:-0}" 1.18.0; then good "opencode $oc_ver (>= 1.18)"; else MISSING_STEPS+=(ocupgrade); meh "opencode ${oc_ver:-?} < 1.18 (étape « ocupgrade »)"; fi
