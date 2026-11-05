@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Configuration système du moteur Docker natif (Linux). Plan : ~/Documents/docker-poste-plan.md
+# Usage : sudo bash script/install-docker-system
+# Idempotent. Ne redémarre le moteur que si daemon.json change (les conteneurs s'arrêtent alors
+# proprement : TimeoutStopSec=300 et stop_grace_period des compose).
+#
+# Ce que ça garantit :
+#   - ports publiés sur 127.0.0.1 seulement, y compris pour les réseaux compose
+#     ("ip" ne vaut que pour le réseau bridge par défaut ; default-network-opts couvre les autres)
+#   - conteneurs dans docker.slice (plafond 16 Go / 8 CPU), journaux bornés
+#   - 5 min laissées au moteur à l'arrêt du poste (10 s par défaut : MariaDB tuée en écriture)
+#   - moteur démarré au boot : les conteneurs unless-stopped sont là sans commande docker préalable
+set -euo pipefail
+[[ $EUID -eq 0 ]] || { echo "À lancer avec sudo : sudo bash $0"; exit 1; }
+SRC="$(cd "$(dirname "$0")/../system/docker" && pwd)"
+UTILISATEUR="${SUDO_USER:-adrien}"
+
+change_daemon=0
+if ! cmp -s "$SRC/daemon.json" /etc/docker/daemon.json; then
+  mkdir -p /etc/docker
+  [[ -f /etc/docker/daemon.json ]] && cp -a /etc/docker/daemon.json "/etc/docker/daemon.json.avant-$(date +%Y%m%d-%H%M%S)"
+  install -m 0644 "$SRC/daemon.json" /etc/docker/daemon.json
+  dockerd --validate --config-file /etc/docker/daemon.json
+  change_daemon=1
+fi
+install -m 0644 "$SRC/docker.slice" /etc/systemd/system/docker.slice
+install -D -m 0644 "$SRC/docker.service.d/arret.conf" /etc/systemd/system/docker.service.d/arret.conf
+systemctl daemon-reload
+
+systemctl enable docker.service docker.socket containerd.service >/dev/null 2>&1
+id -nG "$UTILISATEUR" | tr ' ' '\n' | grep -qx docker || usermod -aG docker "$UTILISATEUR"
+
+if [[ $change_daemon -eq 1 ]] && systemctl is-active -q docker.service; then
+  echo "daemon.json modifié : redémarrage du moteur (arrêt propre des conteneurs)"
+  systemctl restart docker.service
+fi
+
+echo "daemon.json      : $([[ $change_daemon -eq 1 ]] && echo mis à jour || echo identique)"
+echo "au démarrage     : docker $(systemctl is-enabled docker.service), containerd $(systemctl is-enabled containerd.service)"
+echo "arrêt du moteur  : $(systemctl show docker.service -p TimeoutStopUSec --value)"
+echo "groupe docker    : $UTILISATEUR (actif après reconnexion)"
+echo "Contrôle : docker-etat"

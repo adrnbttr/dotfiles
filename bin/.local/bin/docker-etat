@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# État du moteur Docker natif du poste, en lecture seule. Code de sortie 1 si un point est faux.
+# Usage : docker-etat          (à lancer par n'importe quelle session, après un redémarrage, etc.)
+# Plan : ~/Documents/docker-poste-plan.md ; config système : dotfiles/script/install-docker-system
+set -u
+ko=0
+ok()   { printf '  ok    %s\n' "$*"; }
+faux() { printf '  FAUX  %s\n' "$*"; ko=1; }
+info() { printf '  info  %s\n' "$*"; }
+
+# Groupe docker pas encore actif dans cette session : on passe par sg, et on le signale.
+if docker info >/dev/null 2>&1; then
+  D() { docker "$@"; }
+  ok "accès docker direct (groupe actif)"
+elif sg docker -c 'docker info' >/dev/null 2>&1; then
+  D() { sg docker -c "docker $(printf '%q ' "$@")"; }
+  faux "groupe docker inactif dans cette session : préfixer par sg docker -c, ou se reconnecter"
+else
+  echo "  FAUX  le moteur Docker ne répond pas (sudo systemctl status docker)"; exit 1
+fi
+
+[[ "$(docker context show 2>/dev/null)" == "default" ]] && ok "contexte default (moteur natif)" \
+  || faux "contexte $(docker context show 2>/dev/null) : docker context use default"
+systemctl --user is-active -q docker-desktop 2>/dev/null \
+  && faux "Docker Desktop tourne : deux moteurs, risque de double MariaDB" || ok "Docker Desktop arrêté"
+[[ "$(systemctl is-enabled docker.service 2>/dev/null)" == "enabled" ]] && ok "moteur démarré au boot" \
+  || faux "docker.service non activé au boot : sudo bash ~/Documents/github/perso/dotfiles/script/install-docker-system"
+grep -q host_binding_ipv4 /etc/docker/daemon.json 2>/dev/null && ok "ports des réseaux compose limités à 127.0.0.1 par défaut" \
+  || faux "daemon.json sans default-network-opts host_binding_ipv4"
+
+# Conteneurs : en marche, en boucle de redémarrage, arrêtés en erreur.
+mapfile -t lignes < <(D ps -a --format '{{.Names}}|{{.State}}|{{.Status}}|{{.Ports}}')
+actifs=0
+for l in "${lignes[@]}"; do
+  IFS='|' read -r nom etat statut ports <<<"$l"
+  case "$etat" in
+    running) actifs=$((actifs + 1))
+             [[ "$statut" == *unhealthy* ]] && faux "$nom : $statut" ;;
+    restarting) faux "$nom en boucle de redémarrage" ;;
+    exited) [[ "$statut" == "Exited (0)"* ]] || info "$nom : $statut" ;;
+  esac
+  if grep -qE '(^|, )(0\.0\.0\.0|\[::\]):' <<<"$ports"; then faux "$nom publie hors 127.0.0.1 : $ports"; fi
+done
+ok "$actifs conteneur(s) en marche"
+
+# Images qui ne se téléchargent plus : à ne jamais supprimer (prune -a les effacerait si inutilisées).
+for img in minio/minio:latest; do
+  D image inspect "$img" >/dev/null 2>&1 && info "image non retéléchargeable présente : $img (sauvegarde : ~/docker-sauvegardes)"
+done
+
+D system df --format '{{.Type}} {{.Size}} (récupérable {{.Reclaimable}})' 2>/dev/null | sed 's/^/  info  /'
+[[ $ko -eq 0 ]] && echo "docker-etat : tout est en ordre" || echo "docker-etat : au moins un point à corriger (FAUX)"
+exit $ko

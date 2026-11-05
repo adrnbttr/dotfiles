@@ -6,6 +6,12 @@
   Pour chercher un fichier : partir du dépôt courant ou d'un dossier précis, avec `-maxdepth`.
 - Bucket marvin-ingest (`~/marvin-ingest`) : jamais de parcours récursif ; viser un chemin précis,
   ou utiliser `rclone lsf/cat/copy` en direct. Détails : `~/Documents/marvin-ingest-rclone.md`.
+- Docker (depuis le 2026-11-05) : moteur natif, contexte `default`. Ne jamais démarrer Docker
+  Desktop (deux moteurs = deux MariaDB sur les mêmes dossiers). En cas de doute sur Docker :
+  `docker-etat`. Ports publiés sur 127.0.0.1 seulement : ne pas écrire `0.0.0.0:` dans un compose.
+  Pas de `docker system prune -a` ni `image prune -a` : certaines images ne se retéléchargent plus
+  (`minio/minio`). Pas de `down -v` sans accord : les volumes portent les bases de dev.
+  Détails : `~/Documents/docker-poste-plan.md`.
 
 # Rôle : lead, pas exécutant
 

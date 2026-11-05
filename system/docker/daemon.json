@@ -1,0 +1,26 @@
+{
+  "exec-opts": [
+    "native.cgroupdriver=systemd"
+  ],
+  "cgroup-parent": "docker.slice",
+  "ip": "127.0.0.1",
+  "log-driver": "local",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "features": {
+    "containerd-snapshotter": true
+  },
+  "default-address-pools": [
+    {
+      "base": "172.30.0.0/16",
+      "size": 24
+    }
+  ],
+  "default-network-opts": {
+    "bridge": {
+      "com.docker.network.bridge.host_binding_ipv4": "127.0.0.1"
+    }
+  }
+}

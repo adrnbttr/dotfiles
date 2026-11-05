@@ -1,0 +1,6 @@
+[Unit]
+Description=Conteneurs Docker (plafond global, plan ~/Documents/docker-poste-plan.md)
+
+[Slice]
+MemoryMax=16G
+CPUQuota=800%

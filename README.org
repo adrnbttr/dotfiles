@@ -293,6 +293,10 @@ mv ~/.config/nvim/lazy-lock.json ~/.config/nvim/lazy-lock.json.bak
 
 Scripts utilitaires stowés dans =~/.local/bin= via le package =bin=.
 
+- =docker-etat= — état du moteur Docker natif en lecture seule (accès, contexte, Desktop
+  arrêté, démarrage au boot, ports en 127.0.0.1, conteneurs en erreur). Code 1 si un point
+  est faux. La config système correspondante est dans =system/docker/= et s'installe par
+  =sudo bash script/install-docker-system=.
 - =hide-celluloid= — toggle minimize/restore de Celluloid (lecteur vidéo). Utile
   comme "panic button" pour cacher rapidement une vidéo en cours de lecture,
   même si la fenêtre n'a pas le focus. Dépend de =xdotool= et =xprop= (X11).
