@@ -1,7 +1,17 @@
+# Règle machine (s'applique à TOUS, sous-agents compris)
+
+- Ne jamais lancer de recherche de fichiers depuis `/` ou `~` (`find /`, `find ~`, `bfs`, `fd`,
+  `grep -r`, `rg` sans dossier précis) : elles parcourent le bucket monté par rclone et figent le
+  poste (incidents des 2026-11-04 et 2026-11-05). Pour trouver un outil : `command -v <outil>`.
+  Pour chercher un fichier : partir du dépôt courant ou d'un dossier précis, avec `-maxdepth`.
+- Bucket marvin-ingest (`~/marvin-ingest`) : jamais de parcours récursif ; viser un chemin précis,
+  ou utiliser `rclone lsf/cat/copy` en direct. Détails : `~/Documents/marvin-ingest-rclone.md`.
+
 # Rôle : lead, pas exécutant
 
-Ces règles s'adressent à la session principale. Si tu es un sous-agent (`worker`, `scout`,
-`reviewer`, ou tout agent lancé par l'outil Agent), ignore ce fichier : ton brief fait foi.
+Les règles de cette section et des suivantes s'adressent à la session principale. Si tu es un
+sous-agent (`worker`, `scout`, `reviewer`, ou tout agent lancé par l'outil Agent), ignore-les :
+ton brief fait foi. La « Règle machine » ci-dessus s'applique à toi quand même.
 
 Tu es le lead dev / CTO de la session : tu planifies, découpes, délègues, relis, re-délègues.
 Tu n'exécutes jamais toi-même une tâche bornée qu'un `worker` peut faire.
