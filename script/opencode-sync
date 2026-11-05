@@ -44,6 +44,19 @@ copy_force() {
   cp -f "$src" "$dst"
 }
 
+
+# Fichiers de config versionnés (relatifs à ~/.config/opencode) : liste fixe + tout
+# commands/ et plugins/ (hors node_modules). Source unique pour push et pull.
+config_rel_files() {
+  local base="$1" f
+  for f in opencode.json tui.json env.sh AGENTS.md cli.json prompts/visual-agent.md; do
+    printf '%s\n' "$f"
+  done
+  if [[ -d "$base" ]]; then
+    (cd "$base" && find commands plugins -type f -not -path '*/node_modules/*' 2>/dev/null) || true
+  fi
+}
+
 case "$cmd" in
   push)
     mkdir -p "$repo_dir"
@@ -62,23 +75,12 @@ case "$cmd" in
     
     # Also sync config files
     mkdir -p "$repo_config_dir"
-    if [[ -f "$config_dir/opencode.json" ]]; then
-      cp -f "$config_dir/opencode.json" "$repo_config_dir/opencode.json"
-      ensure_newline "$repo_config_dir/opencode.json"
-    fi
-    if [[ -f "$config_dir/tui.json" ]]; then
-      cp -f "$config_dir/tui.json" "$repo_config_dir/tui.json"
-      ensure_newline "$repo_config_dir/tui.json"
-    fi
-    if [[ -f "$config_dir/env.sh" ]]; then
-      cp -f "$config_dir/env.sh" "$repo_config_dir/env.sh"
-      ensure_newline "$repo_config_dir/env.sh"
-    fi
-    if [[ -f "$config_dir/prompts/visual-agent.md" ]]; then
-      mkdir -p "$repo_config_dir/prompts"
-      cp -f "$config_dir/prompts/visual-agent.md" "$repo_config_dir/prompts/visual-agent.md"
-      ensure_newline "$repo_config_dir/prompts/visual-agent.md"
-    fi
+    while IFS= read -r f; do
+      [[ -f "$config_dir/$f" ]] || continue
+      mkdir -p "$(dirname "$repo_config_dir/$f")"
+      cp -f "$config_dir/$f" "$repo_config_dir/$f"
+      ensure_newline "$repo_config_dir/$f"
+    done < <(config_rel_files "$config_dir")
     ;;
 
   pull)
@@ -91,20 +93,18 @@ case "$cmd" in
       copy_force "$repo_dir/system_prompt.md" "$state_dir/system_prompt.md"
       
       # Also copy config files
-      copy_force "$repo_config_dir/opencode.json" "$config_dir/opencode.json"
-      copy_force "$repo_config_dir/tui.json" "$config_dir/tui.json"
-      copy_force "$repo_config_dir/env.sh" "$config_dir/env.sh"
-      copy_force "$repo_config_dir/prompts/visual-agent.md" "$config_dir/prompts/visual-agent.md"
+      while IFS= read -r f; do
+        copy_force "$repo_config_dir/$f" "$config_dir/$f"
+      done < <(config_rel_files "$repo_config_dir")
     else
       copy_if_missing "$repo_dir/kv.json" "$state_dir/kv.json"
       copy_if_missing "$repo_dir/model.json" "$state_dir/model.json"
       copy_if_missing "$repo_dir/system_prompt.md" "$state_dir/system_prompt.md"
       
       # Also copy config files if missing
-      copy_if_missing "$repo_config_dir/opencode.json" "$config_dir/opencode.json"
-      copy_if_missing "$repo_config_dir/tui.json" "$config_dir/tui.json"
-      copy_if_missing "$repo_config_dir/env.sh" "$config_dir/env.sh"
-      copy_if_missing "$repo_config_dir/prompts/visual-agent.md" "$config_dir/prompts/visual-agent.md"
+      while IFS= read -r f; do
+        copy_if_missing "$repo_config_dir/$f" "$config_dir/$f"
+      done < <(config_rel_files "$repo_config_dir")
     fi
     ;;
 

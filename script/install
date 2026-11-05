@@ -208,8 +208,12 @@ apply_opencode_config() {
   local src="$repo_root/opencode-state/.config/opencode" dst="$HOME/.config/opencode"
   local f
   mkdir -p "$dst/prompts"
-  for f in opencode.json tui.json prompts/visual-agent.md; do
+  # Même périmètre que script/opencode-sync (config_rel_files) : liste fixe + commands/ et plugins/.
+  local files=(opencode.json tui.json env.sh AGENTS.md cli.json prompts/visual-agent.md)
+  while IFS= read -r f; do files+=("$f"); done < <(cd "$src" && find commands plugins -type f -not -path '*/node_modules/*' 2>/dev/null || true)
+  for f in "${files[@]}"; do
     [[ -f "$src/$f" ]] || continue
+    mkdir -p "$(dirname "$dst/$f")"
     if [[ -f "$dst/$f" ]] && ! cmp -s "$src/$f" "$dst/$f"; then
       cp -f "$dst/$f" "$dst/$f.bak"
       info "sauvegarde : $dst/$f.bak"
