@@ -353,7 +353,9 @@ end
 
 -- Send `text` to the running Claude terminal (as if the user typed it).
 -- Automatically opens the split if it is not visible.
-M.send = function(text)
+-- opts.submit == false : n'ajoute pas le "\n" final (le texte reste dans le prompt, non valide).
+M.send = function(text, opts)
+  local tail = (opts and opts.submit == false) and "" or "\n"
   if not buf_is_valid() then
     M.toggle()
     -- Wait for the terminal job to start before sending.
@@ -361,7 +363,7 @@ M.send = function(text)
     -- fires before the claude process has initialised its input loop.
     vim.defer_fn(function()
       if state.job_id then
-        vim.fn.chansend(state.job_id, text .. "\n")
+        vim.fn.chansend(state.job_id, text .. tail)
       end
     end, 1200)
     return
@@ -383,8 +385,43 @@ M.send = function(text)
   end
 
   if state.job_id then
-    vim.fn.chansend(state.job_id, text .. "\n")
+    vim.fn.chansend(state.job_id, text .. tail)
   end
+end
+
+-- Envoie une reference de fichier ("@chemin ") SANS valider, puis place l'utilisateur dans le
+-- terminal Claude (onglet agent s'il existe, sinon split) pour qu'il complete sa question.
+-- Sans terminal vivant : lance Claude dans l'onglet agent et envoie une fois le delai de M.send ecoule.
+M.send_ref = function(text)
+  local function focus()
+    vim.schedule(function() -- apres le retour de focus differe de M.send (split)
+      local ai = find_ai_tab()
+      if ai then
+        vim.api.nvim_set_current_tabpage(ai)
+        local win = require("config.ai_tab").ensure_terminal(ai, state.bufnr)
+        if win then
+          vim.api.nvim_set_current_win(win)
+          vim.cmd("startinsert")
+        end
+      elseif win_is_valid() then
+        vim.api.nvim_set_current_win(state.winid)
+        vim.cmd("startinsert")
+      end
+    end)
+  end
+  if buf_is_valid() and state.job_id then
+    M.send(text, { submit = false })
+    focus()
+    return
+  end
+  close_ai_tab() -- onglet perime eventuel : on repart d'un onglet neuf
+  M.toggle_tab()
+  vim.defer_fn(function()
+    if state.job_id then
+      M.send(text, { submit = false })
+      focus()
+    end
+  end, 1200)
 end
 
 -- Lance une tache depuis un prompt saisi : sans terminal vivant, ouvre l'onglet agent avec
@@ -510,6 +547,14 @@ M.setup = function()
   vim.keymap.set("n", "<leader>zL", function()
     M.resume("tab")
   end, { desc = "Claude: reprendre la dernière session (onglet)" })
+
+  -- <leader>zr  Envoyer une reference (@fichier ou @fichier#L10-25), sans valider
+  vim.keymap.set({ "n", "x" }, "<leader>zr", function()
+    local ref = require("config.ai_tab").file_ref()
+    if ref then
+      M.send_ref(ref)
+    end
+  end, { desc = "Claude: référence du fichier / de la sélection" })
 
   -- <leader>zP  Tache (prompt) : nouvelle session en mode auto, ou envoi a la session existante
   vim.keymap.set("n", "<leader>zP", function()

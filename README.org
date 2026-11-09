@@ -365,6 +365,51 @@ They are independent tools — OpenCode runs a local server, Claude Code is a di
 
 =<leader>w= et =<C-s>= sauvegardent sans délai.
 
+*** Neovim : agents Claude et opencode
+
+Groupes which-key =<leader>z= (Claude) et =<leader>j= (opencode) ; mêmes gestes des deux côtés.
+
+| Claude          | opencode        | Action                                                              |
+|-----------------+-----------------+---------------------------------------------------------------------|
+| =<leader>zt=    | =<leader>jt=    | Split à droite (toggle, le focus reste dans le code)                |
+| =<leader>zT=    | =<leader>jT=    | Onglet plein écran avec neo-tree (toggle, focus dans le terminal)   |
+| =<leader>zl=    | =<leader>jl=    | Reprendre la dernière session, en split                             |
+| =<leader>zL=    | =<leader>jL=    | Reprendre la dernière session, en onglet                            |
+| =<leader>zP=    | =<leader>jP=    | Tâche : prompt, nouvelle session en mode auto ; sinon envoi à la session existante |
+| =<leader>zh=    | -               | Focus dans le split Claude (mode insert)                            |
+| =<leader>za=    | =<leader>ja=    | Demander (saisie ou sélection visuelle ; opencode : =@this=)        |
+| =<leader>zb=    | =<leader>jbb=   | Envoyer le buffer courant                                           |
+| =<leader>zp=    | -               | Coller la sélection visuelle telle quelle                           |
+| -               | =<leader>jx=    | Actions opencode (menu)                                             |
+| -               | =<leader>jv=, =<M-v>= | Dictée vers opencode (voir plus bas)                          |
+| =<leader>zr=    | =<leader>jr=    | Envoyer une référence =@fichier= (normal) ou =@fichier#L10-25= (visuel) à l'agent, sans valider |
+
+opencode a en plus =<leader>jp*= (prompts prêts), =<leader>jb{a,v,d}= et l'opérateur =go=.
+
+*Onglet agent* :
+- neo-tree à gauche ; un fichier ouvert depuis l'arbre part dans son propre onglet (avec
+  neo-tree) ou saute vers l'onglet qui l'affiche déjà.
+- Repère « <n> Claude » / « <n> opencode » cliquable à droite de la barre du haut.
+- Le split et l'onglet d'un même agent ne sont jamais affichés ensemble.
+- Fin de l'agent : onglet fermé + notification ; fermer le terminal du dernier onglet ne
+  quitte pas Neovim.
+
+*Depuis le shell* : =nvim --agent <claude|opencode> [--last | --new] [--prompt "<texte>"]=
+(sans =--agent=, =nvim= est inchangé).
+
+#+begin_src sh
+nvim --agent claude                 # onglet agent, session neuve
+nvim --agent opencode --last        # reprend la dernière conversation
+nvim --agent claude --prompt "/lead dev ~/plans/task 07.md"
+#+end_src
+
+=--prompt= = mode exécution : =claude --permission-mode auto=, =opencode --auto= (opencode reste
+affiché sur l'agent Plan : pas d'option =--agent= en V2). Sans =--prompt=, Claude démarre en mode plan.
+
+*Rechargement* : les fichiers modifiés par les agents se rechargent automatiquement dans Neovim
+(=checktime= en changeant de buffer / fenêtre / onglet, et toutes les 1,5 s tant qu'un agent
+tourne ; un buffer modifié non sauvegardé n'est jamais écrasé : Neovim avertit).
+
 *** opencode : tout ce qu'il faut savoir
 
 *Modèle par tâche* (prix $/M tokens entrée-sortie sur OpenCode Zen) :

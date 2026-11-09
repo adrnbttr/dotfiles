@@ -389,6 +389,53 @@ return {
         return true
       end
 
+      -- <leader>jr : reference de fichier ("@chemin ") tapee dans le prompt du TUI SANS valider.
+      -- Choix : le plugin installe n'a pas d'API "ajouter au prompt" (prompt() envoie et exige une
+      -- session) ; on tape donc dans le terminal snacks vivant (nvim_chan_send, sans "\r"), comme
+      -- opencode_type_in_tui. Sans terminal : onglet agent, puis frappe une fois le TUI pret.
+      local function opencode_ref(text)
+        local function type_ref()
+          local term = existing_term()
+          local job = term and vim.b[term.buf].terminal_job_id
+          if not job or vim.fn.jobwait({ job }, 0)[1] ~= -1 then
+            return
+          end
+          pcall(vim.api.nvim_chan_send, job, text)
+          local tab = find_opencode_tab()
+          if tab then
+            vim.api.nvim_set_current_tabpage(tab)
+            local win = ensure_opencode_term(tab)
+            if win then
+              vim.api.nvim_set_current_win(win)
+              vim.cmd("startinsert")
+            end
+          else
+            opencode_show()
+            local t = existing_term()
+            if t and t.win and vim.api.nvim_win_is_valid(t.win) then
+              vim.api.nvim_set_current_win(t.win)
+              vim.cmd("startinsert")
+            end
+          end
+        end
+        local term = existing_term()
+        local job = term and vim.b[term.buf].terminal_job_id
+        if job and vim.fn.jobwait({ job }, 0)[1] == -1 then
+          type_ref()
+          return
+        end
+        if term then -- terminal mort resté ouvert : on repart d'une session neuve
+          require("config.ai_tab").detach(term.buf)
+          pcall(vim.api.nvim_buf_delete, term.buf, { force = true })
+        end
+        local old_tab = find_opencode_tab()
+        if old_tab then
+          close_opencode_tab()
+        end
+        opencode_toggle_tab()
+        vim.defer_fn(type_ref, 1200)
+      end
+
       local function opencode_send(text, cb)
         opencode_send_api(text, function(ok, err)
           if not ok and err and err:find("No OpenCode session found", 1, true) and opencode_type_in_tui(text) then
@@ -578,6 +625,12 @@ return {
       vim.keymap.set({ "n", "t" }, "<leader>jT", function() opencode_toggle_tab() end, { desc = "Toggle opencode (onglet)" })
       vim.keymap.set("n", "<leader>jl", function() opencode_resume("split") end, { desc = "opencode: reprendre la dernière session (split)" })
       vim.keymap.set("n", "<leader>jL", function() opencode_resume("tab") end, { desc = "opencode: reprendre la dernière session (onglet)" })
+      vim.keymap.set({ "n", "x" }, "<leader>jr", function()
+        local ref = require("config.ai_tab").file_ref()
+        if ref then
+          opencode_ref(ref)
+        end
+      end, { desc = "opencode: référence du fichier / de la sélection" })
       vim.keymap.set("n", "<leader>jP", opencode_task, { desc = "opencode: tâche (prompt, auto)" })
       -- <leader>jv seulement en normal (en mode terminal il intercepterait "espace j v" tape dans le TUI) ;
       -- <M-v> sert en normal, terminal et insert (libre dans nvim et dans la config WezTerm).

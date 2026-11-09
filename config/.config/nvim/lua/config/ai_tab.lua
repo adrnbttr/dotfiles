@@ -170,6 +170,47 @@ M.register_term("claude", function()
   return require("config.claude").term_buf()
 end)
 
+-- Reference de fichier pour un agent : "@chemin/relatif.lua " (normal) ou
+-- "@chemin/relatif.lua#L10-25 " (visuel ; "#L10" si une seule ligne), espace final inclus.
+-- Chemin relatif au cwd. Buffer sans fichier (neo-tree, terminal, [No Name]) : WARN, nil.
+-- A appeler depuis le keymap lui-meme : en visuel, la selection est lue puis quittee.
+M.file_ref = function()
+  local mode = vim.fn.mode()
+  local visual = mode == "v" or mode == "V" or mode == "\22"
+  local first, last
+  if visual then
+    first, last = vim.fn.line("v"), vim.fn.line(".")
+    if first > last then
+      first, last = last, first
+    end
+    vim.cmd("normal! \27")
+  end
+  local name = vim.api.nvim_buf_get_name(0)
+  if name == "" or vim.bo.buftype ~= "" or vim.bo.filetype == "neo-tree" then
+    vim.notify("Pas de fichier à référencer", vim.log.levels.WARN)
+    return nil
+  end
+  local ref = "@" .. vim.fn.fnamemodify(name, ":.")
+  if visual then
+    ref = ref .. (first == last and ("#L" .. first) or ("#L" .. first .. "-" .. last))
+  end
+  return ref .. " "
+end
+
+-- Vrai si au moins un terminal agent (claude / opencode) a un job encore vivant.
+M.agent_alive = function()
+  for _, fn in pairs(term_getters) do
+    local ok, buf = pcall(fn)
+    if ok and buf and vim.api.nvim_buf_is_valid(buf) then
+      local job = vim.b[buf].terminal_job_id
+      if job and vim.fn.jobwait({ job }, 0)[1] == -1 then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 -- Remplace `buf` par un buffer de code dans les fenetres des onglets agent qui
 -- l'affichent (avant de le supprimer : sinon la fermeture de la fenetre ferme l'onglet).
 M.detach = function(buf)
