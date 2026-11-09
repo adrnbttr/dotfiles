@@ -72,17 +72,103 @@ return {
           width = math.floor(vim.o.columns * 0.35),
         },
       }
+
+      -- Onglet dedie (tabpage marquee vim.t.ai_tab == "opencode") : meme buffer terminal
+      -- que le split, jamais affiches ensemble (le TUI se redimensionnerait a la plus petite).
+      local function find_opencode_tab()
+        for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
+          local ok, v = pcall(vim.api.nvim_tabpage_get_var, tab, "ai_tab")
+          if ok and v == "opencode" then
+            return tab
+          end
+        end
+      end
+
+      -- Remet le terminal dans l'onglet `tab` s'il n'y est plus affiche (marque perimee).
+      local function ensure_opencode_term(tab)
+        local term = require("snacks.terminal").get(opencode_cmd, { create = false })
+        if term and term:buf_valid() then
+          return require("config.ai_tab").ensure_terminal(tab, term.buf)
+        end
+      end
+
+      -- Ferme l'onglet opencode s'il existe. Le buffer terminal survit (snacks ne le
+      -- supprime pas : ce n'est pas sa fenetre).
+      local function close_opencode_tab()
+        local tab = find_opencode_tab()
+        if not tab then
+          return
+        end
+        if #vim.api.nvim_list_tabpages() > 1 then
+          vim.cmd("tabclose " .. vim.api.nvim_tabpage_get_number(tab))
+          return
+        end
+        -- Dernier onglet : tabclose impossible, on remplace le terminal par un autre
+        -- buffer sans le tuer.
+        local term = require("snacks.terminal").get(opencode_cmd, { create = false })
+        require("config.ai_tab").release_last_tab(tab, term and term.buf)
+      end
+
       local function opencode_toggle()
+        local term = require("snacks.terminal").get(opencode_cmd, { create = false })
+        if not (term and term:valid()) then
+          close_opencode_tab() -- le split va s'afficher : un seul affichage a la fois
+        end
         require("snacks.terminal").toggle(opencode_cmd, opencode_term_opts)
       end
 
       -- Affiche le terminal opencode (cree si absent) sans jamais le masquer : meme
       -- commande et memes options que <leader>jt, mais get() au lieu de toggle().
+      -- Si l'onglet opencode est ouvert, il affiche deja le terminal : rien a faire.
       local function opencode_show()
+        local tab = find_opencode_tab()
+        if tab then
+          ensure_opencode_term(tab)
+          return
+        end
         local win, created = require("snacks.terminal").get(opencode_cmd, opencode_term_opts)
         if win and not created then
           win:show()
         end
+      end
+
+      -- <leader>jT : bascule l'onglet opencode (focus dans le terminal).
+      local function opencode_toggle_tab()
+        local tab = find_opencode_tab()
+        if tab and tab == vim.api.nvim_get_current_tabpage() then
+          close_opencode_tab()
+          return
+        end
+        if tab then
+          vim.api.nvim_set_current_tabpage(tab)
+          local win = ensure_opencode_term(tab)
+          if win then
+            vim.api.nvim_set_current_win(win)
+            vim.cmd("startinsert")
+          end
+          return
+        end
+
+        -- get() peut ouvrir un split a la creation : on le masque (le buffer reste vivant,
+        -- hide() = close({ buf = false })), idem si le split etait deja visible.
+        local term = require("snacks.terminal").get(opencode_cmd, opencode_term_opts)
+        if not term then
+          return
+        end
+        if term:valid() then
+          term:hide()
+        end
+        if not term:buf_valid() then
+          return
+        end
+
+        vim.cmd("tabnew")
+        local win = vim.api.nvim_get_current_win()
+        local empty = vim.api.nvim_get_current_buf()
+        vim.bo[empty].bufhidden = "wipe" -- ne pas laisser le buffer [No Name]
+        vim.api.nvim_win_set_buf(win, term.buf)
+        vim.t.ai_tab = "opencode"
+        require("config.ai_tab").show_tree(win)
       end
 
       -- Si le service est absent, le plugin lance `server.start` : terminal snacks, pas son vsplit term://
@@ -223,6 +309,11 @@ return {
       vim.api.nvim_create_autocmd("User", {
         pattern = { "OpencodeEvent:session.execution.started" },
         callback = function()
+          local tab = find_opencode_tab()
+          if tab then
+            ensure_opencode_term(tab) -- l'onglet doit afficher le terminal
+            return
+          end
           local win = require("snacks.terminal").get(opencode_cmd, { create = false })
           if win then
             win:show()
@@ -232,6 +323,7 @@ return {
 
       vim.keymap.set({ "n", "x" }, "<leader>ja", function() require("opencode").ask("@this: ") end, { desc = "Ask OpenCode (@this)" })
       vim.keymap.set({ "n", "t" }, "<leader>jt", opencode_toggle, { desc = "Toggle opencode" })
+      vim.keymap.set({ "n", "t" }, "<leader>jT", opencode_toggle_tab, { desc = "Toggle opencode (onglet)" })
       -- <leader>jv seulement en normal (en mode terminal il intercepterait "espace j v" tape dans le TUI) ;
       -- <M-v> sert en normal, terminal et insert (libre dans nvim et dans la config WezTerm).
       vim.keymap.set("n", "<leader>jv", dictation_toggle, { desc = "Dictee vers opencode" })

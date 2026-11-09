@@ -1,4 +1,16 @@
 -- Neo-tree tweaks (LazyVim ships neo-tree by default)
+
+-- Dans un onglet agent (vim.t.ai_tab), un fichier s'ouvre dans l'onglet de code ;
+-- sinon (hors onglet agent, ou noeud non-fichier) : commande `open` de la source.
+local function ai_tab_open(state)
+  local node = state.tree and state.tree:get_node()
+  if vim.t.ai_tab and node and node.type == "file" and node.path then
+    require("config.ai_tab").open_in_code_tab(node.path)
+    return
+  end
+  require("neo-tree.sources." .. state.name .. ".commands").open(state)
+end
+
 return {
   {
     "nvim-neo-tree/neo-tree.nvim",
@@ -10,8 +22,13 @@ return {
       opts.close_if_last_window = true
       opts.window = opts.window or {}
       opts.window.mappings = vim.tbl_deep_extend("force", opts.window.mappings or {}, {
-        ["l"] = "open",
+        ["l"] = "ai_tab_open",
+        ["<cr>"] = "ai_tab_open",
+        ["<2-LeftMouse>"] = "ai_tab_open",
         ["h"] = "close_node",
+      })
+      opts.commands = vim.tbl_extend("force", opts.commands or {}, {
+        ai_tab_open = ai_tab_open,
       })
     end,
   },
