@@ -20,6 +20,8 @@ return {
     commit = "f4102f547165e7f8ad00f12c3c8e2e89f19a209d",
     opts = function(_, opts)
       opts.close_if_last_window = true
+      -- apres l'autocmd WinClosed de neo-tree (plugin/ deja source) : on passe avant lui
+      require("config.ai_tab").install_guard()
       opts.window = opts.window or {}
       opts.window.mappings = vim.tbl_deep_extend("force", opts.window.mappings or {}, {
         ["l"] = "ai_tab_open",

@@ -86,6 +86,19 @@ return {
         end
       end
 
+      -- Buffer terminal opencode courant (nil si aucun) pour le garde-fou TermClose. On garde
+      -- le dernier connu : opencode_cmd peut etre reinitialise avant que TermClose ne passe.
+      local last_term_buf
+      require("config.ai_tab").register_term("opencode", function()
+        local ok, t = pcall(function() return require("snacks.terminal").get(opencode_cmd, { create = false }) end)
+        if ok and t and t:buf_valid() then
+          last_term_buf = t.buf
+        end
+        if last_term_buf and vim.api.nvim_buf_is_valid(last_term_buf) then
+          return last_term_buf
+        end
+      end)
+
       -- Remet le terminal dans l'onglet `tab` s'il n'y est plus affiche (marque perimee).
       local function ensure_opencode_term(tab)
         local term = require("snacks.terminal").get(opencode_cmd, { create = false })
@@ -134,15 +147,30 @@ return {
         end
       end
 
+      -- Terminal opencode dont le buffer existe encore (snacks garde un objet perime apres
+      -- la suppression du buffer : get() seul ne suffit pas).
+      local function existing_term()
+        local t = require("snacks.terminal").get(opencode_cmd, { create = false })
+        return t and t:buf_valid() and t or nil
+      end
+
       -- <leader>jT : bascule l'onglet opencode (focus dans le terminal).
       local function opencode_toggle_tab(opts)
         local launch_cmd -- commande de lancement posee par cet appel (voir plus bas)
         local tab = find_opencode_tab()
-        if tab and tab == vim.api.nvim_get_current_tabpage() then
+        -- onglet perime (plus de terminal vivant) + prompt a lancer : on le reutilise, sans
+        -- le fermer ni le quitter (le texte ne doit pas se perdre)
+        local reuse
+        if tab and opts and opts.prompt and opts.prompt ~= "" then
+          if not existing_term() then
+            reuse = tab
+          end
+        end
+        if tab and not reuse and tab == vim.api.nvim_get_current_tabpage() then
           close_opencode_tab()
           return
         end
-        if tab then
+        if tab and not reuse then
           vim.api.nvim_set_current_tabpage(tab)
           local win = ensure_opencode_term(tab)
           if win then
@@ -155,7 +183,7 @@ return {
         -- get() peut ouvrir un split a la creation : on le masque (le buffer reste vivant,
         -- hide() = close({ buf = false })), idem si le split etait deja visible.
         if opts and (opts.last or (opts.prompt and opts.prompt ~= ""))
-          and not require("snacks.terminal").get(opencode_cmd, { create = false }) then
+          and not existing_term() then
           -- liste d'arguments (pas de shell) ; toutes les fonctions relisent opencode_cmd
           local cmd = { "opencode" }
           local has_prompt = opts.prompt and opts.prompt ~= ""
@@ -203,10 +231,21 @@ return {
           return
         end
 
-        vim.cmd("tabnew")
-        local win = vim.api.nvim_get_current_win()
-        local empty = vim.api.nvim_get_current_buf()
-        vim.bo[empty].bufhidden = "wipe" -- ne pas laisser le buffer [No Name]
+        local win
+        if reuse then
+          vim.api.nvim_set_current_tabpage(reuse)
+          win = require("config.ai_tab").main_win(reuse)
+          if not win then
+            vim.notify("opencode : aucune fenêtre disponible. Texte : " .. opts.prompt, vim.log.levels.ERROR)
+            return
+          end
+          vim.api.nvim_set_current_win(win)
+        else
+          vim.cmd("tabnew")
+          win = vim.api.nvim_get_current_win()
+          local empty = vim.api.nvim_get_current_buf()
+          vim.bo[empty].bufhidden = "wipe" -- ne pas laisser le buffer [No Name]
+        end
         vim.api.nvim_win_set_buf(win, term.buf)
         vim.t.ai_tab = "opencode"
         require("config.ai_tab").show_tree(win)
@@ -234,6 +273,52 @@ return {
           :catch(function(err)
             cb(false, err and tostring(err) or "")
           end)
+      end
+
+      -- <leader>jP : tache depuis un prompt. Sans terminal vivant : onglet agent avec ce prompt
+      -- (--auto) ; sinon envoi a la session existante + affichage de l'onglet agent.
+      local function opencode_task()
+        vim.ui.input({ prompt = "Tâche opencode : " }, function(input)
+          if not input or vim.trim(input) == "" then
+            return
+          end
+          local term = require("snacks.terminal").get(opencode_cmd, { create = false })
+          local alive = false
+          if term and term:buf_valid() then
+            local job = vim.b[term.buf].terminal_job_id
+            alive = job ~= nil and vim.fn.jobwait({ job }, 0)[1] == -1
+            if not alive then
+              -- terminal mort resté ouvert (split) : on le supprime pour repartir d'une session neuve
+              require("config.ai_tab").detach(term.buf) -- sans fermer l'onglet agent qui l'affiche
+              pcall(vim.api.nvim_buf_delete, term.buf, { force = true })
+            end
+          end
+          if not alive then
+            opencode_toggle_tab({ prompt = input })
+            return
+          end
+          local tab = find_opencode_tab()
+          if tab then
+            vim.api.nvim_set_current_tabpage(tab)
+            local win = ensure_opencode_term(tab)
+            if win then
+              vim.api.nvim_set_current_win(win)
+              vim.cmd("startinsert")
+            end
+          else
+            opencode_toggle_tab() -- cree l'onglet avec le terminal existant
+          end
+          opencode_send(input, function(ok, err)
+            if ok then
+              vim.notify("Session existante : message envoyé, mode inchangé", vim.log.levels.INFO)
+            else
+              vim.notify(
+                "opencode : envoi échoué (" .. tostring(err) .. ")\nTexte : " .. input,
+                vim.log.levels.ERROR
+              )
+            end
+          end)
+        end)
       end
 
       local function opencode_on_fail(err)
@@ -367,6 +452,7 @@ return {
       vim.keymap.set({ "n", "x" }, "<leader>ja", function() require("opencode").ask("@this: ") end, { desc = "Ask OpenCode (@this)" })
       vim.keymap.set({ "n", "t" }, "<leader>jt", opencode_toggle, { desc = "Toggle opencode" })
       vim.keymap.set({ "n", "t" }, "<leader>jT", function() opencode_toggle_tab() end, { desc = "Toggle opencode (onglet)" })
+      vim.keymap.set("n", "<leader>jP", opencode_task, { desc = "opencode: tâche (prompt, auto)" })
       -- <leader>jv seulement en normal (en mode terminal il intercepterait "espace j v" tape dans le TUI) ;
       -- <M-v> sert en normal, terminal et insert (libre dans nvim et dans la config WezTerm).
       vim.keymap.set("n", "<leader>jv", dictation_toggle, { desc = "Dictee vers opencode" })

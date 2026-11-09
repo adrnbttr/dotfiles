@@ -26,6 +26,11 @@ local function buf_is_valid()
   return state.bufnr ~= nil and vim.api.nvim_buf_is_valid(state.bufnr)
 end
 
+-- Buffer terminal de l'agent (nil si aucun) : lu par le garde-fou TermClose (ai_tab).
+M.term_buf = function()
+  return buf_is_valid() and state.bufnr or nil
+end
+
 -- Open a right-side vertical split showing `buf`, return the new winid.
 local function open_split(buf)
   return vim.api.nvim_open_win(buf, true, {
@@ -121,7 +126,7 @@ end
 -- `open_win(buf)` must make a window showing `buf` the current one and return
 -- it; `on_created(buf)` (optional) runs before the job starts.
 local function create_terminal(open_win, on_created, launch)
-  local buf = vim.api.nvim_create_buf(true, false)
+  local buf = vim.api.nvim_create_buf(false, false) -- non liste : <leader>bo / :bnext n'y touchent pas
   state.bufnr = buf
   vim.bo[buf].bufhidden = "hide"  -- keep alive when window closes
 
@@ -319,6 +324,51 @@ M.send = function(text)
   end
 end
 
+-- Lance une tache depuis un prompt saisi : sans terminal vivant, ouvre l'onglet agent avec
+-- ce prompt (mode auto) ; sinon l'envoie a la session existante et affiche l'onglet agent.
+M.run_task = function()
+  vim.ui.input({ prompt = "Tâche Claude : " }, function(input)
+    if not input or vim.trim(input) == "" then
+      return
+    end
+    local ai_tab = require("config.ai_tab")
+    local tab = find_ai_tab()
+    if not (buf_is_valid() and state.job_id) then
+      if not tab then
+        M.toggle_tab({ prompt = input })
+        return
+      end
+      -- onglet agent perime (plus de terminal vivant) : on le reutilise, sans le fermer
+      vim.api.nvim_set_current_tabpage(tab)
+      local win = ai_tab.main_win(tab)
+      if not win then
+        vim.notify("Claude : aucune fenêtre disponible. Texte : " .. input, vim.log.levels.ERROR)
+        return
+      end
+      vim.api.nvim_set_current_win(win)
+      create_terminal(function(buf)
+        vim.api.nvim_win_set_buf(win, buf)
+        return win
+      end, nil, { prompt = input })
+      state.tabwin = win
+      vim.cmd("startinsert")
+      return
+    end
+    if tab then
+      vim.api.nvim_set_current_tabpage(tab)
+      local win = ai_tab.ensure_terminal(tab, state.bufnr)
+      if win then
+        vim.api.nvim_set_current_win(win)
+        vim.cmd("startinsert")
+      end
+    else
+      M.toggle_tab() -- cree l'onglet avec le terminal existant
+    end
+    M.send(input)
+    vim.notify("Session existante : message envoyé, mode inchangé", vim.log.levels.INFO)
+  end)
+end
+
 -- Send the contents of `path` as a single message. Used by the voice-to-claude
 -- pipeline to avoid shell-quoting issues with transcribed text (apostrophes,
 -- quotes, newlines).
@@ -389,6 +439,11 @@ M.setup = function()
   vim.keymap.set({ "n", "t" }, "<leader>zT", function()
     M.toggle_tab()
   end, { desc = "Claude: Toggle onglet" })
+
+  -- <leader>zP  Tache (prompt) : nouvelle session en mode auto, ou envoi a la session existante
+  vim.keymap.set("n", "<leader>zP", function()
+    M.run_task()
+  end, { desc = "Claude: tâche (prompt, auto)" })
 
   -- <leader>zh  Jump INTO the Claude split in insert mode
   vim.keymap.set("n", "<leader>zh", function()
