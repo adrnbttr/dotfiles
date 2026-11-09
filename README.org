@@ -432,6 +432,18 @@ Prérequis (WSL) : =npx @playwright/mcp install-browser chrome-for-testing= (le 
 *WSL* : micro via WSLg (=PULSE_SERVER= posé par =zsh/.zshrc.d/opencode.zsh=).
 Mise à jour : =./script/install --only "ocupgrade occonfig"= puis =./script/doctor=.
 
+*** opencode : installation (V2 via npm)
+
+opencode s'installe en *V2* avec =npm install -g @opencode/cli@<version>= (étape =opencode= de
+=script/install=, version figée par =OPENCODE_VERSION= ou =--opencode-version=, 2.2.6 par défaut).
+Pourquoi : la config versionnée utilise les permissions V2 ; la V1 (=curl opencode.ai/install=,
+dans =~/.opencode/bin=) la refuse au démarrage. Le binaire vit sous le node de nvm : changer de
+version de node = relancer =./script/install --only opencode=. L'étape est idempotente (rien à
+faire si =opencode --version= est déjà une V2) ; =./script/doctor= signale une V1.
+
+Migrer un poste V1 : =npm install -g @opencode/cli@2.2.6= puis =rm -rf ~/.opencode=
+(jamais =opencode uninstall=, qui efface config et sessions).
+
 *** opencode
 
 This repo ships a small, safe subset of opencode state as *templates*:
@@ -590,7 +602,7 @@ Quick setup on a new machine:
 #+begin_src sh
 # Install both tools
 cd ~/Documents/github/perso/dotfiles
-./script/install                   # Installs opencode + claude CLI
+./script/install                   # Installs opencode V2 (npm) + claude CLI
 
 # Authenticate Claude Code (browser-based, one-time)
 claude --login

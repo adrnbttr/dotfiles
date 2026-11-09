@@ -17,8 +17,11 @@ os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 is_wsl=false
 grep -qi microsoft /proc/version 2>/dev/null && is_wsl=true
 # Même PATH que zsh : opencode, claude... s'installent hors de /usr/bin.
-for d in "$HOME/.local/bin" "$HOME/.opencode/bin"; do
-  [[ -d "$d" && ":$PATH:" != *":$d:"* ]] && PATH="$d:$PATH"
+# Les bins npm globaux (opencode V2) vivent sous nvm.
+npm_bin=""
+command -v npm >/dev/null 2>&1 && npm_bin="$(npm prefix -g 2>/dev/null)/bin"
+for d in "$HOME/.local/bin" "$npm_bin"; do
+  [[ -n "$d" && -d "$d" && ":$PATH:" != *":$d:"* ]] && PATH="$d:$PATH"
 done
 have() { command -v "$1" >/dev/null 2>&1; }
 version_ge() { [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n 1)" == "$2" ]]; }
@@ -135,8 +138,9 @@ check "psql (vim-dadbod)" psql base
 check "Claude Code" claude claude
 check "opencode" opencode opencode
 if have opencode; then
-  oc_ver="$(opencode --version 2>/dev/null | head -n 1)"
-  if version_ge "${oc_ver:-0}" 1.18.0; then good "opencode $oc_ver (>= 1.18)"; else MISSING_STEPS+=(ocupgrade); meh "opencode ${oc_ver:-?} < 1.18 (étape « ocupgrade »)"; fi
+  oc_ver="$(opencode --version 2>/dev/null | head -n 1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
+  if [[ -n "$oc_ver" ]] && version_ge "$oc_ver" 2.0.0; then good "opencode $oc_ver (V2)"; else MISSING_STEPS+=(ocupgrade); bad "opencode ${oc_ver:-?} n'est pas une V2 : la config (permissions V2) est refusée (étape « ocupgrade », npm @opencode/cli)"; fi
+  if [[ -x "$HOME/.opencode/bin/opencode" ]]; then meh "binaire V1 résiduel ~/.opencode/bin : supprimable (rm -rf ~/.opencode, pas « opencode uninstall »)"; fi
   if [[ -f "$HOME/.config/opencode/opencode.json" && -f "$HOME/.config/opencode/prompts/visual-agent.md" ]]; then good "config opencode appliquée"; else MISSING_STEPS+=(occonfig); meh "config opencode absente (étape « occonfig »)"; fi
   if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then good "OPENROUTER_API_KEY définie"; else meh "OPENROUTER_API_KEY absente (à mettre dans ~/.zshrc.local)"; fi
   check "sox (dictée opencode)" rec ocvoice

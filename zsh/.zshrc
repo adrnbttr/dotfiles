@@ -670,12 +670,6 @@ fi
 export FLYCTL_INSTALL="$HOME/.fly"
 export PATH="$FLYCTL_INSTALL/bin:$PATH"
 
-# opencode
-opencode_bin="$HOME/.opencode/bin"
-if [[ -d "$opencode_bin" && ":$PATH:" != *":$opencode_bin:"* ]]; then
-  export PATH="$opencode_bin:$PATH"
-fi
-
 # Optional Zsh enhancements (installed by ./script/bootstrap)
 if [[ -f "$ZSH_PLUGIN_DIR/fzf-tab/fzf-tab.plugin.zsh" ]]; then
   source "$ZSH_PLUGIN_DIR/fzf-tab/fzf-tab.plugin.zsh"

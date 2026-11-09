@@ -133,23 +133,30 @@ if [[ ${EUID:-0} -ne 0 ]]; then
   fi
 fi
 
+# opencode V2 : paquet npm @opencode/cli (la config versionnée utilise les
+# permissions V2, que la V1 de opencode.ai/install refuse). Dépend du node
+# actif sous nvm : changer de version de node = relancer cette étape.
+OPENCODE_VERSION="${opencode_version:-2.2.6}"
+OPENCODE_MIN_VERSION="2.0.0"
+
 install_opencode() {
-  if [[ "$no_opencode" == "true" ]]; then
-    return 0
-  fi
+  [[ "$no_opencode" == "true" ]] && return 0
+  local cur
+  load_nvm
   if have opencode; then
-    return 0
+    cur="$(opencode --version 2>/dev/null | head -n 1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"
+    if [[ -n "$cur" ]] && version_ge "$cur" "$OPENCODE_MIN_VERSION"; then
+      info "opencode $cur (V2)"
+      return 0
+    fi
+    warn "opencode ${cur:-?} est une V1 : installation de la V2 (la V1 dans ~/.opencode peut être supprimée : rm -rf ~/.opencode, pas « opencode uninstall »)"
   fi
-  if ! have curl; then
-    err "curl is required to install opencode"
+  if ! have npm; then
+    err "npm introuvable : lance d'abord l'étape « node »"
     exit 1
   fi
-  info "installing opencode (official installer)"
-  if [[ -n "$opencode_version" ]]; then
-    curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path --version "$opencode_version"
-  else
-    curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
-  fi
+  info "installing opencode $OPENCODE_VERSION (npm @opencode/cli)"
+  npm install -g "@opencode/cli@$OPENCODE_VERSION"
 }
 
 # --- Node (npx : Playwright MCP, plugins opencode) -------------------------
@@ -186,20 +193,8 @@ ensure_node() {
 
 # --- opencode : version minimale, plugin dictée, Playwright -----------------
 
-OPENCODE_MIN_VERSION="1.18.0"
-
-upgrade_opencode() {
-  [[ "$no_opencode" == "true" ]] && return 0
-  have opencode || return 0
-  local cur
-  cur="$(opencode --version 2>/dev/null | head -n 1 || true)"
-  if [[ -n "$cur" ]] && version_ge "$cur" "$OPENCODE_MIN_VERSION"; then
-    info "opencode $cur (>= $OPENCODE_MIN_VERSION)"
-    return 0
-  fi
-  info "opencode ${cur:-?} < $OPENCODE_MIN_VERSION : mise à jour"
-  opencode upgrade || warn "opencode upgrade failed (essaie: opencode upgrade)"
-}
+# L'étape « ocupgrade » (doctor) rejoue l'installation V2, idempotente.
+upgrade_opencode() { install_opencode; }
 
 # Copie la config versionnée vers ~/.config/opencode. Un fichier local qui
 # diffère est sauvegardé (.bak) avant d'être remplacé : le dépôt fait foi.
@@ -953,7 +948,7 @@ build_steps() {
       fi
       add_step pyenv      "plugin pyenv-virtualenv" ensure_pyenv_virtualenv_plugin
       add_step node       "Node LTS (nvm)"          ensure_node
-      [[ "$no_opencode" == "true" ]] || add_step opencode "opencode"        install_opencode
+      [[ "$no_opencode" == "true" ]] || add_step opencode "opencode V2 (npm)" install_opencode
       [[ "$no_opencode" == "true" ]] || add_step ocupgrade "opencode >= $OPENCODE_MIN_VERSION" upgrade_opencode
       [[ "$no_opencode" == "true" ]] || add_step ocvoice  "dictée opencode (sox, whisper.cpp)" install_opencode_voice
       [[ "$no_opencode" == "true" || "$minimal" == "true" ]] || add_step playwright "Playwright MCP (Chromium)" install_playwright
@@ -970,7 +965,8 @@ build_steps() {
         add_step wezterm  "kitty + WezTerm"         brew_terminals_macos
       fi
       add_step pyenv      "plugin pyenv-virtualenv" ensure_pyenv_virtualenv_plugin
-      [[ "$no_opencode" == "true" ]] || add_step opencode "opencode"        install_opencode
+      [[ "$no_opencode" == "true" ]] || add_step node "Node LTS (nvm)" ensure_node
+      [[ "$no_opencode" == "true" ]] || add_step opencode "opencode V2 (npm)" install_opencode
       [[ "$no_opencode" == "true" ]] || add_step ocupgrade "opencode >= $OPENCODE_MIN_VERSION" upgrade_opencode
       [[ "$no_claude" == "true" ]]   || add_step claude   "Claude Code"     install_claude
       ;;

@@ -4,8 +4,8 @@
 #        ococ all        toutes les sessions
 #        ococ today      detail du jour
 set -u
-OC="${OPENCODE_BIN:-$HOME/.opencode/bin/opencode}"
-[ -x "$OC" ] || OC=opencode
+OC="${OPENCODE_BIN:-$(command -v opencode || true)}"
+[ -n "$OC" ] || { echo "opencode introuvable dans le PATH"; exit 1; }
 
 raw="$($OC api get /api/session 2>/dev/null)"
 [ -z "$raw" ] && { echo "service opencode indisponible"; exit 1; }

@@ -14,7 +14,7 @@ run_doctor_checks() {
     echo "   ✓ Installed: v$opencode_version"
   else
     echo "   ✗ NOT INSTALLED"
-    echo "   → Run: curl -fsSL https://opencode.ai/install.sh | sh"
+    echo "   → Run: ./script/install --only 'node opencode'  (npm @opencode/cli, V2)"
   fi
   
   echo ""
