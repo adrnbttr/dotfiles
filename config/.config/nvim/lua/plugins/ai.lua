@@ -65,6 +65,8 @@ return {
 
       -- OpenCode v2 : le plugin ne pilote plus le TUI (commandes session.* supprimees),
       -- il dialogue avec le service en arriere-plan. Le terminal est gere par snacks.
+      -- Modifiable avant la 1re creation du terminal (`nvim --agent opencode --last`) :
+      -- snacks indexe le terminal par commande, la changer apres creerait un 2e terminal.
       local opencode_cmd = "opencode"
       local opencode_term_opts = {
         win = {
@@ -133,7 +135,8 @@ return {
       end
 
       -- <leader>jT : bascule l'onglet opencode (focus dans le terminal).
-      local function opencode_toggle_tab()
+      local function opencode_toggle_tab(opts)
+        local launch_cmd -- commande de lancement posee par cet appel (voir plus bas)
         local tab = find_opencode_tab()
         if tab and tab == vim.api.nvim_get_current_tabpage() then
           close_opencode_tab()
@@ -151,7 +154,45 @@ return {
 
         -- get() peut ouvrir un split a la creation : on le masque (le buffer reste vivant,
         -- hide() = close({ buf = false })), idem si le split etait deja visible.
+        if opts and (opts.last or (opts.prompt and opts.prompt ~= ""))
+          and not require("snacks.terminal").get(opencode_cmd, { create = false }) then
+          -- liste d'arguments (pas de shell) ; toutes les fonctions relisent opencode_cmd
+          local cmd = { "opencode" }
+          local has_prompt = opts.prompt and opts.prompt ~= ""
+          if has_prompt then
+            table.insert(cmd, "--auto") -- prompt fourni : on execute, les permissions ne bloquent pas
+          end
+          if opts.last then
+            table.insert(cmd, "--continue")
+          end
+          if has_prompt then
+            -- une seule chaine argv : un texte commencant par "-" n'est pas lu comme une option
+            table.insert(cmd, "--prompt=" .. opts.prompt)
+          end
+          if #cmd > 1 then
+            opencode_cmd = cmd
+            launch_cmd = cmd
+          end
+        end
         local term = require("snacks.terminal").get(opencode_cmd, opencode_term_opts)
+        if launch_cmd then
+          -- les arguments de lancement ne valent que pour ce terminal : quand il meurt,
+          -- les relances (jt, server.start, dictee) repartent sur "opencode" simple
+          local mine = launch_cmd
+          if term and term:buf_valid() then
+            vim.api.nvim_create_autocmd("TermClose", {
+              buffer = term.buf,
+              once = true,
+              callback = function()
+                if opencode_cmd == mine then
+                  opencode_cmd = "opencode"
+                end
+              end,
+            })
+          else
+            opencode_cmd = "opencode"
+          end
+        end
         if not term then
           return
         end
@@ -170,6 +211,8 @@ return {
         vim.t.ai_tab = "opencode"
         require("config.ai_tab").show_tree(win)
       end
+
+      require("config.ai_tab").register("opencode", opencode_toggle_tab)
 
       -- Si le service est absent, le plugin lance `server.start` : terminal snacks, pas son vsplit term://
       require("opencode.config").opts.server.start = opencode_show
@@ -323,7 +366,7 @@ return {
 
       vim.keymap.set({ "n", "x" }, "<leader>ja", function() require("opencode").ask("@this: ") end, { desc = "Ask OpenCode (@this)" })
       vim.keymap.set({ "n", "t" }, "<leader>jt", opencode_toggle, { desc = "Toggle opencode" })
-      vim.keymap.set({ "n", "t" }, "<leader>jT", opencode_toggle_tab, { desc = "Toggle opencode (onglet)" })
+      vim.keymap.set({ "n", "t" }, "<leader>jT", function() opencode_toggle_tab() end, { desc = "Toggle opencode (onglet)" })
       -- <leader>jv seulement en normal (en mode terminal il intercepterait "espace j v" tape dans le TUI) ;
       -- <M-v> sert en normal, terminal et insert (libre dans nvim et dans la config WezTerm).
       vim.keymap.set("n", "<leader>jv", dictation_toggle, { desc = "Dictee vers opencode" })

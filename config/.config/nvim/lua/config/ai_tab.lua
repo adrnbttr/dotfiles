@@ -133,4 +133,76 @@ M.open_in_code_tab = function(path)
   vim.cmd("stopinsert")
 end
 
+-- ---------------------------------------------------------------------------
+-- Ouverture d'un onglet agent au demarrage (`nvim --agent <nom> [--last]`, voir la
+-- fonction nvim() de zsh/.zshrc, qui passe par `-c "lua ...request_agent(...)"`).
+-- ---------------------------------------------------------------------------
+
+local openers = {} -- nom -> function({ last = bool })
+
+-- Un plugin/module enregistre ici sa fonction d'ouverture d'onglet.
+M.register = function(name, fn)
+  openers[name] = fn
+end
+
+local function open_agent(name, opts)
+  if name == "claude" then
+    require("config.claude").toggle_tab(opts)
+    return
+  end
+  if name == "opencode" then
+    -- le plugin enregistre son opener dans sa config : on la force si besoin
+    if not openers.opencode then
+      pcall(function() require("lazy").load({ plugins = { "opencode.nvim" } }) end)
+    end
+  end
+  if openers[name] then
+    openers[name](opts)
+  else
+    vim.notify("Agent inconnu ou indisponible : " .. tostring(name), vim.log.levels.ERROR)
+  end
+end
+
+local pending
+
+local function fire()
+  if not pending then
+    return
+  end
+  local req = pending
+  pending = nil
+  -- onglet de code (neo-tree compris) deja en place : on ouvre l'agent par-dessus
+  open_agent(req.name, { last = req.last, prompt = req.prompt })
+end
+
+-- Demande l'ouverture de l'onglet agent une fois le demarrage termine : sur VeryLazy
+-- (apres le neo-tree du premier onglet, cf. autocmds.lua), ou sur VimEnter en headless
+-- (VeryLazy n'y est pas garanti). `pending` evite toute double ouverture.
+-- `prompt_file` : fichier temporaire (cree par zsh) contenant le message initial ; lu puis
+-- supprime tout de suite (le texte ne transite ni par un shell ni par l'environnement).
+M.request_agent = function(name, last, prompt_file)
+  local prompt
+  if prompt_file and prompt_file ~= "" then
+    local f = io.open(prompt_file, "rb")
+    if f then
+      prompt = f:read("*a")
+      f:close()
+    end
+    os.remove(prompt_file)
+  end
+  pending = { name = name, last = last and true or false, prompt = prompt }
+  local function later()
+    vim.defer_fn(fire, 100)
+  end
+  vim.api.nvim_create_autocmd("User", { pattern = "VeryLazy", once = true, callback = later })
+  vim.api.nvim_create_autocmd("VimEnter", {
+    once = true,
+    callback = function()
+      if #vim.api.nvim_list_uis() == 0 then
+        later()
+      end
+    end,
+  })
+end
+
 return M

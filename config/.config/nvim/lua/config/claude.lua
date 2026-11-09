@@ -84,8 +84,28 @@ end
 -- Job management
 -- ---------------------------------------------------------------------------
 
-local function start_job(buf)
-  state.job_id = vim.fn.jobstart(CLAUDE_CMD, {
+-- `launch` (optionnel) : { last = bool, prompt = string }. Commande en liste d'arguments
+-- (aucun shell : le prompt est transmis tel quel).
+local function start_job(buf, launch)
+  local cmd = vim.split(CLAUDE_CMD, " ", { plain = true })
+  if launch and launch.prompt and launch.prompt ~= "" then
+    -- prompt fourni : on execute (mode auto) au lieu de planifier ; lancement initial seulement
+    for i, a in ipairs(cmd) do
+      if a == "plan" then
+        cmd[i] = "auto"
+      end
+    end
+  end
+  if launch and launch.last then
+    table.insert(cmd, "--continue")
+  end
+  if launch and launch.prompt and launch.prompt ~= "" then
+    if launch.prompt:sub(1, 1) == "-" then
+      table.insert(cmd, "--")
+    end
+    table.insert(cmd, launch.prompt)
+  end
+  state.job_id = vim.fn.jobstart(cmd, {
     term    = true,
     buffer  = buf,
     on_exit = function()
@@ -100,7 +120,7 @@ end
 -- Create the terminal buffer (hidden-safe), its autocmds, and start the job.
 -- `open_win(buf)` must make a window showing `buf` the current one and return
 -- it; `on_created(buf)` (optional) runs before the job starts.
-local function create_terminal(open_win, on_created)
+local function create_terminal(open_win, on_created, launch)
   local buf = vim.api.nvim_create_buf(true, false)
   state.bufnr = buf
   vim.bo[buf].bufhidden = "hide"  -- keep alive when window closes
@@ -118,7 +138,7 @@ local function create_terminal(open_win, on_created)
     end,
   })
 
-  start_job(buf)
+  start_job(buf, launch)
 
   -- Kill the job cleanly when Neovim exits
   vim.api.nvim_create_autocmd("ExitPre", {
@@ -217,7 +237,9 @@ end
 --   1. current tab is the Claude tab → close it
 --   2. a Claude tab exists elsewhere → jump to it
 --   3. otherwise → hide the split, open a new tab showing the terminal
-M.toggle_tab = function()
+-- opts (seulement si le terminal n'existe pas encore) : last = true reprend la derniere
+-- conversation (claude --continue) ; prompt = message initial.
+M.toggle_tab = function(opts)
   local tab = find_ai_tab()
   if tab and tab == vim.api.nvim_get_current_tabpage() then
     close_ai_tab()
@@ -250,7 +272,7 @@ M.toggle_tab = function()
     create_terminal(function(buf)
       vim.api.nvim_win_set_buf(win, buf)
       return win
-    end)
+    end, nil, opts)
   end
   state.tabwin = win
   vim.t.ai_tab = "claude"

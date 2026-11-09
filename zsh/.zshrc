@@ -590,6 +590,68 @@ ms_session() {
     "${MS_WT_DIR:-$HOME/Documents/github/marvin/marvin-suite-wt}"
 }
 
+# nvim --agent <claude|opencode> [--last | --new] [--prompt "<texte>"] : ouvre Neovim avec
+# l'onglet agent (comme <leader>zT / <leader>jT). --last reprend la derniere conversation
+# (--new = defaut, incompatible avec --last) ; --prompt envoie un message initial. Ces options
+# ne sont consommees qu'avec --agent ; les autres arguments vont tels quels au vrai nvim.
+# La demande passe par -c ; le prompt par un fichier temporaire lu puis supprime par nvim
+# (aucune variable d'environnement heritee, aucun quoting du texte).
+nvim() {
+  local -a rest orig_args
+  orig_args=("$@")
+  local agent="" last=0 new=0 has_agent=0 has_prompt=0 prompt_missing=0 prompt=""
+  while (( $# )); do
+    case "$1" in
+      --) rest+=("$@"); break ;;
+      --agent)
+        has_agent=1
+        if [[ $# -lt 2 || "$2" == -* ]]; then
+          print -u2 "nvim: --agent demande un nom (claude ou opencode)"; return 1
+        fi
+        agent="$2"; shift ;;
+      --prompt)
+        if [[ $# -lt 2 ]]; then
+          prompt_missing=1; rest+=("$1")
+        else
+          has_prompt=1; prompt="$2"; shift
+        fi ;;
+      --last) last=1 ;;
+      --new) new=1 ;;
+      *) rest+=("$1") ;;
+    esac
+    shift
+  done
+  if (( ! has_agent )); then
+    # --last / --new / --prompt ne sont consommés qu'avec --agent
+    command nvim "${orig_args[@]}"
+    return
+  fi
+  if (( prompt_missing )); then
+    print -u2 "nvim: --prompt demande un texte"; return 1
+  fi
+  case "$agent" in
+    claude|opencode) ;;
+    *) print -u2 "nvim: agent inconnu '$agent' (attendu : claude ou opencode)"; return 1 ;;
+  esac
+  if (( last && new )); then
+    print -u2 "nvim: --new et --last sont incompatibles"; return 1
+  fi
+  local lua_last=false pfile="" rc
+  (( last )) && lua_last=true
+  if (( has_prompt )) && [[ -n "$prompt" ]]; then
+    pfile=$(mktemp "${TMPDIR:-/tmp}/nvim-agent-prompt.XXXXXX") || return 1
+    # le chemin entre dans une chaine Lua : seuls des caracteres sans danger sont acceptes
+    if [[ ! "$pfile" =~ '^[A-Za-z0-9/._-]+$' ]]; then
+      print -u2 "nvim: chemin temporaire refusé ('$pfile') : TMPDIR doit être simple"
+      rm -f -- "$pfile"; return 1
+    fi
+    printf '%s' "$prompt" >"$pfile"
+  fi
+  command nvim -c "lua require('config.ai_tab').request_agent('$agent', $lua_last, '$pfile')" "${rest[@]}"
+  rc=$?
+  [[ -n "$pfile" ]] && rm -f -- "$pfile"  # nvim n'a pas forcement execute -c (--version, -h...)
+  return $rc
+}
 alias vim='nvim'
 alias g='git'
 
