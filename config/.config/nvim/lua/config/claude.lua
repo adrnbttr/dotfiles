@@ -110,22 +110,58 @@ local function start_job(buf, launch)
     end
     table.insert(cmd, launch.prompt)
   end
-  state.job_id = vim.fn.jobstart(cmd, {
+  local job
+  job = vim.fn.jobstart(cmd, {
     term    = true,
     buffer  = buf,
     on_exit = function()
+      if state.job_id ~= job then return end -- terminal deja remplace (reprise echouee)
       state.job_id = nil
       state.bufnr  = nil
       state.winid  = nil
       state.tabwin = nil
     end,
   })
+  state.job_id = job
+end
+
+-- Reprise (--continue) sortie aussitot en erreur : pas de conversation a reprendre ici.
+-- On relance une session neuve dans la meme fenetre (split ou onglet), sans --continue.
+local create_terminal -- defini plus bas
+local function resume_fallback(old_buf)
+  vim.notify("Aucune session à reprendre ici : nouvelle session", vim.log.levels.WARN)
+  if buf_is_valid() and state.bufnr ~= old_buf then
+    return -- un autre terminal a ete lance entre-temps
+  end
+  local win = vim.fn.win_findbuf(old_buf)[1]
+  if not win then
+    state.bufnr, state.job_id, state.winid, state.tabwin = nil, nil, nil, nil
+    pcall(vim.api.nvim_buf_delete, old_buf, { force = true })
+    M.toggle()
+    return
+  end
+  local ok, mark = pcall(vim.api.nvim_tabpage_get_var, vim.api.nvim_win_get_tabpage(win), "ai_tab")
+  local is_tab = ok and mark == "claude"
+  state.bufnr, state.job_id, state.winid, state.tabwin = nil, nil, nil, nil
+  create_terminal(function(buf)
+    vim.api.nvim_win_set_buf(win, buf)
+    return win
+  end)
+  if is_tab then
+    state.tabwin = win
+  else
+    state.winid = win
+  end
+  pcall(vim.api.nvim_buf_delete, old_buf, { force = true })
+  if is_tab and vim.api.nvim_get_current_win() == win then
+    vim.cmd("startinsert")
+  end
 end
 
 -- Create the terminal buffer (hidden-safe), its autocmds, and start the job.
 -- `open_win(buf)` must make a window showing `buf` the current one and return
 -- it; `on_created(buf)` (optional) runs before the job starts.
-local function create_terminal(open_win, on_created, launch)
+create_terminal = function(open_win, on_created, launch)
   local buf = vim.api.nvim_create_buf(false, false) -- non liste : <leader>bo / :bnext n'y touchent pas
   state.bufnr = buf
   vim.bo[buf].bufhidden = "hide"  -- keep alive when window closes
@@ -144,6 +180,10 @@ local function create_terminal(open_win, on_created, launch)
   })
 
   start_job(buf, launch)
+
+  if launch and launch.last and not (launch.prompt and launch.prompt ~= "") then
+    require("config.ai_tab").watch_launch(buf, function() resume_fallback(buf) end)
+  end
 
   -- Kill the job cleanly when Neovim exits
   vim.api.nvim_create_autocmd("ExitPre", {
@@ -193,7 +233,8 @@ end
 --   1. bufnr == nil          → first launch: create buf + win + job
 --   2. buf valid, win visible → hide the window (session preserved)
 --   3. buf valid, win hidden  → re-show window + re-enter insert + return focus
-M.toggle = function()
+-- launch (optionnel, 1re creation seulement) : { last = true } reprend la derniere session.
+M.toggle = function(launch)
   -- Only one display at a time: showing the split closes the Claude tab.
   if not (buf_is_valid() and win_is_valid()) then
     close_ai_tab()
@@ -208,7 +249,7 @@ M.toggle = function()
     end, function(buf)
       -- Setup autoinsert + focus return before starting the job
       setup_autoinsert(buf, previous_win)
-    end)
+    end, launch)
     return
   end
 
@@ -282,6 +323,28 @@ M.toggle_tab = function(opts)
   state.tabwin = win
   vim.t.ai_tab = "claude"
   require("config.ai_tab").show_tree(win)
+end
+
+-- Reprend la derniere session (claude --continue) dans le split (where = "split") ou
+-- l'onglet agent (where = "tab"). Terminal deja vivant : on l'affiche sans le tuer.
+M.resume = function(where)
+  if buf_is_valid() and state.job_id then
+    vim.notify("Session déjà ouverte (pas de reprise)", vim.log.levels.INFO)
+    if where == "tab" then
+      local tab = find_ai_tab()
+      if not (tab and tab == vim.api.nvim_get_current_tabpage()) then
+        M.toggle_tab()
+      end
+    elseif not win_is_valid() then
+      M.toggle()
+    end
+    return
+  end
+  if where == "tab" then
+    M.toggle_tab({ last = true })
+  else
+    M.toggle({ last = true })
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -439,6 +502,14 @@ M.setup = function()
   vim.keymap.set({ "n", "t" }, "<leader>zT", function()
     M.toggle_tab()
   end, { desc = "Claude: Toggle onglet" })
+
+  -- <leader>zl / zL  Reprendre la derniere session (split / onglet)
+  vim.keymap.set("n", "<leader>zl", function()
+    M.resume("split")
+  end, { desc = "Claude: reprendre la dernière session (split)" })
+  vim.keymap.set("n", "<leader>zL", function()
+    M.resume("tab")
+  end, { desc = "Claude: reprendre la dernière session (onglet)" })
 
   -- <leader>zP  Tache (prompt) : nouvelle session en mode auto, ou envoi a la session existante
   vim.keymap.set("n", "<leader>zP", function()

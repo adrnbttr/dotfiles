@@ -183,6 +183,14 @@ M.detach = function(buf)
   end
 end
 
+-- Lancements par --continue surveilles : buf -> { t0, fn }. Si le process sort en erreur dans
+-- les 3 s (pas de conversation a reprendre), `fn` relance une session neuve a la place ; le
+-- TermClose ci-dessous ne notifie alors rien et ne ferme rien.
+local watches = {}
+M.watch_launch = function(buf, fn)
+  watches[buf] = { t0 = vim.uv.hrtime(), fn = fn }
+end
+
 -- Vrai pendant la sortie de nvim : les terminaux meurent, ce n'est pas un evenement agent.
 local exiting = false
 vim.api.nvim_create_autocmd({ "ExitPre", "VimLeavePre" }, {
@@ -307,6 +315,13 @@ vim.api.nvim_create_autocmd("TermClose", {
     local buf = args.buf
     local status = type(vim.v.event) == "table" and vim.v.event.status or 0
     if status == -1 then -- buffer supprime : pas une fin d'agent
+      watches[buf] = nil
+      return
+    end
+    local w = watches[buf]
+    watches[buf] = nil
+    if w and status ~= 0 and (vim.uv.hrtime() - w.t0) < 3e9 then
+      vim.schedule(w.fn)
       return
     end
     for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
