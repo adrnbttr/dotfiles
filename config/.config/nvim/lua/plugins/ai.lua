@@ -259,7 +259,7 @@ return {
       -- Dictee : envoi brut a la session (POST /api/session/<id>/prompt) sans passer par
       -- prompt()/ask() : aucune substitution de contexte (@this, @buffer...), et max_time 30 s
       -- (2 s par defaut). La session est resolue AVANT l'envoi.
-      local function opencode_send(text, cb)
+      local function opencode_send_api(text, cb)
         require("opencode.server.discovery")
           .get()
           :next(function(server)
@@ -273,6 +273,37 @@ return {
           :catch(function(err)
             cb(false, err and tostring(err) or "")
           end)
+      end
+
+      -- Repli : tant qu'aucun message n'a ete envoye dans le TUI il n'y a pas de session. Si le
+      -- terminal opencode est vivant, on tape le texte dans le TUI (le 1er message cree la
+      -- session). Les retours a la ligne deviennent des espaces : un "\n" (Ctrl-J) pourrait
+      -- valider ou inserer une ligne selon le TUI. Le "\r" de validation part apres un delai.
+      local function opencode_type_in_tui(text)
+        local term = existing_term()
+        local job = term and vim.b[term.buf].terminal_job_id
+        if not job or vim.fn.jobwait({ job }, 0)[1] ~= -1 then
+          return false
+        end
+        local line = vim.trim((text:gsub("[\r\n]+", " ")))
+        if line == "" or not pcall(vim.api.nvim_chan_send, job, line) then
+          return false
+        end
+        vim.defer_fn(function()
+          pcall(vim.api.nvim_chan_send, job, "\r")
+        end, 80)
+        opencode_show()
+        return true
+      end
+
+      local function opencode_send(text, cb)
+        opencode_send_api(text, function(ok, err)
+          if not ok and err and err:find("No OpenCode session found", 1, true) and opencode_type_in_tui(text) then
+            cb(true)
+          else
+            cb(ok, err)
+          end
+        end)
       end
 
       -- <leader>jP : tache depuis un prompt. Sans terminal vivant : onglet agent avec ce prompt
