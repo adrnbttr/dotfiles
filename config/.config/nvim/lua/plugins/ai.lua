@@ -247,16 +247,23 @@ return {
 
         -- get() peut ouvrir un split a la creation : on le masque (le buffer reste vivant,
         -- hide() = close({ buf = false })), idem si le split etait deja visible.
-        if opts and (opts.last or (opts.prompt and opts.prompt ~= ""))
+        local has_prompt = opts and opts.prompt and opts.prompt ~= ""
+        if opts and (opts.last or opts.resume or has_prompt or (opts.args and #opts.args > 0))
           and not existing_term() then
           -- liste d'arguments (pas de shell) ; toutes les fonctions relisent opencode_cmd
           local cmd = { "opencode" }
-          local has_prompt = opts.prompt and opts.prompt ~= ""
-          if has_prompt then
-            table.insert(cmd, "--auto") -- prompt fourni : on execute, les permissions ne bloquent pas
+          if has_prompt or opts.resume then
+            table.insert(cmd, "--auto") -- on execute, les permissions ne bloquent pas
           end
           if opts.last then
             table.insert(cmd, "--continue")
+          end
+          if opts.resume then
+            table.insert(cmd, "-s")
+            table.insert(cmd, opts.resume)
+          end
+          for _, a in ipairs(opts.args or {}) do
+            table.insert(cmd, a)
           end
           if has_prompt then
             -- une seule chaine argv : un texte commencant par "-" n'est pas lu comme une option
@@ -273,7 +280,7 @@ return {
             opencode_cmd = "opencode"
           end
         end
-        if term and term:buf_valid() and opts and opts.last and not (opts.prompt and opts.prompt ~= "") then
+        if term and term:buf_valid() and opts and opts.last and not opts.resume and not (opts.prompt and opts.prompt ~= "") then
           require("config.ai_tab").watch_launch(term.buf, function() opencode_resume_fallback(term.buf) end)
         end
         if not term then

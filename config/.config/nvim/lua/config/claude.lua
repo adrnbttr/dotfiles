@@ -89,27 +89,42 @@ end
 -- Job management
 -- ---------------------------------------------------------------------------
 
--- `launch` (optionnel) : { last = bool, prompt = string }. Commande en liste d'arguments
--- (aucun shell : le prompt est transmis tel quel).
-local function start_job(buf, launch)
+-- `launch` (optionnel) : { last = bool, prompt = string, resume = id, args = {...} }.
+-- Commande en liste d'arguments (aucun shell : le prompt est transmis tel quel) :
+-- claude --permission-mode <plan|auto> [--continue] [--resume <id>] args... [--] [prompt]
+local function build_cmd(launch)
   local cmd = vim.split(CLAUDE_CMD, " ", { plain = true })
-  if launch and launch.prompt and launch.prompt ~= "" then
-    -- prompt fourni : on execute (mode auto) au lieu de planifier ; lancement initial seulement
+  launch = launch or {}
+  local has_prompt = launch.prompt and launch.prompt ~= ""
+  if has_prompt or launch.resume then
+    -- prompt ou reprise par id : on execute (mode auto) au lieu de planifier
     for i, a in ipairs(cmd) do
       if a == "plan" then
         cmd[i] = "auto"
       end
     end
   end
-  if launch and launch.last then
+  if launch.last then
     table.insert(cmd, "--continue")
   end
-  if launch and launch.prompt and launch.prompt ~= "" then
+  if launch.resume then
+    table.insert(cmd, "--resume")
+    table.insert(cmd, launch.resume)
+  end
+  for _, a in ipairs(launch.args or {}) do
+    table.insert(cmd, a)
+  end
+  if has_prompt then
     if launch.prompt:sub(1, 1) == "-" then
       table.insert(cmd, "--")
     end
     table.insert(cmd, launch.prompt)
   end
+  return cmd
+end
+
+local function start_job(buf, launch)
+  local cmd = build_cmd(launch)
   local job
   job = vim.fn.jobstart(cmd, {
     term    = true,
@@ -126,9 +141,10 @@ local function start_job(buf, launch)
 end
 
 -- Reprise (--continue) sortie aussitot en erreur : pas de conversation a reprendre ici.
+-- (Jamais pour --resume <id> : un id inconnu ne doit pas ouvrir une session neuve en silence.)
 -- On relance une session neuve dans la meme fenetre (split ou onglet), sans --continue.
 local create_terminal -- defini plus bas
-local function resume_fallback(old_buf)
+local function resume_fallback(old_buf, args)
   vim.notify("Aucune session à reprendre ici : nouvelle session", vim.log.levels.WARN)
   if buf_is_valid() and state.bufnr ~= old_buf then
     return -- un autre terminal a ete lance entre-temps
@@ -146,7 +162,7 @@ local function resume_fallback(old_buf)
   create_terminal(function(buf)
     vim.api.nvim_win_set_buf(win, buf)
     return win
-  end)
+  end, nil, { args = args })
   if is_tab then
     state.tabwin = win
   else
@@ -181,8 +197,8 @@ create_terminal = function(open_win, on_created, launch)
 
   start_job(buf, launch)
 
-  if launch and launch.last and not (launch.prompt and launch.prompt ~= "") then
-    require("config.ai_tab").watch_launch(buf, function() resume_fallback(buf) end)
+  if launch and launch.last and not launch.resume and not (launch.prompt and launch.prompt ~= "") then
+    require("config.ai_tab").watch_launch(buf, function() resume_fallback(buf, launch.args) end)
   end
 
   -- Kill the job cleanly when Neovim exits

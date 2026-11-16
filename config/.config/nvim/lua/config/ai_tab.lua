@@ -459,7 +459,7 @@ local function fire()
   local req = pending
   pending = nil
   -- onglet de code (neo-tree compris) deja en place : on ouvre l'agent par-dessus
-  open_agent(req.name, { last = req.last, prompt = req.prompt })
+  open_agent(req.name, { last = req.last, prompt = req.prompt, resume = req.resume, args = req.args })
 end
 
 -- Demande l'ouverture de l'onglet agent une fois le demarrage termine : sur VeryLazy
@@ -467,17 +467,7 @@ end
 -- (VeryLazy n'y est pas garanti). `pending` evite toute double ouverture.
 -- `prompt_file` : fichier temporaire (cree par zsh) contenant le message initial ; lu puis
 -- supprime tout de suite (le texte ne transite ni par un shell ni par l'environnement).
-M.request_agent = function(name, last, prompt_file)
-  local prompt
-  if prompt_file and prompt_file ~= "" then
-    local f = io.open(prompt_file, "rb")
-    if f then
-      prompt = f:read("*a")
-      f:close()
-    end
-    os.remove(prompt_file)
-  end
-  pending = { name = name, last = last and true or false, prompt = prompt }
+local function schedule_pending()
   local function later()
     vim.defer_fn(fire, 100)
   end
@@ -490,6 +480,78 @@ M.request_agent = function(name, last, prompt_file)
       end
     end,
   })
+end
+
+M.request_agent = function(name, last, prompt_file)
+  local prompt
+  if prompt_file and prompt_file ~= "" then
+    local f = io.open(prompt_file, "rb")
+    if f then
+      prompt = f:read("*a")
+      f:close()
+    end
+    os.remove(prompt_file)
+  end
+  pending = { name = name, last = last and true or false, prompt = prompt }
+  schedule_pending()
+end
+
+-- Requete d'ouverture par fichier (ecrite par nvim-agent) : champs termines chacun par un
+-- octet NUL : v1, agent, mode (new|last|resume), id, prompt, puis 0..N arguments relayes.
+-- Lu en binaire puis supprime tout de suite (meme en cas d'erreur). Requete invalide :
+-- notification ERROR, rien n'est lance.
+M.request = function(path)
+  local data
+  local f = io.open(path, "rb")
+  if f then
+    data = f:read("*a")
+    f:close()
+  end
+  os.remove(path)
+  local function fail(msg)
+    vim.notify("Requête d'agent invalide : " .. msg, vim.log.levels.ERROR)
+  end
+  if not data then
+    return fail("fichier illisible")
+  end
+  local fields = {}
+  local pos = 1
+  while pos <= #data do
+    local nul = data:find("\0", pos, true)
+    if not nul then
+      return fail("champ non terminé")
+    end
+    table.insert(fields, data:sub(pos, nul - 1))
+    pos = nul + 1
+  end
+  if fields[1] ~= "v1" then
+    return fail("version " .. tostring(fields[1]))
+  end
+  local agent, mode, id, prompt = fields[2], fields[3], fields[4], fields[5]
+  if agent ~= "claude" and agent ~= "opencode" then
+    return fail("agent " .. tostring(agent))
+  end
+  if mode ~= "new" and mode ~= "last" and mode ~= "resume" then
+    return fail("mode " .. tostring(mode))
+  end
+  if prompt == nil then
+    return fail("champs manquants")
+  end
+  if mode == "resume" and (id == nil or id == "") then
+    return fail("resume sans id")
+  end
+  local args = {}
+  for i = 6, #fields do
+    table.insert(args, fields[i])
+  end
+  pending = {
+    name = agent,
+    last = mode == "last",
+    prompt = prompt ~= "" and prompt or nil,
+    resume = mode == "resume" and id or nil,
+    args = args,
+  }
+  schedule_pending()
 end
 
 return M
