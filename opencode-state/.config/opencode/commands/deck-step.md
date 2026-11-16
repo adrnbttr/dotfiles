@@ -13,7 +13,7 @@ Cadre :
 - Les variables `DECK_*` sont déjà dans l'environnement. Ne les invente jamais, ne les modifie jamais.
 - Reste dans ce worktree. N'en sors pas, ne touche aucun autre dépôt ni checkout.
 - Pas de boucle automatique de relance (`--autonome`, hook `Stop`) : elle empêcherait de t'arrêter pour poser une question.
-- Ne t'arrête jamais sans avoir lancé `deck done`, sauf pour poser une question (voir 6).
+- Ne termine jamais l'étape sans avoir lancé `deck done` (ok ou failed). Une question à Adrien n'est pas une fin d'étape : tu t'arrêtes pour attendre la réponse (deck voit `waiting`), puis tu reprends l'étape jusqu'à `deck done`.
 
 Séquence :
 
@@ -30,6 +30,6 @@ Séquence :
    - `0` : accepté. Tu as fini.
    - `1` : refus (garde-fou git, contexte absent). Lis le motif sur stderr, corrige (arbre sale, commit manquant…), puis relance `deck done`.
    - `2` : démon injoignable ou muet. La commande a pu être appliquée : relance-la une fois, lis stderr.
-   - Si le motif n'est pas corrigeable : pose la question à Adrien et arrête-toi.
-6. Blocage ou décision à prendre : pose la question et arrête-toi. deck voit alors l'état `waiting`. Ne lance pas `deck done` dans ce cas.
+   - Si le motif n'est pas corrigeable : pose la question à Adrien et attends sa réponse (voir 6), puis reprends.
+6. Blocage ou décision à prendre : pose la question et arrête-toi pour attendre la réponse. deck voit alors l'état `waiting`. Ne lance pas `deck done` pour cette pause : ce n'est pas une fin d'étape. Une fois la réponse reçue, reprends l'étape et termine par `deck done` (4 ou 7).
 7. Étape impossible : `deck done --status failed --summary "<motif>"`. Traite son code de sortie comme en 5.

@@ -177,10 +177,24 @@ return {
       end
 
       -- Reprise (--continue) sortie aussitot en erreur (pas de session ici) : session neuve au
-      -- meme endroit (onglet agent ou split), sans --continue.
-      local function opencode_resume_fallback(old_buf)
+      -- meme endroit (onglet agent ou split), sans --continue mais avec les arguments relayes
+      -- (`args`, comme resume_fallback(buf, launch.args) cote claude).
+      local function opencode_resume_fallback(old_buf, args)
         vim.notify("Aucune session à reprendre ici : nouvelle session", vim.log.levels.WARN)
-        opencode_cmd = "opencode"
+        local fallback_cmd
+        if args and #args > 0 then
+          fallback_cmd = { "opencode" }
+          vim.list_extend(fallback_cmd, args)
+        end
+        opencode_cmd = fallback_cmd or "opencode"
+        -- cree le terminal de repli ; les arguments ne valent que pour lui (voir track_launch)
+        local function spawn()
+          local t = require("snacks.terminal").get(opencode_cmd, opencode_term_opts)
+          if fallback_cmd and not track_launch(fallback_cmd, t) then
+            opencode_cmd = "opencode"
+          end
+          return t
+        end
         if existing_term() then
           return -- un autre terminal est deja la
         end
@@ -196,13 +210,13 @@ return {
         if not tabwin then
           -- split (ou terminal masque) : on supprime le mort, snacks recree le split
           pcall(vim.api.nvim_buf_delete, old_buf, { force = true })
-          require("snacks.terminal").get(opencode_cmd, opencode_term_opts)
+          spawn()
           if vim.api.nvim_win_is_valid(prev) then
             vim.api.nvim_set_current_win(prev)
           end
           return
         end
-        local term = require("snacks.terminal").get(opencode_cmd, opencode_term_opts)
+        local term = spawn()
         if not (term and term:buf_valid()) then
           return
         end
@@ -281,7 +295,7 @@ return {
           end
         end
         if term and term:buf_valid() and opts and opts.last and not opts.resume and not (opts.prompt and opts.prompt ~= "") then
-          require("config.ai_tab").watch_launch(term.buf, function() opencode_resume_fallback(term.buf) end)
+          require("config.ai_tab").watch_launch(term.buf, function() opencode_resume_fallback(term.buf, opts.args) end)
         end
         if not term then
           return

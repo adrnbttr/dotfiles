@@ -39,6 +39,8 @@ for _, spec in ipairs(dofile("$CONF/lua/plugins/ai.lua")) do
 end
 LUA
 
+# run() tourne dans un sous-shell (fin de tube) : les echecs sont comptes via un fichier
+: > "$T/fails"
 fails=0
 # nul <champs...> : ecrit un fichier de requete (champs termines par NUL)
 nul() { printf '%s\0' "$@"; }
@@ -54,8 +56,7 @@ run() {
     -c "lua vim.defer_fn(function() vim.cmd('qa!') end, $([ "$expected" = - ] && echo 3000 || echo 8000))" \
     >"$T/nvim.log" 2>&1 &
   local pid=$!
-  local i
-  for i in $(seq 1 100); do
+  for _ in $(seq 1 100); do
     [ -e "$FAKE_OUT" ] && break
     kill -0 "$pid" 2>/dev/null || break
     sleep 0.1
@@ -68,8 +69,8 @@ run() {
   local ok=1
   [ "$got" = "$expected" ] || ok=0
   [ -e "$T/req" ] && { ok=0; echo "  (fichier de requete non supprime)"; }
-  if [ $ok = 1 ]; then echo "OK   $name"; else
-    echo "FAIL $name : attendu [$expected], obtenu [$got]"; sed 's/^/     nvim: /' "$T/nvim.log" | head -5; fails=$((fails+1)); fi
+  if [ "$ok" = 1 ]; then echo "OK   $name"; else
+    echo "FAIL $name : attendu [$expected], obtenu [$got]"; sed 's/^/     nvim: /' "$T/nvim.log" | head -5; echo x >> "$T/fails"; fi
 }
 
 nul v1 claude new "" "x" --settings f | run "claude new + prompt + args" "claude --permission-mode auto --settings f x"
@@ -90,11 +91,27 @@ nul v1 claude new "" $'a\nb' | cat > "$T/req"
 timeout 20 nvim --headless -u "$T/init.lua" -i NONE -c "lua require('config.ai_tab').request('$T/req')" \
   -c "lua vim.defer_fn(function() vim.cmd('qa!') end, 8000)" >/dev/null 2>&1 &
 pid=$!
-for i in $(seq 1 100); do [ -e "$FAKE_OUT" ] && break; sleep 0.1; done
+for _ in $(seq 1 100); do [ -e "$FAKE_OUT" ] && break; sleep 0.1; done
 kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
 if [ "$(tr '\0' '|' < "$FAKE_OUT" 2>/dev/null)" = $'claude|--permission-mode|auto|a\nb|' ]; then
   echo "OK   prompt multiligne en un seul argument"
 else echo "FAIL prompt multiligne"; fails=$((fails+1)); fi
 
-[ $fails = 0 ] && echo "Tous les cas OK" || echo "$fails echec(s)"
+# repli de la reprise opencode : un opencode qui sort en erreur sur --continue (pas de session) ;
+# le repli relance sans --continue mais garde les arguments relayes (--last -- --settings f).
+rm -f "$T/bin/opencode"
+cat > "$T/bin/opencode" <<SH
+#!/usr/bin/env bash
+for a in "\$@"; do [ "\$a" = "--continue" ] && exit 1; done
+exec "$FAKE" "\$@"
+SH
+chmod +x "$T/bin/opencode"
+# le faux agent deduit son nom de basename($0) : on l'appelle via un lien nomme opencode
+rm -f "$T/real/opencode"; mkdir -p "$T/real"; ln -s "$FAKE" "$T/real/opencode"
+sed -i "s|exec \"$FAKE\"|exec \"$T/real/opencode\"|" "$T/bin/opencode"
+nul v1 opencode last "" "" --settings f | run "opencode last : repli garde les args relayes" "opencode --settings f"
+ln -sf "$FAKE" "$T/bin/opencode"
+
+fails=$((fails + $(wc -l < "$T/fails")))
+[ "$fails" = 0 ] && echo "Tous les cas OK" || echo "$fails echec(s)"
 exit $((fails > 0))

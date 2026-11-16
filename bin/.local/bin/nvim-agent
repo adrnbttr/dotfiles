@@ -9,8 +9,10 @@
 # --resume reprend la session <id> ; l'agent par défaut est claude.
 #
 # La demande passe par un fichier temporaire (champs terminés par NUL : v1, agent, mode, id, prompt,
-# puis les arguments de l'agent), lu par config.ai_tab.request() dans Neovim. Le script finit par
-# « exec nvim » : il ne peut donc pas supprimer le fichier, c'est le Lua qui le fait après lecture.
+# puis les arguments de l'agent), lu par config.ai_tab.request() dans Neovim, qui le supprime après
+# lecture. Le script lance nvim en enfant (pas d'exec) pour supprimer lui aussi le fichier à la sortie
+# (nvim qui sort sans exécuter -c : --version, -h...), y compris sur INT/TERM/HUP, et rend le code de
+# nvim. Le pid du pane tmux n'est donc pas celui de nvim : deck suit le PID du hook, pas pane_pid.
 # Variable NVIM_AGENT_NVIM : binaire nvim à lancer (tests) ; sinon « nvim » du PATH.
 set -euo pipefail
 
@@ -24,7 +26,9 @@ usage : nvim-agent --agent <claude|opencode> [--last|--new] [--prompt <texte>] [
   --prompt <texte> message initial (mode exécution)
   --resume <id>    reprendre la session <id> (agent par défaut : claude) ; incompatible avec
                    --last, --new et --prompt
-  --               ce qui suit est relayé tel quel à l'agent
+  --               ce qui suit est relayé tel quel à l'agent. Ne pas y relayer d'option variadique de
+                   claude (--add-dir, --allowedTools, --disallowedTools, --mcp-config) sans valeur
+                   terminale : le prompt placé ensuite serait pris comme valeur de l'option.
   -h, --help       cette aide
 USAGE
 }
@@ -101,13 +105,19 @@ mode="new"
 ((last)) && mode="last"
 ((has_resume)) && mode="resume"
 
-req=$(mktemp "${TMPDIR:-/tmp}/nvim-agent-req.XXXXXX")
+tmpdir="${TMPDIR:-/tmp}"
+if [[ "$tmpdir" != /* ]]; then
+  die "TMPDIR doit être un chemin absolu (commençant par /) : '$tmpdir'"
+fi
+req=$(mktemp "$tmpdir/nvim-agent-req.XXXXXX")
+child=""
+cleanup() { rm -f -- "$req"; }
+# sortie normale, erreur (set -e) ou signal : le fichier de requête ne reste jamais
+trap cleanup EXIT
 # le chemin entre dans une chaîne Lua : seuls des caractères sans danger sont acceptés
 if [[ ! "$req" =~ ^[A-Za-z0-9/._-]+$ ]]; then
-  rm -f -- "$req"
   die "chemin temporaire refusé ('$req') : TMPDIR doit être simple"
 fi
-trap 'rm -f -- "$req"' ERR
 
 {
   printf '%s\0' v1 "$agent" "$mode" "$resume_id" "$prompt"
@@ -115,6 +125,24 @@ trap 'rm -f -- "$req"' ERR
     printf '%s\0' "${agent_args[@]}"
   fi
 } >"$req"
-trap - ERR
 
-exec "${NVIM_AGENT_NVIM:-nvim}" -c "lua require('config.ai_tab').request('$req')" ${nvim_args[@]+"${nvim_args[@]}"}
+# signal reçu : relayé à nvim, qu'on attend avant de sortir avec 128+n (le trap EXIT nettoie)
+relay() {
+  local sig=$1 num=$2
+  if [[ -n "$child" ]]; then
+    kill -s "$sig" "$child" 2>/dev/null || true
+    wait "$child" 2>/dev/null || true
+  fi
+  exit $((128 + num))
+}
+trap 'relay INT 2' INT
+trap 'relay TERM 15' TERM
+trap 'relay HUP 1' HUP
+
+# en arrière-plan (sinon bash ne traite les signaux qu'à la sortie de nvim) ; <&0 garde le terminal
+"${NVIM_AGENT_NVIM:-nvim}" -c "lua require('config.ai_tab').request('$req')" ${nvim_args[@]+"${nvim_args[@]}"} <&0 &
+child=$!
+rc=0
+# wait est interrompu par un signal piégé (relay sort alors) ; sinon rc = code de nvim
+wait "$child" || rc=$?
+exit "$rc"

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Mesure (J-dot T4) : arbre de processus et pane_pid d'un agent lancé par nvim-agent dans tmux,
+# Mesure (J-dot T4) : arbre de processus et pane_pid d'un agent lancé par nvim-agent dans tmux
+# (pane_pid = le script nvim-agent, nvim en est un enfant : plus d'exec),
 # comme le fera deck. Faux claude uniquement, serveur tmux privé (-L deck-test-jdot-$$), aucun réseau.
 # Usage : tests/nvim-agent/measure_tree.sh   (sortie brute sur stdout, code 0 si les mesures ont abouti)
 set -u
@@ -66,8 +67,8 @@ run_case() { # run_case <nom> <args nvim-agent...>
   local panepid claude nvimpid
   panepid=$(tm display -p -t "$s" '#{pane_pid}')
   claude=$(cat "$d/self_pid")
-  nvimpid=$(pgrep -P "$panepid" -x nvim | head -1)   # serveur nvim (le client TUI est pane_pid)
-  echo "--- 1. pane_pid=$panepid ; comm(pane_pid)=$(cat /proc/$panepid/comm) ; pid du nvim enfant direct de pane_pid=${nvimpid:-aucun}"
+  nvimpid=$(pgrep -P "$panepid" -x nvim | head -1)   # nvim, enfant direct du script (pane_pid)
+  echo "--- 1. pane_pid=$panepid ; comm(pane_pid)=$(cat "/proc/$panepid/comm") ; pid du nvim enfant direct de pane_pid=${nvimpid:-aucun}"
   echo "--- argv reçu par le faux claude : $(cat "$d/argv")"
   echo "--- 2. arbre sous le pane"
   ps -o pid,ppid,sid,comm,args --forest -p "$(descendants "$panepid" | paste -sd,)" | cut -c1-120

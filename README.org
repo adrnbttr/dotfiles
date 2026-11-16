@@ -415,8 +415,14 @@ nvim-agent --agent claude --prompt "<p>" -- --settings f --model m
 
 Avant =--=, ce que le script ne connaît pas va à Neovim ; après =--=, chaque argument est relayé tel
 quel à l'agent. =--resume= est incompatible avec =--last=, =--new= et =--prompt=. Erreur d'usage :
-message =nvim-agent: …= sur stderr, code 2. Le script finit par =exec nvim= ; le fichier de requête
-est supprimé par Neovim (=config.ai_tab=). Tests : =tests/nvim-agent/run.sh= (exige nvim et les
+message =nvim-agent: …= sur stderr, code 2 (aussi pour un =TMPDIR= relatif). Le script lance nvim en
+enfant (pas d'=exec=) : il supprime le fichier de requête à la sortie, y compris sur INT/TERM/HUP
+(signal relayé à nvim, sortie 128+n), et rend le code de nvim. Le pid du pane tmux est donc celui du
+script, pas de nvim : deck suit le PID du hook, pas =pane_pid=. Neovim (=config.ai_tab=) supprime
+aussi le fichier après lecture. Après =--=, ne pas relayer d'option variadique de claude
+(=--add-dir=, =--allowedTools=, =--disallowedTools=, =--mcp-config=) sans valeur terminale : le prompt
+placé ensuite serait pris comme valeur. La fonction =nvim()= ne délègue au script que si les arguments
+ne contiennent ni =--= ni =-h=/=--help= ; sinon l'ancien code s'applique tel quel. Tests : =tests/nvim-agent/run.sh= (exige nvim et les
 plugins snacks.nvim / opencode.nvim dans =~/.local/share/nvim/lazy= : non lancés par la CI, qui
 ne fait que passer shellcheck sur ces scripts).
 
