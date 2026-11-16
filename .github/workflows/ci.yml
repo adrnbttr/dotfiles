@@ -33,7 +33,13 @@ jobs:
             claude/.claude/skills/lead/scripts/lead-start.sh \
             claude/.claude/skills/lead/scripts/lead-stop.sh \
             claude/.claude/skills/lead/hooks/stop-lead.sh \
-            bin/.local/bin/wez-pick
+            bin/.local/bin/wez-pick \
+            bin/.local/bin/nvim-agent \
+            tests/nvim-agent/run.sh \
+            tests/nvim-agent/lib.sh \
+            tests/nvim-agent/script_test.sh \
+            tests/nvim-agent/lua_request_test.sh \
+            tests/nvim-agent/fakes/fake-agent
 
       - name: Install steps are listable
         run: ./script/install --list

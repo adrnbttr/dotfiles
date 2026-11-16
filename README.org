@@ -403,6 +403,23 @@ nvim --agent opencode --last        # reprend la dernière conversation
 nvim --agent claude --prompt "/lead dev ~/plans/task 07.md"
 #+end_src
 
+*Script =nvim-agent=* (=bin/.local/bin/nvim-agent=, installé par =stow -t ~ bin=) : la fonction
+=nvim --agent= lui délègue dès qu'il est dans le PATH. Utilisable seul, sans shell interactif
+(c'est ce que lance le projet deck dans tmux : =env -C <dossier> -- nvim-agent …=).
+
+#+begin_src sh
+nvim-agent --agent <claude|opencode> [--last|--new] [--prompt <p>] [args nvim…] [-- args agent…]
+nvim-agent --resume <id> [--agent <claude|opencode>] [args nvim…] [-- args agent…]  # défaut : claude
+nvim-agent --agent claude --prompt "<p>" -- --settings f --model m
+#+end_src
+
+Avant =--=, ce que le script ne connaît pas va à Neovim ; après =--=, chaque argument est relayé tel
+quel à l'agent. =--resume= est incompatible avec =--last=, =--new= et =--prompt=. Erreur d'usage :
+message =nvim-agent: …= sur stderr, code 2. Le script finit par =exec nvim= ; le fichier de requête
+est supprimé par Neovim (=config.ai_tab=). Tests : =tests/nvim-agent/run.sh= (exige nvim et les
+plugins snacks.nvim / opencode.nvim dans =~/.local/share/nvim/lazy= : non lancés par la CI, qui
+ne fait que passer shellcheck sur ces scripts).
+
 =--prompt= = mode exécution : =claude --permission-mode auto=, =opencode --auto= (opencode reste
 affiché sur l'agent Plan : pas d'option =--agent= en V2). Sans =--prompt=, Claude démarre en mode plan.
 

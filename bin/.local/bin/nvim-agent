@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# nvim-agent : ouvre Neovim avec l'onglet agent (claude ou opencode), comme <leader>zT / <leader>jT.
+#
+#   nvim-agent --agent <claude|opencode> [--last|--new] [--prompt <p>] [args nvim...] [-- args agent...]
+#   nvim-agent --resume <id> [--agent <claude|opencode>] [args nvim...] [-- args agent...]
+#
+# Avant « -- » : --agent, --prompt, --last, --new, --resume sont consommés ; tout le reste va à nvim.
+# Après « -- » : chaque argument est relayé tel quel à l'agent (espaces, retours ligne, chaîne vide).
+# --resume reprend la session <id> ; l'agent par défaut est claude.
+#
+# La demande passe par un fichier temporaire (champs terminés par NUL : v1, agent, mode, id, prompt,
+# puis les arguments de l'agent), lu par config.ai_tab.request() dans Neovim. Le script finit par
+# « exec nvim » : il ne peut donc pas supprimer le fichier, c'est le Lua qui le fait après lecture.
+# Variable NVIM_AGENT_NVIM : binaire nvim à lancer (tests) ; sinon « nvim » du PATH.
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+usage : nvim-agent --agent <claude|opencode> [--last|--new] [--prompt <texte>] [args nvim...] [-- args agent...]
+        nvim-agent --resume <id> [--agent <claude|opencode>] [args nvim...] [-- args agent...]
+
+  --agent <nom>    agent à ouvrir (claude ou opencode)
+  --last | --new   reprendre la dernière conversation | session neuve (défaut) ; incompatibles
+  --prompt <texte> message initial (mode exécution)
+  --resume <id>    reprendre la session <id> (agent par défaut : claude) ; incompatible avec
+                   --last, --new et --prompt
+  --               ce qui suit est relayé tel quel à l'agent
+  -h, --help       cette aide
+USAGE
+}
+
+die() {
+  echo "nvim-agent: $*" >&2
+  exit 2
+}
+
+agent="" last=0 new=0 has_prompt=0 prompt="" has_resume=0 resume_id=""
+nvim_args=()
+agent_args=()
+
+while (($#)); do
+  case "$1" in
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      agent_args=("$@")
+      break
+      ;;
+    --agent)
+      if [[ $# -lt 2 || "$2" == -* ]]; then
+        die "--agent demande un nom (claude ou opencode)"
+      fi
+      agent="$2"
+      shift
+      ;;
+    --prompt)
+      if [[ $# -lt 2 ]]; then
+        die "--prompt demande un texte"
+      fi
+      has_prompt=1
+      prompt="$2"
+      shift
+      ;;
+    --resume)
+      if [[ $# -lt 2 || -z "$2" || "$2" == -* ]]; then
+        die "--resume demande un identifiant de session (non vide, ne commençant pas par -)"
+      fi
+      has_resume=1
+      resume_id="$2"
+      shift
+      ;;
+    --last) last=1 ;;
+    --new) new=1 ;;
+    *) nvim_args+=("$1") ;;
+  esac
+  shift
+done
+
+if ((has_resume)); then
+  [[ -n "$agent" ]] || agent="claude"
+  if ((last)) || ((new)) || ((has_prompt)); then
+    die "--resume est incompatible avec --last, --new et --prompt"
+  fi
+fi
+if [[ -z "$agent" ]]; then
+  usage >&2
+  die "il faut --agent ou --resume"
+fi
+case "$agent" in
+  claude | opencode) ;;
+  *) die "agent inconnu '$agent' (attendu : claude ou opencode)" ;;
+esac
+if ((last && new)); then
+  die "--new et --last sont incompatibles"
+fi
+
+mode="new"
+((last)) && mode="last"
+((has_resume)) && mode="resume"
+
+req=$(mktemp "${TMPDIR:-/tmp}/nvim-agent-req.XXXXXX")
+# le chemin entre dans une chaîne Lua : seuls des caractères sans danger sont acceptés
+if [[ ! "$req" =~ ^[A-Za-z0-9/._-]+$ ]]; then
+  rm -f -- "$req"
+  die "chemin temporaire refusé ('$req') : TMPDIR doit être simple"
+fi
+trap 'rm -f -- "$req"' ERR
+
+{
+  printf '%s\0' v1 "$agent" "$mode" "$resume_id" "$prompt"
+  if ((${#agent_args[@]})); then
+    printf '%s\0' "${agent_args[@]}"
+  fi
+} >"$req"
+trap - ERR
+
+exec "${NVIM_AGENT_NVIM:-nvim}" -c "lua require('config.ai_tab').request('$req')" ${nvim_args[@]+"${nvim_args[@]}"}

@@ -594,8 +594,11 @@ ms_session() {
 # l'onglet agent (comme <leader>zT / <leader>jT). --last reprend la derniere conversation
 # (--new = defaut, incompatible avec --last) ; --prompt envoie un message initial. Ces options
 # ne sont consommees qu'avec --agent ; les autres arguments vont tels quels au vrai nvim.
-# La demande passe par -c ; le prompt par un fichier temporaire lu puis supprime par nvim
-# (aucune variable d'environnement heritee, aucun quoting du texte).
+# Avec --agent, la fonction delegue au script nvim-agent (bin/.local/bin, stow -t ~ bin) s'il est
+# dans le PATH : le prompt passe par un fichier de requete lu puis supprime par nvim (aucune
+# variable d'environnement heritee, aucun quoting du texte). Ecart assume : un -- apres --agent
+# relaie desormais la suite a l'agent (nvim --agent claude -- --settings f). Sans le script,
+# ancien code ci-dessous (request_agent, pas de -- ni de --resume).
 nvim() {
   local -a rest orig_args
   orig_args=("$@")
@@ -624,6 +627,10 @@ nvim() {
   if (( ! has_agent )); then
     # --last / --new / --prompt ne sont consommés qu'avec --agent
     command nvim "${orig_args[@]}"
+    return
+  fi
+  if (( $+commands[nvim-agent] )); then
+    command nvim-agent "${orig_args[@]}"
     return
   fi
   if (( prompt_missing )); then
