@@ -111,6 +111,7 @@ if [[ "$tmpdir" != /* ]]; then
 fi
 req=$(mktemp "$tmpdir/nvim-agent-req.XXXXXX")
 child=""
+# shellcheck disable=SC2317  # appelée indirectement par trap EXIT (faux positif)
 cleanup() { rm -f -- "$req"; }
 # sortie normale, erreur (set -e) ou signal : le fichier de requête ne reste jamais
 trap cleanup EXIT
@@ -127,6 +128,7 @@ fi
 } >"$req"
 
 # signal reçu : relayé à nvim, qu'on attend avant de sortir avec 128+n (le trap EXIT nettoie)
+# shellcheck disable=SC2317  # appelée indirectement par les trap INT/TERM/HUP (faux positif)
 relay() {
   local sig=$1 num=$2
   if [[ -n "$child" ]]; then

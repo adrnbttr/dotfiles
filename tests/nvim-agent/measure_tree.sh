@@ -10,6 +10,7 @@ SCRIPT="$ROOT/bin/.local/bin/nvim-agent"
 
 SOCK="deck-test-jdot-$$"
 tm() { tmux -L "$SOCK" "$@"; }
+# shellcheck disable=SC2317  # appelée indirectement par trap EXIT (faux positif)
 cleanup() {
   tmux -L "$SOCK" kill-server 2>/dev/null
   rm -f "/tmp/tmux-$(id -u)/$SOCK"
@@ -50,7 +51,7 @@ export NVIM_AGENT_NVIM="$T/bin/nvim-test"
 export TERM=xterm-256color
 unset TMUX
 
-wait_file() { local i; for i in $(seq 1 100); do [ -s "$1" ] && return 0; sleep 0.1; done; return 1; }
+wait_file() { local _; for _ in $(seq 1 100); do [ -s "$1" ] && return 0; sleep 0.1; done; return 1; }
 
 descendants() { local p=$1 c; echo "$p"; for c in $(pgrep -P "$p"); do descendants "$c"; done; }
 

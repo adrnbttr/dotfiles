@@ -148,6 +148,7 @@ else ok "10b SIGTERM : aucun fichier, nvim arrêté, code 143"; fi
 if command -v zsh >/dev/null 2>&1; then
   sed -n '/^nvim() {$/,/^}$/p' "$ROOT/zsh/.zshrc" >"$T/nvim-func.zsh"
   rm -f "$FAKE_OUT"
+  # shellcheck disable=SC2016  # guillemets simples voulus : $1 est développé par le zsh enfant
   PATH="$ROOT/bin/.local/bin:$PATH" timeout 20 zsh -c \
     'source "$1"; nvim --agent claude --prompt x' _ "$T/nvim-func.zsh" >"$T/log" 2>&1 &
   wait_out $!
@@ -164,6 +165,7 @@ printf '%s\0' "$@" > "$NVIM_ARGV_OUT"
 SH
   chmod +x "$T/fakenvim/nvim"
   rm -f "$T/nvim-argv"
+  # shellcheck disable=SC2016  # guillemets simples voulus : $1 est développé par le zsh enfant
   NVIM_ARGV_OUT="$T/nvim-argv" PATH="$T/fakenvim:$ROOT/bin/.local/bin:$PATH" timeout 20 zsh -c \
     'source "$1"; nvim --agent claude -- notes.md' _ "$T/nvim-func.zsh" >"$T/log" 2>&1
   argv=$(tr '\0' '|' <"$T/nvim-argv" 2>/dev/null)
