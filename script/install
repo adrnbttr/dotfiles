@@ -136,7 +136,7 @@ fi
 # opencode V2 : paquet npm @opencode/cli (la config versionnée utilise les
 # permissions V2, que la V1 de opencode.ai/install refuse). Dépend du node
 # actif sous nvm : changer de version de node = relancer cette étape.
-OPENCODE_VERSION="${opencode_version:-2.2.6}"
+OPENCODE_VERSION="${opencode_version:-2.3.0}"
 OPENCODE_MIN_VERSION="2.0.0"
 
 install_opencode() {
@@ -146,10 +146,14 @@ install_opencode() {
   if have opencode; then
     cur="$(opencode --version 2>/dev/null | head -n 1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"
     if [[ -n "$cur" ]] && version_ge "$cur" "$OPENCODE_MIN_VERSION"; then
-      info "opencode $cur (V2)"
-      return 0
+      if version_ge "$cur" "$OPENCODE_VERSION"; then
+        info "opencode $cur (V2)"
+        return 0
+      fi
+      info "opencode $cur → $OPENCODE_VERSION"
+    else
+      warn "opencode ${cur:-?} est une V1 : installation de la V2 (la V1 dans ~/.opencode peut être supprimée : rm -rf ~/.opencode, pas « opencode uninstall »)"
     fi
-    warn "opencode ${cur:-?} est une V1 : installation de la V2 (la V1 dans ~/.opencode peut être supprimée : rm -rf ~/.opencode, pas « opencode uninstall »)"
   fi
   if ! have npm; then
     err "npm introuvable : lance d'abord l'étape « node »"
