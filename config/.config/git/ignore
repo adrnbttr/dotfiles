@@ -1,0 +1,5 @@
+# Réglages locaux de Claude Code : propres à chaque poste, jamais suivis.
+**/.claude/settings.local.json
+
+# Plans deck (skills deck-*) : état de travail par projet, jamais suivi.
+.deck/

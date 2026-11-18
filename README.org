@@ -80,6 +80,14 @@ cd ~/Documents/github/perso/dotfiles && git pull && ./script/install
 Pour ne poser que les liens symboliques, sans rien installer :
 =./script/bootstrap= (ou =stow -t ~ zsh config oh-my-zsh-custom bin=).
 
+** Ignore global de git
+
+Le paquet =config= porte =config/.config/git/ignore=, lié en =~/.config/git/ignore= (lu par
+git par défaut, sans =core.excludesFile=). Il ignore =**/.claude/settings.local.json=
+(réglages locaux de Claude Code) et =.deck/= : les plans et l'état des campagnes deck vivent
+dans =<projet>/.deck/= et ne doivent jamais être suivis, quel que soit le dépôt.
+Si =~/.config/git/ignore= existe en fichier réel, le déplacer avant =stow -t ~ config=.
+
 * Features / memo
 
 ** Zsh
