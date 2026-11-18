@@ -88,6 +88,22 @@ git par défaut, sans =core.excludesFile=). Il ignore =**/.claude/settings.local
 dans =<projet>/.deck/= et ne doivent jamais être suivis, quel que soit le dépôt.
 Si =~/.config/git/ignore= existe en fichier réel, le déplacer avant =stow -t ~ config=.
 
+** Cargo : sccache et mold
+
+Le paquet =cargo= (=cargo/.cargo/config.toml=, lié en =~/.cargo/config.toml=) active
+=sccache= comme =rustc-wrapper=, limite cargo à =jobs = 4= (sur 12 cœurs, pour garder le
+poste réactif) et lie la cible =x86_64-unknown-linux-gnu= avec =mold=
+(=-C link-arg=-fuse-ld=mold=, via gcc, sans clang). Dépendances : =sccache= et =mold=
+(étape =rusttools= de =./script/install=, apt ; sccache seul via brew sous macOS).
+=./script/bootstrap= ne pose le paquet que si ces outils sont présents, sinon il
+avertit et le saute (sans eux, cargo échouerait partout).
+
+- Désactiver ponctuellement : ~RUSTC_WRAPPER= cargo build~ (idem ~RUSTC_WRAPPER= cargo miri test~
+  en cas de souci avec miri).
+- Un =RUSTFLAGS= défini (par exemple par cargo-llvm-cov) remplace les =rustflags= de la config.
+- Cache sccache limité à 20 Go : =config/.config/sccache/config= (=[cache.disk]=, =size= en octets).
+- Statistiques : =sccache --show-stats=.
+
 * Features / memo
 
 ** Zsh

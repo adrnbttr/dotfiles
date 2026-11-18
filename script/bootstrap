@@ -75,6 +75,20 @@ mkdir -p "$HOME/.claude/skills"
 
 stow_packages=(zsh config oh-my-zsh-custom bin)
 
+# Le paquet cargo impose rustc-wrapper = "sccache" et la liaison par mold : sans
+# ces outils, cargo échouerait partout. On ne le pose donc que s'ils sont là
+# (mold ne sert qu'à la cible Linux de la config).
+cargo_missing=()
+need_cmd sccache || cargo_missing+=(sccache)
+if [[ "$(uname -s)" == "Linux" ]] && ! need_cmd mold; then
+  cargo_missing+=(mold)
+fi
+if (( ${#cargo_missing[@]} == 0 )); then
+  stow_packages+=(cargo)
+else
+  echo "warn: ${cargo_missing[*]} introuvable(s) ; paquet cargo non posé (lancez ./script/install, puis ./script/bootstrap)" >&2
+fi
+
 # Le paquet claude est posé à part : un conflit dans ~/.claude ne doit pas
 # faire avorter le stow de zsh/config/bin.
 stow -d "$repo_root" -t "$HOME" "${stow_packages[@]}"

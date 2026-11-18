@@ -1,0 +1,15 @@
+# Posé par le paquet Stow « cargo » (script/bootstrap ne le pose que si
+# sccache et mold sont installés).
+
+[build]
+# Cache de compilation partagé entre projets et worktrees. Le couper une fois :
+#   RUSTC_WRAPPER= cargo build
+# (idem pour « cargo miri » : RUSTC_WRAPPER= cargo miri test en cas de souci).
+rustc-wrapper = "sccache"
+# 4 jobs sur 12 cœurs : garde le poste réactif pendant les compilations.
+jobs = 4
+
+[target.x86_64-unknown-linux-gnu]
+# Liaison par mold (gcc 13 gère -fuse-ld=mold, pas besoin de clang).
+# Si RUSTFLAGS est défini (par exemple par cargo-llvm-cov), il remplace ces rustflags.
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]

@@ -890,6 +890,24 @@ modern_tools_linux() {
   ensure_bottom_linux
 }
 
+# sccache + mold : requis par le paquet Stow cargo (~/.cargo/config.toml).
+# mold ne sert qu'à la cible Linux ; sous macOS seul sccache est installé.
+install_rust_build_tools() {
+  case "$os" in
+    linux)
+      if ! have apt-get; then
+        warn "sccache et mold : OS non-apt, installe-les à la main (le paquet cargo ne sera pas posé sans eux)"
+        return 0
+      fi
+      info "installing sccache, mold"
+      ${sudo_cmd} apt-get install -y sccache mold
+      ;;
+    darwin)
+      brew_install_if_missing sccache
+      ;;
+  esac
+}
+
 run_bootstrap() { "$repo_root/script/bootstrap"; }
 
 # zsh comme shell de connexion : c'est lui que WezTerm ouvre (et, sous Windows,
@@ -950,6 +968,7 @@ build_steps() {
       if [[ "$minimal" != "true" && "$no_gui" != "true" ]]; then
         add_step wezterm  "WezTerm + terminfo"      ensure_wezterm_linux
       fi
+      add_step rusttools  "sccache, mold (cargo)"   install_rust_build_tools
       add_step pyenv      "plugin pyenv-virtualenv" ensure_pyenv_virtualenv_plugin
       add_step node       "Node LTS (nvm)"          ensure_node
       [[ "$no_opencode" == "true" ]] || add_step opencode "opencode V2 (npm)" install_opencode
@@ -968,6 +987,7 @@ build_steps() {
       if [[ "$minimal" != "true" && "$no_gui" != "true" ]]; then
         add_step wezterm  "kitty + WezTerm"         brew_terminals_macos
       fi
+      add_step rusttools  "sccache (cargo)"         install_rust_build_tools
       add_step pyenv      "plugin pyenv-virtualenv" ensure_pyenv_virtualenv_plugin
       [[ "$no_opencode" == "true" ]] || add_step node "Node LTS (nvm)" ensure_node
       [[ "$no_opencode" == "true" ]] || add_step opencode "opencode V2 (npm)" install_opencode

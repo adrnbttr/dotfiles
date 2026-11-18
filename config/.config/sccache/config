@@ -1,0 +1,3 @@
+# Cache disque de sccache (0.7) : 20 Gio, en octets (le fichier n'accepte pas de suffixe).
+[cache.disk]
+size = 21474836480
