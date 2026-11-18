@@ -104,6 +104,24 @@ avertit et le saute (sans eux, cargo échouerait partout).
 - Cache sccache limité à 20 Go : =config/.config/sccache/config= (=[cache.disk]=, =size= en octets).
 - Statistiques : =sccache --show-stats=.
 
+** Mémoire : zram, swappiness, earlyoom
+
+Le swapfile de 2 Gio était plein en permanence et le poste gelait. L'étape =memtuning=
+(Linux apt) installe =zram-tools= et =earlyoom=, puis copie (sans lien) les fichiers de
+=system/etc/= vers =/etc/= : =default/zramswap= (zstd, 25 % de la RAM, priorité 100),
+=sysctl.d/99-swappiness.conf= (=vm.swappiness=10=) et =default/earlyoom= (agit sous 5 % de RAM
+dispo et 10 % de swap libre, rapport horaire). earlyoom évite session Cinnamon, terminaux,
+nvim, tmux, Docker, bases, systemd/sshd et agents claude/opencode (=--avoid=) et vise d'abord navigateurs, node, python
+et outils de compilation (=--prefer=). Pas de notifications (=-n=) : elles exigent
+=systembus-notify= dans la session.
+
+- Appliquer (idempotent, relancer après toute modif des fichiers) : ~./script/install --only memtuning~
+- Vérifier : ~zramctl~, ~swapon --show~ (zram0 en priorité 100), ~sysctl vm.swappiness~,
+  ~systemctl status earlyoom~ (et ~journalctl -u earlyoom~ pour les kills).
+- Revenir en arrière : ~sudo systemctl disable --now earlyoom zramswap~, supprimer
+  =/etc/default/zramswap=, =/etc/default/earlyoom= et =/etc/sysctl.d/99-swappiness.conf=,
+  ~sudo sysctl vm.swappiness=60~ (ou redémarrer), ~sudo apt remove zram-tools earlyoom~.
+
 * Features / memo
 
 ** Zsh

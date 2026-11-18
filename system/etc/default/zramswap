@@ -1,0 +1,5 @@
+# Posé par ./script/install --only memtuning (copie vers /etc/default/zramswap).
+# zram-tools (Ubuntu noble) : ALGO, PERCENT (part de la RAM), PRIORITY (swap).
+ALGO=zstd
+PERCENT=25
+PRIORITY=100

@@ -908,6 +908,27 @@ install_rust_build_tools() {
   esac
 }
 
+# Réglage mémoire du poste : zram (zram-tools), swappiness, earlyoom.
+# Fichiers copiés (pas liés) depuis system/etc/ vers /etc/ : idempotent.
+install_memory_tuning() {
+  if [[ "$os" != "linux" ]]; then
+    return 0
+  fi
+  if ! have apt-get; then
+    warn "zram, earlyoom : OS non-apt, réglage mémoire non posé (voir system/etc/)"
+    return 0
+  fi
+  info "installing zram-tools, earlyoom"
+  ${sudo_cmd} apt-get install -y zram-tools earlyoom
+  ${sudo_cmd} install -m 644 "$repo_root/system/etc/default/zramswap" /etc/default/zramswap
+  ${sudo_cmd} install -m 644 "$repo_root/system/etc/default/earlyoom" /etc/default/earlyoom
+  ${sudo_cmd} install -m 644 "$repo_root/system/etc/sysctl.d/99-swappiness.conf" /etc/sysctl.d/99-swappiness.conf
+  ${sudo_cmd} sysctl --system >/dev/null
+  ${sudo_cmd} systemctl restart zramswap
+  ${sudo_cmd} systemctl enable --now earlyoom
+  ${sudo_cmd} systemctl restart earlyoom
+}
+
 run_bootstrap() { "$repo_root/script/bootstrap"; }
 
 # zsh comme shell de connexion : c'est lui que WezTerm ouvre (et, sous Windows,
@@ -969,6 +990,7 @@ build_steps() {
         add_step wezterm  "WezTerm + terminfo"      ensure_wezterm_linux
       fi
       add_step rusttools  "sccache, mold (cargo)"   install_rust_build_tools
+      add_step memtuning  "zram, swappiness, earlyoom"  install_memory_tuning
       add_step pyenv      "plugin pyenv-virtualenv" ensure_pyenv_virtualenv_plugin
       add_step node       "Node LTS (nvm)"          ensure_node
       [[ "$no_opencode" == "true" ]] || add_step opencode "opencode V2 (npm)" install_opencode

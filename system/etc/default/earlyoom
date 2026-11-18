@@ -1,0 +1,13 @@
+# Posé par ./script/install --only memtuning (copie vers /etc/default/earlyoom).
+# Lu par systemd (EnvironmentFile) ; earlyoom compare les regex à /proc/PID/comm (15 car. max).
+#   -m 5 -s 10  : agit sous 5 % de RAM disponible et 10 % de swap libre
+#   -r 3600     : rapport mémoire toutes les heures
+#   --avoid     : session, terminaux, éditeur, Docker, bases de dev, systemd, ssh,
+#                 agents (claude, opencode : une session tuée perd son travail en cours)
+#                 Suffixe optionnel accepté : cinnamon-session, wezterm-gui, tmux: server,
+#                 containerd-shim, systemd-logind, sshd-session...
+#   --prefer    : navigateurs et outils de build/test relançables
+# Les apostrophes autour des regex sont gardées : systemd les retire au découpage de
+# $EARLYOOM_ARGS (vérifié avec systemd-run --user), et elles protègent | ( $ si un shell source le fichier.
+# Pas de -n : les notifications exigent systembus-notify dans la session.
+EARLYOOM_ARGS="-m 5 -s 10 -r 3600 --avoid '^(cinnamon|Xorg|muffin|kitty|wezterm|nvim|tmux|dockerd|containerd|mariadbd|mysqld|postgres|systemd|sshd|claude|opencode)([-:]|$)' --prefer '^(brave|chrome|chromium|node|python[0-9.]*|rustc|cc1plus|ld)$'"
