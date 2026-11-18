@@ -1,61 +1,339 @@
 #!/usr/bin/env bash
-# Toggle d'une fenetre Brave minimaliste (mode app) : la lance si absente,
-# la minimise si visible, la restaure avec le focus si minimisee. Le contenu
-# continue de tourner quand la fenetre est minimisee.
-# Toutes les fenetres du profil dedie (classe web-pane) sont traitees ensemble.
-# L'URL ne sert qu'au lancement : si la fenetre existe deja, l'argument est ignore.
-# URL : $1, sinon premiere ligne non vide de ${XDG_CONFIG_HOME:-~/.config}/web-pane/url
-# Depends on brave-browser, xdotool + xprop (X11 only), notify-send.
-url_file="${XDG_CONFIG_HOME:-$HOME/.config}/web-pane/url"
+# Fenetre Brave minimaliste (mode app) a plusieurs pages, pilotee par une seule touche.
+#
+#   web-pane            appui simple : lance la fenetre si absente (menu si plusieurs pages),
+#                       sinon la minimise ou la restaure avec le focus, sans changer de page.
+#                       Double appui (2e appel a moins de WEB_PANE_DOUBLE_MS, 400 par defaut) :
+#                       annule l'effet du 1er appel puis ouvre le menu des pages.
+#   web-pane <url>      comme sans argument, mais l'URL sert a l'ouverture (ignoree si une
+#                       fenetre existe deja).
+#   web-pane --menu     ouvre directement le menu : change de page si une fenetre existe,
+#                       sinon ouvre la page choisie.
+#   web-pane --has-window   code 0 si une fenetre web-pane existe (sert a l'icone de zone de
+#                       notification, web-pane-tray).
+#
+# Pages : ${XDG_CONFIG_HOME:-~/.config}/web-pane/pages, une ligne "nom URL" par page, ou une URL
+# seule (elle sert de nom) ; lignes vides et # ignorees ; nom en double : le premier gagne, une
+# notification signale les autres ; la premiere page est celle par defaut. Sans ce fichier, la premiere
+# ligne non vide de l'ancien fichier "url" donne une page unique.
+# Toutes les fenetres du profil dedie (classe X web-pane) sont traitees ensemble.
+# Variables de test : WEB_PANE_CLASS (classe X), WEB_PANE_TRAY (chemin de web-pane-tray ; defini
+# mais vide = pas d'icone ; non defini = web-pane-tray a cote du script, puis dans le PATH).
+# Depends on brave-browser, xdotool + xprop (X11 only), wmctrl, zenity, notify-send, flock,
+# python3-gi avec XApp (web-pane-tray).
+cls=${WEB_PANE_CLASS:-web-pane}
+cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}/web-pane"
+pages_file="$cfg_dir/pages"
+url_file="$cfg_dir/url"
 profile="${XDG_DATA_HOME:-$HOME/.local/share}/web-pane"
+rt="${XDG_RUNTIME_DIR:-/tmp}"
+call_file="$rt/web-pane-$cls.call"     # "<ms du dernier appel> <etat avant ce appel>"
+page_file="$rt/web-pane-$cls.page"     # nom de la page courante
+launch_file="$rt/web-pane-$cls.launch" # garde anti double lancement
+menu_lock="$rt/web-pane-$cls.menu"     # un seul menu a la fois
+double_ms=${WEB_PANE_DOUBLE_MS:-400}
+[[ $double_ms =~ ^[0-9]+$ ]] || double_ms=400
 
-# Chromium cree des fenetres X internes cachees avec la meme classe : on ne
-# garde que les vraies fenetres de premier niveau (WM_STATE Normal ou Iconic,
-# pas Withdrawn).
+trim() {
+    local s=$1
+    s=${s#"${s%%[![:space:]]*}"}
+    s=${s%"${s##*[![:space:]]}"}
+    printf '%s' "$s"
+}
+
+# --- pages : names[] / urls[] ---------------------------------------------------------------
+names=()
+urls=()
+load_pages() {
+    local line url name n rejected=()
+    if [[ -r $pages_file ]]; then
+        while IFS= read -r line || [[ -n $line ]]; do
+            line=$(trim "${line//$'\r'/}")
+            [[ -z $line || $line == \#* ]] && continue
+            url=${line##*[[:space:]]}
+            name=$(trim "${line%"$url"}")
+            [[ -n $name ]] || name=$url # URL seule : l'URL sert de nom
+            for n in "${names[@]}"; do
+                if [[ $n == "$name" ]]; then
+                    rejected+=("$name (doublon)")
+                    continue 2
+                fi
+            done
+            names+=("$name")
+            urls+=("$url")
+        done < "$pages_file"
+        if (( ${#rejected[@]} )); then
+            notify-send "web-pane" "Lignes ignorees dans $pages_file (la premiere page de ce nom est gardee) : $(printf '%s ; ' "${rejected[@]}")"
+        fi
+    fi
+    if (( ${#urls[@]} == 0 )) && [[ -r $url_file ]]; then
+        while IFS= read -r line || [[ -n $line ]]; do
+            line=$(trim "${line//$'\r'/}")
+            [[ -z $line ]] && continue
+            names+=("url")
+            urls+=("$line")
+            break
+        done < "$url_file"
+    fi
+}
+
+# --- fenetres -------------------------------------------------------------------------------
+# Chromium cree des fenetres X internes cachees avec la meme classe : on ne garde que les
+# vraies fenetres de premier niveau (WM_STATE Normal ou Iconic, pas Withdrawn).
 windows=()
-for wid in $(xdotool search --class '^web-pane$' 2>/dev/null); do
-    if xprop -id "$wid" WM_STATE 2>/dev/null | grep -qE 'window state: (Normal|Iconic)'; then
-        windows+=("$wid")
-    fi
-done
+get_windows() {
+    local wid
+    windows=()
+    for wid in $(xdotool search --class "^${cls}\$" 2>/dev/null); do
+        if xprop -id "$wid" WM_STATE 2>/dev/null | grep -qE 'window state: (Normal|Iconic)'; then
+            windows+=("$wid")
+        fi
+    done
+}
 
-if (( ${#windows[@]} == 0 )); then
-    url="$1"
-    if [[ -z "$url" && -r "$url_file" ]]; then
-        # Sans CR (fichiers CRLF), sans espaces autour
-        url=$(tr -d '\r' < "$url_file" | grep -m1 -v '^[[:space:]]*$' \
-            | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+# Etat courant dans $wstate (et windows[]) : none (pas de fenetre), hidden (une au moins
+# minimisee) ou shown. Pas de sous-shell : windows[] doit rester visible de l'appelant.
+wstate=none
+window_state() {
+    local wid
+    get_windows
+    wstate=none
+    (( ${#windows[@]} )) || return 0
+    wstate=shown
+    for wid in "${windows[@]}"; do
+        if xprop -id "$wid" _NET_WM_STATE 2>/dev/null | grep -q _NET_WM_STATE_HIDDEN; then
+            wstate=hidden
+            return 0
+        fi
+    done
+}
+
+show_windows() {
+    local wid
+    for wid in "${windows[@]}"; do xdotool windowactivate "$wid" 2>/dev/null; done
+}
+hide_windows() {
+    local wid
+    for wid in "${windows[@]}"; do xdotool windowminimize "$wid" 2>/dev/null; done
+}
+
+# Remet les fenetres dans l'etat donne (shown|hidden|none = rien).
+apply_state() {
+    get_windows
+    case $1 in
+        shown) show_windows ;;
+        hidden) hide_windows ;;
+    esac
+}
+
+toggle() {
+    window_state
+    if [[ $wstate == hidden ]]; then show_windows; else hide_windows; fi
+    start_tray # en arriere-plan ; le verrou de l'icone garantit qu'il n'y en a qu'une
+}
+
+# --- icone de zone de notification (une seule instance, verrou dans web-pane-tray) -----------
+start_tray() {
+    local tray
+    if [[ -v WEB_PANE_TRAY ]]; then
+        tray=$WEB_PANE_TRAY # defini : jamais de repli ; vide = icone desactivee
+        [[ -n $tray && -x $tray ]] || return 0
+    else
+        tray="$(dirname "$(readlink -f "$0")")/web-pane-tray"
+        [[ -x $tray ]] || tray=$(command -v web-pane-tray)
+        [[ -n $tray ]] || return 0
     fi
-    if [[ -z "$url" ]]; then
-        notify-send "web-pane" "Aucune URL : creer $url_file (une ligne avec l'URL) ou passer l'URL en argument."
-        exit 1
-    fi
-    # Garde anti double appui : pas de relance si lancement < 5 s
-    stamp="${XDG_RUNTIME_DIR:-/tmp}/web-pane.launch"
+    setsid "$tray" >/dev/null 2>&1 8>&- 9>&- &
+}
+
+# --- lancement et changement de page --------------------------------------------------------
+launch() { # $1 = URL, $2 = nom de la page
+    date +%s > "$launch_file"
+    printf '%s\n' "$2" > "$page_file"
+    setsid brave-browser --user-data-dir="$profile" --class="$cls" --app="$1" >/dev/null 2>&1 8>&- 9>&- &
+    start_tray
+}
+
+# Garde anti double lancement : vrai si un lancement date de moins de 5 s.
+recently_launched() {
+    local last now
+    last=$(cat "$launch_file" 2>/dev/null)
     now=$(date +%s)
-    last=$(cat "$stamp" 2>/dev/null)
-    if [[ "$last" =~ ^[0-9]+$ ]] && (( now - last < 5 )); then
+    [[ $last =~ ^[0-9]+$ ]] && (( now - last < 5 ))
+}
+
+# Page de nom $1 -> index dans names/urls (vide si inconnue).
+page_index() {
+    local i
+    for i in "${!names[@]}"; do
+        if [[ ${names[$i]} == "$1" ]]; then
+            echo "$i"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Menu zenity. Imprime le nom choisi. Code 1 : annule, 2 : un menu est deja ouvert, 3 : zenity
+# en erreur (notification avec son code).
+# Le verrou vit dans le sous-shell $(...) qui appelle cette fonction : il est relache en sortie.
+menu() {
+    local current i rows=() choice rc
+    exec 8> "$menu_lock"
+    flock -n 8 || return 2
+    current=$(cat "$page_file" 2>/dev/null)
+    for i in "${!names[@]}"; do
+        if [[ -n $current && ${names[$i]} == "$current" ]]; then rows+=("●"); else rows+=(""); fi
+        rows+=("${names[$i]}")
+    done
+    # "--" : un nom de page commencant par "-" ne doit pas etre lu comme une option
+    choice=$(zenity --list --title="web-pane-menu" --text="Page" --width=320 --height=300 \
+        --column=" " --column="Page" --print-column=2 --hide-header -- "${rows[@]}" 2>/dev/null)
+    rc=$?
+    if (( rc > 1 )); then
+        notify-send "web-pane" "zenity a echoue (code $rc) : le menu n'a pas pu s'ouvrir."
+        return 3
+    fi
+    (( rc == 0 )) && [[ -n $choice ]] || return 1
+    printf '%s\n' "$choice"
+}
+
+# Ouvre la page $1 (index). $2 = 1 si une fenetre existait avant le menu.
+open_page() {
+    local idx=$1 had=$2 url name i w old fresh deadline
+    url=${urls[$idx]}
+    name=${names[$idx]}
+    if (( had )); then
+        # WM_STATE peut manquer un court instant apres la fermeture du menu : on reessaie 1 s
+        for i in $(seq 1 20); do
+            get_windows
+            (( ${#windows[@]} )) && break
+            sleep 0.05
+        done
+    else
+        windows=()
+    fi
+    if (( ${#windows[@]} == 0 )); then
+        launch "$url" "$name"
+        return
+    fi
+    # Meme profil, meme classe : nouvelle fenetre, puis fermeture de l'ancienne.
+    old=("${windows[@]}")
+    launch "$url" "$name"
+    deadline=$(( $(date +%s%3N) + 5000 )) # echeance en temps reel : get_windows prend du temps
+    fresh=0
+    while :; do
+        get_windows
+        for w in "${windows[@]}"; do
+            [[ " ${old[*]} " == *" $w "* ]] || fresh=1
+        done
+        (( fresh )) && break
+        (( $(date +%s%3N) >= deadline )) && break
+        sleep 0.05
+    done
+    if (( ! fresh )); then
+        # Aucune nouvelle fenetre : on garde l'ancienne plutot que de ne rien laisser.
+        notify-send "web-pane" "La page \"$name\" ne s'est pas ouverte (aucune nouvelle fenetre en 5 s) ; l'ancienne fenetre est conservee."
+        return
+    fi
+    for w in "${old[@]}"; do
+        wmctrl -ic "$w" 2>/dev/null || xdotool windowclose "$w" 2>/dev/null
+    done
+}
+
+# Menu puis ouverture/changement de page. $1 = 1 si une fenetre existait.
+menu_and_open() {
+    local had=$1 choice rc idx
+    choice=$(menu)
+    rc=$?
+    (( rc == 0 )) || return 0 # annule, ou un menu est deja ouvert : rien a faire
+    idx=$(page_index "$choice") || return 0
+    open_page "$idx" "$had"
+}
+
+no_pages() {
+    notify-send "web-pane" "Aucune page : creer $pages_file (une ligne \"nom URL\" par page) ou passer l'URL en argument."
+    exit 1
+}
+
+# --- main ------------------------------------------------------------------------------------
+case ${1:-} in
+    --has-window)
+        get_windows
+        (( ${#windows[@]} > 0 )) && exit 0
+        exit 1
+        ;;
+    --menu)
+        load_pages
+        (( ${#urls[@]} )) || no_pages
+        get_windows
+        had=0
+        if (( ${#windows[@]} )); then
+            had=1
+        elif recently_launched; then
+            exit 0
+        fi
+        menu_and_open "$had"
+        exit 0
+        ;;
+    -*)
+        echo "usage : web-pane [--menu | --has-window | URL]" >&2
+        exit 2
+        ;;
+    '') load_pages ;;
+    *)
+        names=("")
+        urls=("$1")
+        ;;
+esac
+(( ${#urls[@]} )) || no_pages
+
+# Detection du double appui. Le verrou couvre la lecture de l'etat, l'action immediate et
+# l'ecriture de l'appel : un second appel attend la fin du premier avant de decider. Sans
+# plusieurs pages, un double appui n'a rien a proposer : c'est deux appuis simples.
+if (( ${#urls[@]} >= 2 )); then
+    exec 9> "$call_file.lock"
+    flock 9
+    now=$(date +%s%3N)
+    last=0
+    prev=none
+    [[ -r $call_file ]] && read -r last prev < "$call_file"
+    [[ $last =~ ^[0-9]+$ ]] || last=0
+    if (( last > 0 && now - last < double_ms )); then
+        # Second appel : annule le premier (etat d'avant), puis menu. 0 sert de marque "consomme".
+        echo "0 none" > "$call_file"
+        if [[ $prev == none || -z $prev ]]; then
+            exit 0 # le premier appel a lance ou ouvert le menu : rien a annuler
+        fi
+        apply_state "$prev"
+        had=0
+        get_windows
+        (( ${#windows[@]} )) && had=1
+        flock -u 9
+        exec 9>&-
+        menu_and_open "$had"
         exit 0
     fi
-    echo "$now" > "$stamp"
-    setsid brave-browser --user-data-dir="$profile" --class=web-pane --app="$url" >/dev/null 2>&1 &
-    exit 0
+    window_state
+    echo "$now $wstate" > "$call_file"
+    if [[ $wstate != none ]]; then
+        toggle # action immediate
+        exit 0
+    fi
+    flock -u 9
+    exec 9>&-
+else
+    window_state
+    if [[ $wstate != none ]]; then
+        toggle
+        exit 0
+    fi
 fi
 
-any_hidden=0
-for wid in "${windows[@]}"; do
-    if xprop -id "$wid" _NET_WM_STATE 2>/dev/null | grep -q _NET_WM_STATE_HIDDEN; then
-        any_hidden=1
-        break
-    fi
-done
-
-if (( any_hidden )); then
-    for wid in "${windows[@]}"; do
-        xdotool windowactivate "$wid" 2>/dev/null
-    done
+# Pas de fenetre : nouvelle session.
+recently_launched && exit 0
+if (( ${#urls[@]} >= 2 )); then
+    menu_and_open 0
 else
-    for wid in "${windows[@]}"; do
-        xdotool windowminimize "$wid" 2>/dev/null
-    done
+    launch "${urls[0]}" "${names[0]}"
 fi

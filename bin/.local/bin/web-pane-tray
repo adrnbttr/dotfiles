@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Icone de zone de notification pour web-pane (XApp.StatusIcon, natif sous Cinnamon).
+
+Lancee par web-pane avec la fenetre. Une seule instance (verrou dans $XDG_RUNTIME_DIR). Un clic
+gauche lance `web-pane --menu`. Sonde `web-pane --has-window` toutes les 2 s et se termine
+quand plus aucune fenetre n'existe (apres un delai de grace pour laisser la fenetre apparaitre).
+
+Variables : WEB_PANE_CLASS (classe X, defaut web-pane), WEB_PANE_CMD (commande web-pane).
+Option de test : --test-activate execute l'action du clic gauche, sans icone, puis sort.
+"""
+import fcntl
+import os
+import subprocess
+import sys
+import time
+
+GRACE = 6  # secondes sans fenetre avant de s'arreter
+LAUNCH_GRACE = 15  # un lancement (web-pane-<classe>.launch) de moins de 15 s compte comme presence
+CMD = os.environ.get("WEB_PANE_CMD") or os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "web-pane")
+
+
+def open_menu():
+    subprocess.Popen([CMD, "--menu"], start_new_session=True, close_fds=True,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL)
+
+
+def has_window():
+    try:
+        return subprocess.run([CMD, "--has-window"], timeout=10, stdin=subprocess.DEVNULL,
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def main():
+    if "--test-activate" in sys.argv:
+        open_menu()
+        return 0
+
+    cls = os.environ.get("WEB_PANE_CLASS", "web-pane")
+    lock = open(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"),
+                             "web-pane-%s.tray.lock" % cls), "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return 0  # deja lancee
+
+    import gi
+    gi.require_version("Gtk", "3.0")
+    gi.require_version("XApp", "1.0")
+    from gi.repository import GLib, Gtk, XApp
+
+    icon = XApp.StatusIcon()
+    icon.set_name("web-pane")
+    icon.set_icon_name("web-browser")
+    icon.set_tooltip_text("web-pane")
+    icon.set_visible(True)
+
+    def on_activate(_icon, *args):
+        # args = (bouton, heure[, ...]) : le menu s'ouvre au clic gauche seulement
+        if args and isinstance(args[0], int) and args[0] != 1:
+            return
+        open_menu()
+
+    icon.connect("activate", on_activate)
+
+    state = {"seen": time.monotonic()}
+    launch_file = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"),
+                               "web-pane-%s.launch" % cls)
+
+    def recently_launched():
+        # Un lancement de moins de LAUNCH_GRACE s compte comme une presence : Brave peut mettre
+        # plusieurs secondes a creer sa fenetre.
+        try:
+            with open(launch_file) as f:
+                return 0 <= time.time() - int(f.read().strip()) < LAUNCH_GRACE
+        except (OSError, ValueError):
+            return False
+
+    def poll():
+        if recently_launched() or has_window():
+            state["seen"] = time.monotonic()
+        elif time.monotonic() - state["seen"] > GRACE:
+            Gtk.main_quit()
+            return False
+        return True
+
+    GLib.timeout_add_seconds(2, poll)
+    Gtk.main()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

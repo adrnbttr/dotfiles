@@ -308,13 +308,36 @@ Scripts utilitaires stowés dans =~/.local/bin= via le package =bin=.
 - =hide-celluloid= — toggle minimize/restore de Celluloid (lecteur vidéo). Utile
   comme "panic button" pour cacher rapidement une vidéo en cours de lecture,
   même si la fenêtre n'a pas le focus. Dépend de =xdotool= et =xprop= (X11).
-- =web-pane= — ouvre une URL dans une fenêtre Brave minimaliste (mode app, sans
-  onglets ni barre d'adresse, profil dédié, classe =web-pane=), puis bascule à
-  chaque appel entre minimisée et restaurée avec focus. Le contenu continue de
-  tourner minimisé. L'URL vient de =$1= ou de =~/.config/web-pane/url= (local,
-  non versionné) ; elle n'est utilisée qu'au lancement (ignorée si la fenêtre
-  existe déjà). Toutes les fenêtres du profil dédié sont traitées ensemble.
-  Dépend de =brave-browser=, =xdotool=, =xprop= (X11) et =notify-send=.
+- =web-pane= — fenêtre Brave minimaliste (mode app, sans onglets ni barre d'adresse, profil
+  dédié, classe =web-pane=) à plusieurs pages, pilotée par une seule touche. Le contenu continue
+  de tourner minimisé. Toutes les fenêtres du profil dédié sont traitées ensemble.
+  - Pages : =~/.config/web-pane/pages=, une ligne =nom URL= par page (le nom peut contenir des
+    espaces et commencer par =-= ; l'URL est le dernier mot ; une ligne avec seulement une URL
+    est acceptée, l'URL sert de nom ; lignes vides et =#= ignorées ; si deux pages ont le même
+    nom, la première est gardée et une notification signale les autres, un seul message par
+    appel ; la première page est la page par défaut). Ce fichier est local et *non versionné*. Sans lui, la première ligne non
+    vide de l'ancien fichier =~/.config/web-pane/url= donne une page unique ; =web-pane <url>=
+    reste possible (l'URL ne sert qu'à l'ouverture).
+  - Pas de fenêtre : avec au moins deux pages, un menu (zenity) propose les noms ; Échap
+    n'ouvre rien. Avec une seule page, ouverture directe. Pas de relance avant 5 s.
+  - Appui simple, fenêtre présente : minimise ou restaure avec le focus, tout de suite, sans
+    changer de page.
+  - Double appui (second appel à moins de =WEB_PANE_DOUBLE_MS= ms du précédent, 400 par défaut) :
+    remet la fenêtre dans l'état d'avant le premier appui, puis ouvre le menu. Échap laisse la
+    fenêtre dans cet état ; un choix ouvre la page (nouvelle fenêtre =--app= avec le même profil,
+    puis fermeture de l'ancienne, environ 0,5 s ; si aucune nouvelle fenêtre n'apparaît en 5 s,
+    l'ancienne est conservée et une notification signale l'échec). La page courante est marquée
+    d'un =●=. Si zenity échoue (code autre que 0 ou 1), une notification donne le code.
+  - =web-pane --menu= ouvre directement le menu (change de page, ou ouvre la page choisie s'il
+    n'y a pas de fenêtre).
+  - Icône dans la zone de notification (=web-pane-tray=, =XApp.StatusIcon=) : lancée avec la
+    fenêtre (et relancée à chaque appui simple si elle manque), unique, elle disparaît d'elle-même
+    quand plus aucune fenêtre n'existe, sauf dans les 15 s qui suivent un lancement ; un clic
+    gauche lance =web-pane --menu=. Pour les tests, =WEB_PANE_TRAY= défini mais vide la
+    désactive ; non défini, =web-pane-tray= est cherché à côté du script puis dans le =PATH=.
+  Dépend de =brave-browser=, =xdotool=, =xprop= (X11), =wmctrl=, =zenity=, =notify-send=,
+  =flock= et, pour l'icône, =python3-gi= avec la bibliothèque XApp. Tests sans X ni navigateur :
+  =bash tests/web-pane/run.sh=.
 
 Raccourci clavier (Cinnamon, non versionné car dans dconf) — à rejouer une fois
 sur une nouvelle machine :
@@ -333,9 +356,9 @@ dconf write /org/cinnamon/desktop/keybindings/custom-list "['custom0']"
 Même principe pour =web-pane= (touche Email) :
 
 #+begin_src sh
-# URL locale (non versionnée)
+# Pages locales (non versionnées) : une ligne "nom URL" par page
 mkdir -p ~/.config/web-pane
-echo 'https://example.com' > ~/.config/web-pane/url
+printf '%s\n' 'Exemple https://example.com' 'Autre https://example.org' > ~/.config/web-pane/pages
 
 # Ajoute custom1 à custom-list sans écraser les entrées existantes (idempotent)
 list=$(dconf read /org/cinnamon/desktop/keybindings/custom-list)
