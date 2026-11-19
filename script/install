@@ -910,6 +910,24 @@ install_rust_build_tools() {
 
 # Réglage mémoire du poste : zram (zram-tools), swappiness, earlyoom.
 # Fichiers copiés (pas liés) depuis system/etc/ vers /etc/ : idempotent.
+# step() exécute la fonction avec « set +e » : aucune commande n'interrompt la
+# fonction toute seule, et son code de retour serait celui de la dernière commande
+# (ce qui a masqué un échec de zramswap le 2026-11-19). Chaque commande passe donc
+# par mt_run (qui ajoute ${sudo_cmd}), signale l'échec et le propage.
+mt_run() {
+  ${sudo_cmd} "$@" || { err "memtuning : échec de « $* »"; return 1; }
+}
+
+# Copie src vers dst ; positionne MT_CHANGED=1 si dst différait (ou n'existait pas).
+mt_install_file() {
+  local src="$1" dst="$2"
+  MT_CHANGED=0
+  if ! cmp -s "$src" "$dst"; then
+    MT_CHANGED=1
+  fi
+  mt_run install -m 644 "$src" "$dst"
+}
+
 install_memory_tuning() {
   if [[ "$os" != "linux" ]]; then
     return 0
@@ -918,15 +936,50 @@ install_memory_tuning() {
     warn "zram, earlyoom : OS non-apt, réglage mémoire non posé (voir system/etc/)"
     return 0
   fi
+  local sysdir="$repo_root/system/etc"
+  local zram_changed earlyoom_changed zram_active=0 earlyoom_was_active=1 swaps
+
   info "installing zram-tools, earlyoom"
-  ${sudo_cmd} apt-get install -y zram-tools earlyoom
-  ${sudo_cmd} install -m 644 "$repo_root/system/etc/default/zramswap" /etc/default/zramswap
-  ${sudo_cmd} install -m 644 "$repo_root/system/etc/default/earlyoom" /etc/default/earlyoom
-  ${sudo_cmd} install -m 644 "$repo_root/system/etc/sysctl.d/99-swappiness.conf" /etc/sysctl.d/99-swappiness.conf
-  ${sudo_cmd} sysctl --system >/dev/null
-  ${sudo_cmd} systemctl restart zramswap
-  ${sudo_cmd} systemctl enable --now earlyoom
-  ${sudo_cmd} systemctl restart earlyoom
+  mt_run apt-get install -y zram-tools earlyoom || return 1
+
+  # État avant toute action : on compare AVANT de copier.
+  swaps="$(swapon --show=NAME --noheadings 2>/dev/null || true)"
+  if grep -qx '/dev/zram0' <<<"$swaps"; then
+    zram_active=1
+  fi
+  if ! systemctl is-active --quiet earlyoom; then
+    earlyoom_was_active=0
+  fi
+
+  mt_install_file "$sysdir/default/zramswap" /etc/default/zramswap || return 1
+  zram_changed=$MT_CHANGED
+  mt_install_file "$sysdir/default/earlyoom" /etc/default/earlyoom || return 1
+  earlyoom_changed=$MT_CHANGED
+  mt_install_file "$sysdir/sysctl.d/99-swappiness.conf" /etc/sysctl.d/99-swappiness.conf || return 1
+  mt_run sysctl --system >/dev/null || return 1
+
+  # zramswap : jamais de restart sur un zram actif (l'arrêt ne peut pas libérer
+  # /dev/zram0 tant qu'il contient des pages swappées : le restart échoue).
+  if (( zram_active == 0 )); then
+    mt_run systemctl restart zramswap || return 1
+  elif (( zram_changed == 1 )); then
+    warn "zramswap : /etc/default/zramswap a changé mais zram est actif, pas de restart. La nouvelle config s'appliquera au prochain redémarrage, ou après « sudo swapoff /dev/zram0 » puis « sudo systemctl restart zramswap »."
+  else
+    # Unité en échec alors que zram tourne avec l'algorithme voulu : on ne fait
+    # que nettoyer l'état.
+    local want_algo have_algo
+    want_algo="$(sed -n 's/^ALGO=//p' "$sysdir/default/zramswap" | tr -d '"' | tail -1)"
+    have_algo="$(zramctl --noheadings --output ALGORITHM /dev/zram0 2>/dev/null | tr -d ' ' || true)"
+    if systemctl is-failed --quiet zramswap && [[ -n "$want_algo" && "$have_algo" == "$want_algo" ]]; then
+      info "zramswap en état failed alors que zram0 est actif ($have_algo) : reset-failed"
+      mt_run systemctl reset-failed zramswap || return 1
+    fi
+  fi
+
+  mt_run systemctl enable --now earlyoom || return 1
+  if (( earlyoom_changed == 1 || earlyoom_was_active == 0 )); then
+    mt_run systemctl restart earlyoom || return 1
+  fi
 }
 
 run_bootstrap() { "$repo_root/script/bootstrap"; }

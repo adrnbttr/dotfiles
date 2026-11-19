@@ -116,6 +116,7 @@ et outils de compilation (=--prefer=). Pas de notifications (=-n=) : elles exige
 =systembus-notify= dans la session.
 
 - Appliquer (idempotent, relancer après toute modif des fichiers) : ~./script/install --only memtuning~
+  Relancer l'étape ne touche pas un zram actif : zramswap n'est redémarré que si zram0 n'est pas actif comme swap (sinon, une config modifiée s'applique au prochain démarrage ou après ~sudo swapoff /dev/zram0~), et earlyoom que si son fichier a changé ou s'il est arrêté.
 - Vérifier : ~zramctl~, ~swapon --show~ (zram0 en priorité 100), ~sysctl vm.swappiness~,
   ~systemctl status earlyoom~ (et ~journalctl -u earlyoom~ pour les kills).
 - Revenir en arrière : ~sudo systemctl disable --now earlyoom zramswap~, supprimer
