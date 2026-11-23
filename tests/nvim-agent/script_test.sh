@@ -131,6 +131,103 @@ if [ "$got" != "$exp" ]; then ko "16 --env : argv" "attendu [$exp], obtenu [$got
 elif [ "$(cat "$FAKE_OUT.env" 2>/dev/null)" != "$json" ]; then ko "16 --env : valeur" "obtenu [$(cat "$FAKE_OUT.env" 2>/dev/null)]"
 else ok "16 --env : valeur JSON intacte dans l'environnement d'opencode"; fi
 
+# --- --create (ADR deck 0030, A) : faux opencode distinguant run / debug config / TUI ---
+# forme observée de « opencode debug config --standalone » : tableau de couches {type,path,info?},
+# model = objet {providerID, model, variant?}; la couche injectée (OPENCODE_CONFIG_CONTENT) est la dernière
+cat > "$T/debug-ok.json" <<'JSON'
+[{"type":"document","path":"/x/opencode.json","info":{"model":{"providerID":"a","model":"racine"},"agents":{"build":{"mode":"primary","model":{"providerID":"opencode","model":"deepseek-v4.1-flash"}},"plan":{"model":{"providerID":"z","model":"glm"}}}}},
+ {"type":"directory","path":"/x"},
+ {"type":"document","path":null,"info":{"default_agent":"build","agents":{"build":{"model":{"providerID":"zai","model":"glm-5.3","variant":"high"}}}}}]
+JSON
+cat > "$T/debug-first-only.json" <<'JSON'
+[{"type":"document","path":"/x/opencode.json","info":{"agents":{"build":{"model":{"providerID":"opencode","model":"deepseek-v4.1-flash"}}}}},
+ {"type":"document","path":null,"info":{"default_agent":"build"}}]
+JSON
+cat > "$T/debug-nomodel.json" <<'JSON'
+[{"type":"document","path":"/x/opencode.json","info":{"model":{"providerID":"a","model":"racine"},"agents":{"plan":{"model":{"providerID":"z","model":"glm"}}}}},
+ {"type":"directory","path":"/x"}]
+JSON
+RUNLOG="$T/runlog"
+
+# create_case <nom> <argv TUI attendu> <ligne run attendue> <env...> -- <args...>
+create_case() {
+  local name=$1 exp_tui=$2 exp_run=$3
+  shift 3
+  rm -f "$FAKE_OUT" "$FAKE_OUT.deck" "$RUNLOG"
+  env "$@" >"$T/log" 2>&1 &
+  wait_out $!
+  local got got_run
+  got=$(got_argv)
+  got_run=$(grep '^run argv:' "$RUNLOG" 2>/dev/null)
+  if [ "$got" != "$exp_tui" ]; then ko "$name" "TUI : attendu [$exp_tui], obtenu [$got]"; sed 's/^/     /' "$T/log" | head -5
+  elif [ "$got_run" != "$exp_run" ]; then ko "$name" "run : attendu [$exp_run], obtenu [$got_run]"
+  else ok "$name"; fi
+}
+
+export FAKE_RUN_LOG="$RUNLOG"
+create_case "17 --create --model : run exact puis TUI en reprise" \
+  "$(fields opencode --standalone --auto -s ses_c "--prompt=a b")" \
+  "run argv: [run] [--standalone] [-s] [ses_c] [--agent] [build] [--model] [p/m#v] [réponds ok]" \
+  DECK_RUN_ID=r1 DECK_STEP=s2 timeout 20 "$SCRIPT" --agent opencode --create ses_c --model 'p/m#v' --prompt "a b" \
+  --env OPENCODE_CONFIG_CONTENT='{"k":1}'
+if [ "$(grep '^run deck:' "$RUNLOG" | sed 's/ *$//')" != "run deck:" ]; then ko "17b DECK_* absentes de run" "$(grep '^run deck:' "$RUNLOG")"
+elif [ "$(tr -d '[:space:]' <"$FAKE_OUT.deck")" != "DECK_RUN_IDDECK_STEP" ]; then ko "17b DECK_* présentes pour la TUI" "[$(cat "$FAKE_OUT.deck")]"
+elif ! grep -q '^run cfg: {"k":1}$' "$RUNLOG"; then ko "17b --env vu par run" "$(grep '^run cfg' "$RUNLOG")"
+elif ! grep -q '^run stdin-closed: oui$' "$RUNLOG"; then ko "17b stdin fermé" "$(grep '^run stdin' "$RUNLOG")"
+elif grep -q '^debug argv' "$RUNLOG"; then ko "17b --model : pas de debug config" "appelé"
+else ok "17b DECK_* absentes de run, présentes pour la TUI, --env vu, stdin fermé, pas de debug config"; fi
+
+create_case "18 --create sans --model : modèle de la dernière couche (variante incluse)" \
+  "$(fields opencode --standalone --auto -s ses_c --prompt=p)" \
+  "run argv: [run] [--standalone] [-s] [ses_c] [--agent] [build] [--model] [zai/glm-5.3#high] [réponds ok]" \
+  FAKE_DEBUG_FILE="$T/debug-ok.json" timeout 20 "$SCRIPT" --agent opencode --create ses_c --prompt p
+grep -qx 'debug argv: debug config --standalone' "$RUNLOG" || ko "18b argv de debug config" "$(grep '^debug' "$RUNLOG")"
+
+create_case "19 --create sans --model : seule la première couche définit build.model" \
+  "$(fields opencode --standalone --auto -s ses_c --prompt=p)" \
+  "run argv: [run] [--standalone] [-s] [ses_c] [--agent] [build] [--model] [opencode/deepseek-v4.1-flash] [réponds ok]" \
+  FAKE_DEBUG_FILE="$T/debug-first-only.json" timeout 20 "$SCRIPT" --agent opencode --create ses_c --prompt p
+
+# resolve_fail <nom> <env...> : code 2, message, ni run ni TUI
+resolve_fail() {
+  local name=$1
+  shift
+  rm -f "$FAKE_OUT" "$RUNLOG"
+  local rc=0
+  env "$@" timeout 20 "$SCRIPT" --agent opencode --create ses_c --prompt p >"$T/log" 2>"$T/err" || rc=$?
+  if [ "$rc" != 2 ]; then ko "$name" "code $rc au lieu de 2"
+  elif ! grep -q 'modèle de l.agent build introuvable' "$T/err"; then ko "$name" "message absent : $(cat "$T/err")"
+  elif grep -q '^run argv' "$RUNLOG" 2>/dev/null || [ -e "$FAKE_OUT" ]; then ko "$name" "run ou TUI lancé"
+  elif ls "$T"/tmp/nvim-agent-req.* >/dev/null 2>&1; then ko "$name" "fichier de requête laissé"
+  else ok "$name"; fi
+}
+resolve_fail "20 debug config sans modèle build : code 2" FAKE_DEBUG_FILE="$T/debug-nomodel.json"
+resolve_fail "21 debug config en échec : code 2" FAKE_DEBUG_FILE="$T/debug-ok.json" FAKE_DEBUG_RC=1
+echo 'pas du json' > "$T/debug-bad.json"
+resolve_fail "22 debug config illisible : code 2" FAKE_DEBUG_FILE="$T/debug-bad.json"
+
+# 23 : run en échec : code 3, message, pas de nvim
+rm -f "$FAKE_OUT" "$RUNLOG" "$T/nvim.pid"
+rc=0
+FAKE_RUN_RC=5 timeout 20 "$SCRIPT" --agent opencode --create ses_c --model p/m --prompt p >"$T/log" 2>"$T/err" || rc=$?
+if [ "$rc" != 3 ]; then ko "23 run en échec" "code $rc au lieu de 3"
+elif ! grep -q 'création de la session ses_c échouée (code 5)' "$T/err"; then ko "23 run en échec" "message : $(cat "$T/err")"
+elif [ -e "$FAKE_OUT" ] || [ -e "$T/nvim.pid" ]; then ko "23 run en échec" "nvim lancé"
+elif ls "$T"/tmp/nvim-agent-req.* >/dev/null 2>&1; then ko "23 run en échec" "fichier de requête laissé"
+else ok "23 run en échec : code 3, message, pas de nvim"; fi
+unset FAKE_RUN_LOG
+
+err_case "24a --create sans --agent" --create s --prompt p
+err_case "24b --create avec claude" --agent claude --create s --prompt p
+err_case "24c --create sans --prompt" --agent opencode --create s
+err_case "24d --create + --resume" --agent opencode --create s --resume t --prompt p
+err_case "24e --create + --last" --agent opencode --create s --last --prompt p
+err_case "24f --create + --new" --agent opencode --create s --new --prompt p
+err_case "24g --model sans --create" --agent opencode --model p/m
+err_case "24h --create sans id" --agent opencode --create
+err_case "24i --create id commençant par -" --agent opencode --create -x --prompt p
+err_case "24j --model sans valeur" --agent opencode --create s --prompt p --model
+
 # 9g : TMPDIR relatif refusé (code 2)
 rm -f "$FAKE_OUT" "$T/nvim.pid"
 rc=0

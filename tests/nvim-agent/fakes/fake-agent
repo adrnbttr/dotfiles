@@ -1,6 +1,30 @@
 #!/usr/bin/env bash
 # Faux agent : ecrit son argv (un argument par champ, termine par NUL) dans $FAKE_OUT, puis attend.
 # FAKE_ENV_NAME : nom d'une variable dont la valeur vue par l'agent est ecrite dans $FAKE_OUT.env
+# Faux opencode (--create) : « run » et « debug config » ne lancent pas la TUI.
+#   run          : journalise dans $FAKE_RUN_LOG (argv, DECK_* presentes, OPENCODE_CONFIG_CONTENT), rend $FAKE_RUN_RC (0)
+#   debug config : imprime le fichier $FAKE_DEBUG_FILE, rend $FAKE_DEBUG_RC (0)
+# Lancement TUI : journalise aussi les DECK_* presentes dans $FAKE_OUT.deck
+if [ "$(basename "$0")" = opencode ]; then
+  case "${1:-}" in
+    run)
+      {
+        printf 'run argv:'; printf ' [%s]' "$@"; printf '\n'
+        printf 'run deck: %s\n' "$(env | grep '^DECK_' | cut -d= -f1 | sort | tr '\n' ' ')"
+        printf 'run cfg: %s\n' "${OPENCODE_CONFIG_CONTENT:-}"
+        printf 'run cwd: %s\n' "$PWD"
+        printf 'run stdin-closed: %s\n' "$( (read -r _ </dev/stdin) 2>/dev/null && echo non || echo oui)"
+      } >> "${FAKE_RUN_LOG:-/dev/null}"
+      exit "${FAKE_RUN_RC:-0}"
+      ;;
+    debug)
+      echo "debug argv: $*" >> "${FAKE_RUN_LOG:-/dev/null}"
+      [ -n "${FAKE_DEBUG_FILE:-}" ] && cat "$FAKE_DEBUG_FILE"
+      exit "${FAKE_DEBUG_RC:-0}"
+      ;;
+  esac
+  env | grep '^DECK_' | cut -d= -f1 | sort | tr '\n' ' ' > "$FAKE_OUT.deck"
+fi
 if [ -n "${FAKE_ENV_NAME:-}" ]; then
   printenv "$FAKE_ENV_NAME" > "$FAKE_OUT.env.tmp.$$" && mv "$FAKE_OUT.env.tmp.$$" "$FAKE_OUT.env"
 fi

@@ -3,6 +3,7 @@
 #
 #   nvim-agent --agent <claude|opencode> [--last|--new] [--prompt <p>] [--env NOM=VALEUR]... [args nvim...] [-- args agent...]
 #   nvim-agent --resume <id> [--agent <claude|opencode>] [--prompt <p>] [--env NOM=VALEUR]... [args nvim...] [-- args agent...]
+#   nvim-agent --agent opencode --create <id> --prompt <p> [--model <M>] [--env NOM=VALEUR]... [args nvim...] [-- args agent...]
 #
 # Avant « -- » : --agent, --prompt, --last, --new, --resume, --env sont consommés ; tout le reste va à nvim.
 # --env NOM=VALEUR (répétable) : exporte la variable avant de lancer nvim ; nvim et le terminal de l'agent
@@ -11,6 +12,16 @@
 # --prompt n'est permis que pour opencode (claude : refusé).
 # Après « -- » : chaque argument est relayé tel quel à l'agent (espaces, retours ligne, chaîne vide).
 # --resume reprend la session <id> ; l'agent par défaut est claude.
+# --create <id> (opencode seulement ; exige --agent opencode et --prompt ; exclusif de --resume, --last,
+# --new) : crée d'abord la session <id> par « opencode run », puis ouvre la TUI en reprise de <id> avec
+# le prompt (même chemin que --resume <id> --prompt). Parade de la course du modèle (ADR deck 0030, A).
+#   - modèle : --model <provider/modèle[#variante]>, sinon agents.build.model de la config effective
+#     (« opencode debug config --standalone », timeout 10 s, couche la plus prioritaire = la dernière,
+#     lue avec jq). Introuvable : message sur stderr, code 2, ni création ni nvim.
+#   - création : environnement du script (après les --env) sans aucune variable DECK_*, stdin fermé,
+#     répertoire courant inchangé :
+#       timeout 20 opencode run --standalone -s <id> --agent build --model <M> "réponds ok"
+#     Échec (code non nul, y compris 124 = délai) : message sur stderr, code 3, pas de nvim.
 #
 # La demande passe par un fichier temporaire (champs terminés par NUL : v1, agent, mode, id, prompt,
 # puis les arguments de l'agent), lu par config.ai_tab.request() dans Neovim, qui le supprime après
@@ -24,12 +35,18 @@ usage() {
   cat <<'USAGE'
 usage : nvim-agent --agent <claude|opencode> [--last|--new] [--prompt <texte>] [--env NOM=VALEUR]... [args nvim...] [-- args agent...]
         nvim-agent --resume <id> [--agent <claude|opencode>] [--prompt <texte>] [--env NOM=VALEUR]... [args nvim...] [-- args agent...]
+        nvim-agent --agent opencode --create <id> --prompt <texte> [--model <M>] [--env NOM=VALEUR]... [args nvim...] [-- args agent...]
 
   --agent <nom>    agent à ouvrir (claude ou opencode)
   --last | --new   reprendre la dernière conversation | session neuve (défaut) ; incompatibles
   --prompt <texte> message initial (mode exécution)
   --resume <id>    reprendre la session <id> (agent par défaut : claude) ; incompatible avec
                    --last et --new ; avec --prompt, seulement pour opencode
+  --create <id>    (opencode) créer la session <id> par « opencode run » puis l'ouvrir en reprise avec
+                   --prompt ; exige --agent opencode et --prompt ; incompatible avec --resume, --last,
+                   --new. Code 2 si le modèle est introuvable, 3 si la création échoue
+  --model <M>      (avec --create seulement) provider/modèle[#variante] ; sinon agents.build.model de
+                   « opencode debug config --standalone »
   --env NOM=VALEUR variable d'environnement vue par nvim et l'agent (répétable, valeur intacte)
   --               ce qui suit est relayé tel quel à l'agent. Ne pas y relayer d'option variadique de
                    claude (--add-dir, --allowedTools, --disallowedTools, --mcp-config) sans valeur
@@ -43,7 +60,7 @@ die() {
   exit 2
 }
 
-agent="" last=0 new=0 has_prompt=0 prompt="" has_resume=0 resume_id=""
+agent="" last=0 new=0 has_prompt=0 prompt="" has_resume=0 resume_id="" has_create=0 create_id="" has_model=0 model=""
 nvim_args=()
 agent_args=()
 env_vars=()
@@ -82,6 +99,22 @@ while (($#)); do
       resume_id="$2"
       shift
       ;;
+    --create)
+      if [[ $# -lt 2 || -z "$2" || "$2" == -* ]]; then
+        die "--create demande un identifiant de session (non vide, ne commençant pas par -)"
+      fi
+      has_create=1
+      create_id="$2"
+      shift
+      ;;
+    --model)
+      if [[ $# -lt 2 || -z "$2" || "$2" == -* ]]; then
+        die "--model demande un modèle provider/modèle[#variante] (non vide, ne commençant pas par -)"
+      fi
+      has_model=1
+      model="$2"
+      shift
+      ;;
     --env)
       if [[ $# -lt 2 ]]; then
         die "--env demande NOM=VALEUR"
@@ -99,6 +132,19 @@ while (($#)); do
   shift
 done
 
+if ((has_model && !has_create)); then
+  die "--model n'est permis qu'avec --create"
+fi
+if ((has_create)); then
+  if ((has_resume)) || ((last)) || ((new)); then
+    die "--create est incompatible avec --resume, --last et --new"
+  fi
+  [[ "$agent" == "opencode" ]] || die "--create exige --agent opencode"
+  ((has_prompt)) || die "--create exige --prompt"
+  # la suite est le chemin de reprise : requête en mode resume avec l'id créé
+  has_resume=1
+  resume_id="$create_id"
+fi
 if ((has_resume)); then
   [[ -n "$agent" ]] || agent="claude"
   if ((last)) || ((new)); then
@@ -164,6 +210,37 @@ trap 'relay HUP 1' HUP
 for kv in ${env_vars[@]+"${env_vars[@]}"}; do
   export "${kv%%=*}=${kv#*=}"
 done
+
+# --create : résolution du modèle, puis création de la session (avant nvim)
+if ((has_create)); then
+  if ((!has_model)); then
+    cfg="" model=""
+    if command -v jq >/dev/null 2>&1; then
+      cfg=$(timeout 10 opencode debug config --standalone </dev/null 2>/dev/null) || cfg=""
+    fi
+    if [[ -n "$cfg" ]]; then
+      # couches dans l'ordre de priorité croissante : on garde la dernière qui définit agents.build.model
+      # (objet {providerID, model, variant?} ou chaîne)
+      model=$(jq -r '[.[] | .info?.agents?.build?.model? | select(. != null)] | last
+        | if type == "object" then .providerID + "/" + .model + (if .variant then "#" + .variant else "" end)
+          elif type == "string" then . else empty end' <<<"$cfg" 2>/dev/null) || model=""
+    fi
+    if [[ -z "$model" || "$model" == "/" ]]; then
+      die "modèle de l'agent build introuvable dans la config OpenCode : précisez \`model\` dans le frontmatter de l'étape"
+    fi
+  fi
+  unset_deck=()
+  while IFS= read -r name; do
+    [[ "$name" == DECK_* ]] && unset_deck+=(-u "$name")
+  done < <(compgen -e)
+  create_rc=0
+  env ${unset_deck[@]+"${unset_deck[@]}"} timeout 20 opencode run --standalone -s "$create_id" \
+    --agent build --model "$model" "réponds ok" </dev/null || create_rc=$?
+  if ((create_rc != 0)); then
+    echo "nvim-agent: création de la session $create_id échouée (code $create_rc)" >&2
+    exit 3
+  fi
+fi
 
 # en arrière-plan (sinon bash ne traite les signaux qu'à la sortie de nvim) ; <&0 garde le terminal
 "${NVIM_AGENT_NVIM:-nvim}" -c "lua require('config.ai_tab').request('$req')" ${nvim_args[@]+"${nvim_args[@]}"} <&0 &
