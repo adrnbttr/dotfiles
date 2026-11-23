@@ -62,8 +62,15 @@ repasse à `claude` et dis-le. Attends son accord sur le découpage.
 
 ## Phase 4 : écriture de `<projet>/.deck/<AAAA-MM-JJ>-<slug>/`
 
-La date est celle du jour. `.deck/` est déjà ignoré globalement : n'y touche pas côté git (vérifie avec
-`git -C <projet> check-ignore -v .deck/<dossier>`).
+La date est celle du jour. Vérifie que `.deck/` est ignoré : `git -C <projet> check-ignore -v .deck/<dossier>`.
+S'il ne l'est PAS, ne modifie pas le projet : signale-le à Adrien et propose d'ajouter `.deck/` au `.gitignore`
+du projet ou à l'ignore global. Continue seulement avec son accord (sinon la livraison locale peut refuser un
+checkout non propre ; `deck check` l'avertit aussi).
+
+**Valeurs texte du frontmatter YAML** (`title`, et toute valeur pouvant contenir `:` ou ` #`) : toujours entre
+guillemets doubles, ex. `title: "Export CSV : commande"`. Sans guillemets, `title: Export CSV : commande` est
+refusé (« : inattendu ») et `title: ticket #42` est tronqué sans bruit (` #` ouvre un commentaire YAML). Dans les
+guillemets, `\` est un échappement : pas de `\` dans ces valeurs.
 
 **`00-plan.md`** : pars du modèle. Frontmatter, rien d'inventé (tout champ inconnu est refusé) :
 - `deck: 1`, `id: <slug>`, `repo: <chemin absolu du projet>`, `base: <branche>`, `agent`, `scenario: dev`,
