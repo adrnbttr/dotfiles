@@ -1,8 +1,8 @@
 # Règles communes d'écriture d'une campagne deck
 
 Valables pour `deck-plan` (écriture) et `deck-challenge` (réécriture de la suivante). Le modèle officiel reste
-`~/Documents/github/perso/deck/docs/specs/modele-campagne/` (`README.md`, `00-plan.md`, `01-etape-type.md`,
-`02-livraison.md`) : le copier, ne rien inventer. Ce fichier ne dit que ce qui s'y ajoute pour le flux
+copié dans `references/modele-campagne/` (`README.md`, `00-plan.md`, `01-etape-type.md`, `02-livraison.md`) :
+le copier, ne rien inventer. Ce fichier ne dit que ce qui s'y ajoute pour le flux
 feature → campagnes.
 
 ## Identité et nommage
@@ -11,7 +11,7 @@ feature → campagnes.
   (`^[a-z0-9]+(-[a-z0-9]+)*$`), 64 caractères au plus.
 - Dossier `<projet>/.deck/<id>/`, **sans date** (le modèle suggère `<date>-<slug>` : écart voulu, l'`id` reste
   valide). Branche `deck/<id>` (défaut, ne pas écrire `branch`). `.deck/` est ignoré par git et ne contient
-  que des campagnes (pas de `revue.md` hors campagne, pas de notes).
+  que des campagnes (pas de notes ; `revue.md` n'est écrit que par `deck-challenge`, jamais par `deck-plan`).
 - Les dates de planification et de passage sont notées dans le **corps** de `00-plan.md` (le frontmatter refuse
   tout champ inconnu : pas de champ `date`).
 - Étapes : `NN-slug.md`, `NN` de `01` à `99`, ordre = `NN`. Aucun autre `.md` commençant par un chiffre.
