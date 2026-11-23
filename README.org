@@ -600,6 +600,7 @@ posé par =./script/bootstrap= :
 | =claude/.claude/agents/=                 | =~/.claude/agents=            |
 | =claude/.claude/skills/lead=             | =~/.claude/skills/lead=       |
 | =claude/.claude/skills/lead-stop=        | =~/.claude/skills/lead-stop=  |
+| =claude/.claude/skills/deck-plan=        | =~/.claude/skills/deck-plan=  |
 
 Non versionné :
 - =~/.claude/settings.json= : seule la clé =env= (=claude-state/settings.fragment.json=)
