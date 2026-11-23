@@ -80,10 +80,10 @@ ok_case "3 resume claude par défaut" \
   "$(fields claude --permission-mode auto --resume abc --settings f)" \
   --resume abc -- --settings f
 ok_case "4 opencode prompt + args" \
-  "$(fields opencode --auto --x y --prompt=p)" \
+  "$(fields opencode --standalone --auto --x y --prompt=p)" \
   --agent opencode --prompt p -- --x y
 ok_case "5 opencode resume" \
-  "$(fields opencode --auto -s s1)" \
+  "$(fields opencode --standalone --auto -s s1)" \
   --agent opencode --resume s1
 ok_case "6 arguments relayés intacts" \
   "$(fields claude --permission-mode plan "a b" $'l1\nl2' "" -x)" \
@@ -100,7 +100,36 @@ err_case "9b agent inconnu" --agent gemini
 err_case "9c --prompt sans texte" --agent claude --prompt
 err_case "9d --new + --last" --agent claude --new --last
 err_case "9e --resume sans id" --resume
-err_case "9f --resume + --prompt" --resume x --prompt y
+err_case "9f --resume + --prompt (claude)" --resume x --prompt y
+err_case "9f2 --resume + --prompt, --agent claude" --resume x --agent claude --prompt y
+err_case "9h --resume + --last" --resume x --agent opencode --last
+err_case "9i --env NOM invalide" --agent opencode --env 1BAD=x
+err_case "9j --env sans =" --agent opencode --env NOVALUE
+err_case "9k --env nom avec tiret" --agent opencode --env A-B=x
+err_case "9l --env sans argument" --agent opencode --env
+
+ok_case "13 opencode resume + prompt" \
+  "$(fields opencode --standalone --auto -s ses_1 --prompt=relance)" \
+  --resume ses_1 --agent opencode --prompt relance
+ok_case "14 opencode deck : -- -s id + prompt" \
+  "$(fields opencode --standalone --auto -s ses_x "--prompt=a b")" \
+  --agent opencode --prompt "a b" -- -s ses_x
+ok_case "15 opencode --last" \
+  "$(fields opencode --standalone --auto --continue)" \
+  --agent opencode --last
+
+# 16 : --env, valeur JSON (espaces, guillemets, *, /, $, `) vue intacte par le faux opencode
+# shellcheck disable=SC2016  # simples guillemets voulus : aucun développement
+json='{"permission":{"bash":{"*":"allow","rm *":"deny"}},"path":"/tmp/a b","q":"say \"hi\" $HOME `x`"}'
+rm -f "$FAKE_OUT" "$FAKE_OUT.env"
+FAKE_ENV_NAME=OPENCODE_CONFIG_CONTENT timeout 20 "$SCRIPT" --agent opencode \
+  --env OPENCODE_CONFIG_CONTENT="$json" --env AUTRE=1 --prompt p -- -s ses_x >"$T/log" 2>&1 &
+wait_out $!
+got=$(got_argv)
+exp=$(fields opencode --standalone --auto -s ses_x --prompt=p)
+if [ "$got" != "$exp" ]; then ko "16 --env : argv" "attendu [$exp], obtenu [$got]"
+elif [ "$(cat "$FAKE_OUT.env" 2>/dev/null)" != "$json" ]; then ko "16 --env : valeur" "obtenu [$(cat "$FAKE_OUT.env" 2>/dev/null)]"
+else ok "16 --env : valeur JSON intacte dans l'environnement d'opencode"; fi
 
 # 9g : TMPDIR relatif refusé (code 2)
 rm -f "$FAKE_OUT" "$T/nvim.pid"

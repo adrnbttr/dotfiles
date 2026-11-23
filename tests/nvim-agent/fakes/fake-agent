@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # Faux agent : ecrit son argv (un argument par champ, termine par NUL) dans $FAKE_OUT, puis attend.
+# FAKE_ENV_NAME : nom d'une variable dont la valeur vue par l'agent est ecrite dans $FAKE_OUT.env
+if [ -n "${FAKE_ENV_NAME:-}" ]; then
+  printenv "$FAKE_ENV_NAME" > "$FAKE_OUT.env.tmp.$$" && mv "$FAKE_OUT.env.tmp.$$" "$FAKE_OUT.env"
+fi
 tmp="$FAKE_OUT.tmp.$$"
 printf "%s\0" "$(basename "$0")" "$@" > "$tmp"
 mv "$tmp" "$FAKE_OUT"

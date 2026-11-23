@@ -78,8 +78,8 @@ nul v1 claude new "" "-x y" | run "claude prompt commencant par -" "claude --per
 nul v1 claude resume abc "" --settings f | run "claude resume + args" "claude --permission-mode auto --resume abc --settings f"
 nul v1 claude new "" "" | run "claude sans prompt (plan)" "claude --permission-mode plan"
 nul v1 claude last "" "" | run "claude last" "claude --permission-mode plan --continue"
-nul v1 opencode new "" "hello" | run "opencode prompt" "opencode --auto --prompt=hello"
-nul v1 opencode resume ses_1 "" --model m | run "opencode resume + args" "opencode --auto -s ses_1 --model m"
+nul v1 opencode new "" "hello" | run "opencode prompt" "opencode --standalone --auto --prompt=hello"
+nul v1 opencode resume ses_1 "" --model m | run "opencode resume + args" "opencode --standalone --auto -s ses_1 --model m"
 nul v2 claude new "" "x" | run "version inconnue" -
 nul v1 gemini new "" "x" | run "agent inconnu" -
 nul v1 claude bizarre "" "x" | run "mode inconnu" -
@@ -109,7 +109,7 @@ chmod +x "$T/bin/opencode"
 # le faux agent deduit son nom de basename($0) : on l'appelle via un lien nomme opencode
 rm -f "$T/real/opencode"; mkdir -p "$T/real"; ln -s "$FAKE" "$T/real/opencode"
 sed -i "s|exec \"$FAKE\"|exec \"$T/real/opencode\"|" "$T/bin/opencode"
-nul v1 opencode last "" "" --settings f | run "opencode last : repli garde les args relayes" "opencode --settings f"
+nul v1 opencode last "" "" --settings f | run "opencode last : repli garde les args relayes" "opencode --standalone --auto --settings f"
 ln -sf "$FAKE" "$T/bin/opencode"
 
 fails=$((fails + $(wc -l < "$T/fails")))

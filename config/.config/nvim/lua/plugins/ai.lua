@@ -179,10 +179,14 @@ return {
       -- Reprise (--continue) sortie aussitot en erreur (pas de session ici) : session neuve au
       -- meme endroit (onglet agent ou split), sans --continue mais avec les arguments relayes
       -- (`args`, comme resume_fallback(buf, launch.args) cote claude).
-      local function opencode_resume_fallback(old_buf, args)
+      local function opencode_resume_fallback(old_buf, args, standalone)
         vim.notify("Aucune session à reprendre ici : nouvelle session", vim.log.levels.WARN)
         local fallback_cmd
-        if args and #args > 0 then
+        if standalone then
+          -- lancement venu de nvim-agent : toujours --standalone --auto
+          fallback_cmd = { "opencode", "--standalone", "--auto" }
+          vim.list_extend(fallback_cmd, args or {})
+        elseif args and #args > 0 then
           fallback_cmd = { "opencode" }
           vim.list_extend(fallback_cmd, args)
         end
@@ -266,7 +270,11 @@ return {
           and not existing_term() then
           -- liste d'arguments (pas de shell) ; toutes les fonctions relisent opencode_cmd
           local cmd = { "opencode" }
-          if has_prompt or opts.resume then
+          if opts.standalone then
+            -- requete de nvim-agent (deck) : toujours sans serveur partage, permissions auto
+            table.insert(cmd, "--standalone")
+            table.insert(cmd, "--auto")
+          elseif has_prompt or opts.resume then
             table.insert(cmd, "--auto") -- on execute, les permissions ne bloquent pas
           end
           if opts.last then
@@ -295,7 +303,7 @@ return {
           end
         end
         if term and term:buf_valid() and opts and opts.last and not opts.resume and not (opts.prompt and opts.prompt ~= "") then
-          require("config.ai_tab").watch_launch(term.buf, function() opencode_resume_fallback(term.buf, opts.args) end)
+          require("config.ai_tab").watch_launch(term.buf, function() opencode_resume_fallback(term.buf, opts.args, opts.standalone) end)
         end
         if not term then
           return

@@ -459,7 +459,7 @@ local function fire()
   local req = pending
   pending = nil
   -- onglet de code (neo-tree compris) deja en place : on ouvre l'agent par-dessus
-  open_agent(req.name, { last = req.last, prompt = req.prompt, resume = req.resume, args = req.args })
+  open_agent(req.name, { last = req.last, prompt = req.prompt, resume = req.resume, args = req.args, standalone = req.standalone })
 end
 
 -- Demande l'ouverture de l'onglet agent une fois le demarrage termine : sur VeryLazy
@@ -550,6 +550,7 @@ M.request = function(path)
     prompt = prompt ~= "" and prompt or nil,
     resume = mode == "resume" and id or nil,
     args = args,
+    standalone = agent == "opencode" or nil, -- opencode lance par nvim-agent : --standalone --auto
   }
   schedule_pending()
 end

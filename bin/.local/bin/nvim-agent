@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # nvim-agent : ouvre Neovim avec l'onglet agent (claude ou opencode), comme <leader>zT / <leader>jT.
 #
-#   nvim-agent --agent <claude|opencode> [--last|--new] [--prompt <p>] [args nvim...] [-- args agent...]
-#   nvim-agent --resume <id> [--agent <claude|opencode>] [args nvim...] [-- args agent...]
+#   nvim-agent --agent <claude|opencode> [--last|--new] [--prompt <p>] [--env NOM=VALEUR]... [args nvim...] [-- args agent...]
+#   nvim-agent --resume <id> [--agent <claude|opencode>] [--prompt <p>] [--env NOM=VALEUR]... [args nvim...] [-- args agent...]
 #
-# Avant « -- » : --agent, --prompt, --last, --new, --resume sont consommés ; tout le reste va à nvim.
+# Avant « -- » : --agent, --prompt, --last, --new, --resume, --env sont consommés ; tout le reste va à nvim.
+# --env NOM=VALEUR (répétable) : exporte la variable avant de lancer nvim ; nvim et le terminal de l'agent
+# l'héritent. La valeur est prise telle quelle (aucune interprétation shell). NOM : [A-Za-z_][A-Za-z0-9_]*.
+# opencode est toujours lancé avec --standalone --auto ; --resume <id> devient -s <id>. --resume avec
+# --prompt n'est permis que pour opencode (claude : refusé).
 # Après « -- » : chaque argument est relayé tel quel à l'agent (espaces, retours ligne, chaîne vide).
 # --resume reprend la session <id> ; l'agent par défaut est claude.
 #
@@ -18,14 +22,15 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-usage : nvim-agent --agent <claude|opencode> [--last|--new] [--prompt <texte>] [args nvim...] [-- args agent...]
-        nvim-agent --resume <id> [--agent <claude|opencode>] [args nvim...] [-- args agent...]
+usage : nvim-agent --agent <claude|opencode> [--last|--new] [--prompt <texte>] [--env NOM=VALEUR]... [args nvim...] [-- args agent...]
+        nvim-agent --resume <id> [--agent <claude|opencode>] [--prompt <texte>] [--env NOM=VALEUR]... [args nvim...] [-- args agent...]
 
   --agent <nom>    agent à ouvrir (claude ou opencode)
   --last | --new   reprendre la dernière conversation | session neuve (défaut) ; incompatibles
   --prompt <texte> message initial (mode exécution)
   --resume <id>    reprendre la session <id> (agent par défaut : claude) ; incompatible avec
-                   --last, --new et --prompt
+                   --last et --new ; avec --prompt, seulement pour opencode
+  --env NOM=VALEUR variable d'environnement vue par nvim et l'agent (répétable, valeur intacte)
   --               ce qui suit est relayé tel quel à l'agent. Ne pas y relayer d'option variadique de
                    claude (--add-dir, --allowedTools, --disallowedTools, --mcp-config) sans valeur
                    terminale : le prompt placé ensuite serait pris comme valeur de l'option.
@@ -41,6 +46,7 @@ die() {
 agent="" last=0 new=0 has_prompt=0 prompt="" has_resume=0 resume_id=""
 nvim_args=()
 agent_args=()
+env_vars=()
 
 while (($#)); do
   case "$1" in
@@ -76,6 +82,16 @@ while (($#)); do
       resume_id="$2"
       shift
       ;;
+    --env)
+      if [[ $# -lt 2 ]]; then
+        die "--env demande NOM=VALEUR"
+      fi
+      if [[ ! "$2" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+        die "--env : NOM=VALEUR attendu, NOM de la forme [A-Za-z_][A-Za-z0-9_]* (reçu '${2%%=*}')"
+      fi
+      env_vars+=("$2")
+      shift
+      ;;
     --last) last=1 ;;
     --new) new=1 ;;
     *) nvim_args+=("$1") ;;
@@ -85,8 +101,11 @@ done
 
 if ((has_resume)); then
   [[ -n "$agent" ]] || agent="claude"
-  if ((last)) || ((new)) || ((has_prompt)); then
-    die "--resume est incompatible avec --last, --new et --prompt"
+  if ((last)) || ((new)); then
+    die "--resume est incompatible avec --last et --new"
+  fi
+  if ((has_prompt)) && [[ "$agent" != "opencode" ]]; then
+    die "--resume avec --prompt n'est permis que pour --agent opencode"
   fi
 fi
 if [[ -z "$agent" ]]; then
@@ -140,6 +159,11 @@ relay() {
 trap 'relay INT 2' INT
 trap 'relay TERM 15' TERM
 trap 'relay HUP 1' HUP
+
+# variables demandées : exportées ici, héritées par nvim puis par le terminal de l'agent (valeur intacte)
+for kv in ${env_vars[@]+"${env_vars[@]}"}; do
+  export "${kv%%=*}=${kv#*=}"
+done
 
 # en arrière-plan (sinon bash ne traite les signaux qu'à la sortie de nvim) ; <&0 garde le terminal
 "${NVIM_AGENT_NVIM:-nvim}" -c "lua require('config.ai_tab').request('$req')" ${nvim_args[@]+"${nvim_args[@]}"} <&0 &
