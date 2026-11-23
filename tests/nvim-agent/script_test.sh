@@ -206,6 +206,41 @@ resolve_fail "21 debug config en échec : code 2" FAKE_DEBUG_FILE="$T/debug-ok.j
 echo 'pas du json' > "$T/debug-bad.json"
 resolve_fail "22 debug config illisible : code 2" FAKE_DEBUG_FILE="$T/debug-bad.json"
 
+# 22b : jq absent du PATH : message distinct (jq introuvable), code 2, debug config non lancé
+mkdir -p "$T/nojq"
+for tool in bash env timeout opencode nvim-test dirname basename rm mkdir cat tr sed grep mktemp; do
+  src=$(command -v "$tool" 2>/dev/null || true)
+  [ -z "$src" ] && [ -e "$T/bin/$tool" ] && src="$T/bin/$tool"
+  [ -n "$src" ] && ln -sf "$src" "$T/nojq/$tool"
+done
+rm -f "$FAKE_OUT" "$RUNLOG"
+rc=0
+FAKE_RUN_LOG="$RUNLOG" FAKE_DEBUG_FILE="$T/debug-ok.json" PATH="$T/nojq" "$SCRIPT" --agent opencode --create ses_c --prompt p >"$T/log" 2>"$T/err" || rc=$?
+if [ "$rc" != 2 ]; then ko "22b jq absent" "code $rc au lieu de 2 : $(cat "$T/err")"
+elif ! grep -q 'jq introuvable' "$T/err" || grep -q 'introuvable dans la config' "$T/err"; then ko "22b jq absent" "message : $(cat "$T/err")"
+elif grep -q '^debug argv' "$RUNLOG" 2>/dev/null || [ -e "$FAKE_OUT" ]; then ko "22b jq absent" "debug config, run ou TUI lancé"
+else ok "22b jq absent : message jq introuvable, code 2, rien lancé"; fi
+
+# 22c : fermer le volet tmux (SIGHUP) tue la création en cours (même groupe de premier plan)
+if command -v tmux >/dev/null 2>&1; then
+  sock="nvim-agent-test-$$-$RANDOM"
+  rm -f "$T/fini" "$T/hup.started"
+  # le faux run signale son démarrage via le journal ; il dormirait 8 s puis écrirait « fini »
+  tmux -L "$sock" -f /dev/null new-session -d -x 80 -y 24 \
+    "FAKE_RUN_LOG='$T/hup.log' FAKE_RUN_SLEEP=8 FAKE_RUN_DONE='$T/fini' '$SCRIPT' --agent opencode --create ses_h --model p/m --prompt p; true"
+  for _ in $(seq 1 50); do grep -q '^run argv' "$T/hup.log" 2>/dev/null && break; sleep 0.1; done
+  sleep 0.5
+  started=0; grep -q '^run argv' "$T/hup.log" 2>/dev/null && started=1
+  tmux -L "$sock" kill-server 2>/dev/null
+  sleep 10
+  if [ "$started" != 1 ]; then ko "22c fermeture du volet" "le faux run n'a pas démarré"
+  elif [ -e "$T/fini" ]; then ko "22c fermeture du volet" "le faux run a survécu à kill-server (fini écrit)"
+  else ok "22c fermeture du volet : la création meurt avec lui"; fi
+  tmux -L "$sock" kill-server 2>/dev/null
+else
+  echo "SKIP 22c : tmux absent"
+fi
+
 # 23 : run en échec : code 3, message, pas de nvim
 rm -f "$FAKE_OUT" "$RUNLOG" "$T/nvim.pid"
 rc=0

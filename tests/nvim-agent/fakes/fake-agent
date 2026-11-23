@@ -15,6 +15,10 @@ if [ "$(basename "$0")" = opencode ]; then
         printf 'run cwd: %s\n' "$PWD"
         printf 'run stdin-closed: %s\n' "$( (read -r _ </dev/stdin) 2>/dev/null && echo non || echo oui)"
       } >> "${FAKE_RUN_LOG:-/dev/null}"
+      if [ -n "${FAKE_RUN_SLEEP:-}" ]; then
+        sleep "$FAKE_RUN_SLEEP"
+        echo fini > "$FAKE_RUN_DONE"
+      fi
       exit "${FAKE_RUN_RC:-0}"
       ;;
     debug)
