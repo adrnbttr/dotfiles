@@ -14,7 +14,16 @@ campagne de la boucle jour/nuit : planifiée le jour, exécutée la nuit avec `a
 |---|---|
 | `00-plan.md` | Manifeste : frontmatter YAML commenté (chaque champ : obligatoire ou non, valeurs, défaut), puis objectif, contraintes communes et définition de « fini ». |
 | `01-etape-type.md` | Une étape type, brief autonome : objectif, fichiers, contraintes, hors périmètre, test, critère de fin, commit `wip(étape NN): …`, `deck done`. |
-| `02-livraison.md` | Dernière étape : version semver, CHANGELOG, roadmap, tests complets, regroupement en un commit, tag annoté `vX.Y.Z`, `deck done`. |
+| `02-livraison.md` | Dernière étape : version semver, CHANGELOG, roadmap, fichier de feature, tests complets, regroupement en un commit, tag annoté `vX.Y.Z`, `deck done`. |
+
+## Journée type
+
+- **Soir** : Adrien lance `deck run <id>` sur la campagne planifiée le jour.
+- **Nuit** : les étapes s'exécutent dans l'ordre, puis l'étape de livraison : commit unique et tag
+  annoté `vX.Y.Z`, puis deck avance `main` en avance rapide (livraison locale, rien n'est poussé).
+  L'étape de livraison met aussi à jour le fichier de feature (critères cochés, statut, tag, journal).
+- **Matin** : `deck-challenge` juge la campagne livrée et réécrit la campagne suivante.
+- **Journée** : Adrien relit le résultat, corrige ou relance, puis planifie la suite.
 
 ## Copier le modèle
 

@@ -73,6 +73,12 @@ Chaque session d'étape lit ce fichier : rien ici ne doit supposer qu'on a la co
 Exemple : ajouter l'export CSV des rapports à `mon-projet`, accessible par la commande
 `mon-projet export --format csv`, sans changer le format JSON existant.
 
+Feature : `roadmap/<version>/<feature>.md`
+
+<!-- A REMPLACER par le chemin du fichier de feature dont la campagne est une tranche, relatif à la racine
+du dépôt cible. Supprimer la ligne si la campagne ne découle d'aucune feature. L'étape de livraison met ce
+fichier à jour. Ne pas en faire une clé du frontmatter : le domaine valide le frontmatter. -->
+
 # Contraintes communes
 
 Valables pour toutes les étapes :

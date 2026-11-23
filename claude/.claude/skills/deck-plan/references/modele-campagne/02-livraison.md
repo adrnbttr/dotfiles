@@ -39,8 +39,8 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
    message de commit ; sinon, `deck done --status failed` avec le motif.
 
    **Reprise.** Si cette étape a déjà été menée (nouvelle tentative) et que `HEAD` est déjà un commit
-   unique au-dessus de `git merge-base <base> HEAD` (décompte `1`, voir le point 9) portant un tag
-   `v*` « à nous » (règle du point 8), **refaire le regroupement pour produire un nouveau commit** :
+   unique au-dessus de `git merge-base <base> HEAD` (décompte `1`, voir le point 10) portant un tag
+   `v*` « à nous » (règle du point 9), **refaire le regroupement pour produire un nouveau commit** :
 
    ```
    git reset --soft $(git merge-base <base> HEAD)
@@ -50,21 +50,23 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
    git tag -a vX.Y.Z -m "vX.Y.Z : <objectif de la campagne en une ligne>"
    ```
 
-   puis le contrôle final (point 9) et `deck done` (point 10). Pourquoi : après `deck retry`, le
+   puis le contrôle final (point 10) et `deck done` (point 11). Pourquoi : après `deck retry`, le
    garde-fou de `done ok` exige au moins un commit non vide depuis le début de la tentative
    (`start_ref..HEAD`) ; avec `--keep`, la nouvelle `start_ref` est le `HEAD` actuel, donc « ne rien
    refaire » ferait refuser `done ok`. Avec `--reset`, `HEAD` revient avant le regroupement et le
    tag de la tentative précédente est resté (contenu par la sauvegarde `deck/backup/<id>/…` de
-   l'ancienne tête) : il est « à nous » (point 8), on le supprime et on le repose au point 8.
+   l'ancienne tête) : il est « à nous » (point 9), on le supprime et on le repose au point 9.
 
-2. **Choisir le numéro de version `X.Y.Z`** (semver), à partir de la version actuelle du fichier de
-   version et de ce que la campagne a changé :
-   - **majeur** (`X+1.0.0`) : rupture de compatibilité (API, format de fichier, commande ou option
-     retirée ou changée) ;
-   - **mineur** (`X.Y+1.0`) : fonctionnalité ajoutée, compatible ;
-   - **correctif** (`X.Y.Z+1`) : correction de bug, sans nouveauté ni rupture ;
-   - en cas de doute entre deux niveaux, prendre le plus haut. Tant que `X` vaut 0, une rupture
-     compte comme mineur.
+2. **Choisir le numéro de version `X.Y.Z`** en appliquant la politique de version (règle de
+   `references/campagne.md` du skill `deck-plan`), à partir de la version actuelle du fichier de
+   version. En bref :
+   - une campagne livre une version **mineure** : `0.N.0` (`0.N+1.0` depuis la précédente) ;
+   - une campagne de **pure correction** (aucune nouveauté, aucune rupture) livre un **correctif**
+     `0.N.P+1` ;
+   - la dernière campagne de la roadmap v1 livre `v1.0.0` ; ensuite, `1.N.0` par campagne ;
+   - **majeur** (`X+1.0.0`) seulement pour une rupture de compatibilité une fois `X` ≥ 1 ; tant que
+     `X` vaut 0, une rupture compte comme mineur ;
+   - en cas de doute entre deux niveaux, prendre le plus haut.
 
 3. **Mettre à jour la version** dans le fichier de version du projet (`<Cargo.toml / package.json /
    pyproject.toml / VERSION… : à préciser par le plan>`). S'il y a un fichier de verrouillage qui
@@ -77,7 +79,17 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
 5. **Roadmap** : si le projet en a une (`docs/roadmap.md` ou équivalent), cocher les éléments que la
    campagne a réalisés, sans en cocher d'autres.
 
-6. **Tests complets** : la suite entière, pas seulement celle d'une étape :
+6. **Fichier de feature**, si `00-plan.md` en désigne un (ligne « Feature : `roadmap/<version>/<feature>.md` »
+   dans le corps ; sinon, passer au point suivant) : dans ce fichier,
+   - cocher dans « Critères d'acceptation » ceux que la campagne atteint, sans en cocher d'autres ;
+   - dans « Découpage », passer la ligne de la campagne à `livrée` et y inscrire le tag réel
+     `vX.Y.Z` choisi au point 2 ;
+   - ajouter au « Journal » une ligne `id | date du jour | vX.Y.Z | fait | reste` : `fait` résume ce
+     que la campagne a livré, `reste` ce qui manque encore à la feature (ou `rien`).
+
+   Respecter le format du fichier (`references/feature.md`) ; ne pas toucher aux autres lignes.
+
+7. **Tests complets** : la suite entière, pas seulement celle d'une étape :
 
    ```
    <commande de test complète exacte, par ex. cargo test --workspace && cargo clippy --workspace -- -D warnings>
@@ -85,12 +97,12 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
 
    Elle doit réussir (code 0). Sinon, passer à « Si les tests échouent » et s'arrêter là.
 
-7. **Regrouper en un commit.** D'abord, commiter les modifications des points 3 à 5, par chemin (jamais
+8. **Regrouper en un commit.** D'abord, commiter les modifications des points 3 à 6, par chemin (jamais
    `git add -A`, `git add .` ni `git commit -a` : ils embarqueraient un fichier non suivi, et le
    garde-fou de deck ne les regarde pas) :
 
    ```
-   git add <fichier de version> <CHANGELOG.md si modifié> <roadmap si modifiée> <fichier de verrouillage si régénéré>
+   git add <fichier de version> <CHANGELOG.md si modifié> <roadmap si modifiée> <fichier de feature si modifié> <fichier de verrouillage si régénéré>
    git status --short     # ni modification suivie non indexée, ni fichier non suivi inattendu
    git commit -m "wip(étape 02): version vX.Y.Z"
    ```
@@ -115,7 +127,7 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
    - Message en français ; la ligne de titre fait 72 caractères ou moins.
    - Ne mentionner ni agent, ni outil, ni `Co-Authored-By`.
 
-8. **Poser le tag annoté** sur ce commit (il faut `-a`, un tag léger est refusé par deck) :
+9. **Poser le tag annoté** sur ce commit (il faut `-a`, un tag léger est refusé par deck) :
 
    ```
    git tag -a vX.Y.Z -m "vX.Y.Z : <objectif de la campagne en une ligne>"
@@ -139,7 +151,7 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
    modifications de version non commitées (`git restore`) puis
    `deck done --status failed --summary "Tag vX.Y.Z déjà présent dans le dépôt : <motif>"`.
 
-9. **Contrôler** (tout doit être vrai) :
+10. **Contrôler** (tout doit être vrai) :
 
    ```
    git status --short                                  # aucune modification suivie ni indexée ; pas de non suivi inattendu
@@ -148,11 +160,11 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
    git rev-parse HEAD
    ```
 
-   Si le décompte n'est pas 1, regrouper de nouveau (point 7). Si le tag ne désigne pas `HEAD` et
-   qu'il est « à nous » (point 8), le supprimer (`git tag -d vX.Y.Z`) puis le reposer sur `HEAD`.
+   Si le décompte n'est pas 1, regrouper de nouveau (point 8). Si le tag ne désigne pas `HEAD` et
+   qu'il est « à nous » (point 9), le supprimer (`git tag -d vX.Y.Z`) puis le reposer sur `HEAD`.
    Ne jamais supprimer un tag qui n'est pas « à nous ».
 
-10. **Déclarer la fin** :
+11. **Déclarer la fin** :
 
     ```
     deck done --status ok --summary "Livraison prête : vX.Y.Z, un commit <sha court> sur deck/<id>, tests complets verts."
@@ -187,5 +199,5 @@ pas `origin/…`) : `deck check` le refuse sinon.
 
 Si Adrien rebase la branche à la main sur la nouvelle `<base>` (hors de cette session), la tête
 change : le tag posé sur l'ancienne tête ne désigne plus la tête et deck refuse la livraison. Il faut
-alors reposer le tag sur la nouvelle tête. Le tag de l'ancienne tête est « à nous » (point 8) :
+alors reposer le tag sur la nouvelle tête. Le tag de l'ancienne tête est « à nous » (point 9) :
 le supprimer (`git tag -d vX.Y.Z`) puis le reposer est permis, comme pour une reprise.
