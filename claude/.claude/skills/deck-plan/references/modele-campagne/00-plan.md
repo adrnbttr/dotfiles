@@ -12,7 +12,8 @@ deck: 1
 
 # OBLIGATOIRE. Identifiant de la campagne : minuscules, chiffres et tirets (`^[a-z0-9]+(-[a-z0-9]+)*$`),
 # 64 caractères au plus. Unique parmi les campagnes non terminées du même dépôt.
-# Usage conseillé : le slug du dossier `<date>-<slug>`, donc ici `<slug>`. A REMPLACER.
+# Doit être le nom du dossier `.deck/<id>/`. Campagne issue d'une feature : `<feature>-<NN>`
+# (ex. `export-csv-02`) ; sinon slug libre. A REMPLACER.
 id: exemple-campagne
 
 # OBLIGATOIRE. Dépôt cible : chaîne brute, `~` accepté (deck le développe et canonise le chemin).

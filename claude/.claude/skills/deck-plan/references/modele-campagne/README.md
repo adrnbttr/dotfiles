@@ -28,12 +28,15 @@ campagne de la boucle jour/nuit : planifiée le jour, exécutée la nuit avec `a
 ## Copier le modèle
 
 ```
-mkdir -p <projet>/.deck/<date>-<slug>
-cp docs/specs/modele-campagne/0*.md <projet>/.deck/<date>-<slug>/
+mkdir -p <projet>/.deck/<id>
+cp docs/specs/modele-campagne/0*.md <projet>/.deck/<id>/
 ```
 
-- `<date>` : `AAAA-MM-JJ` du jour de planification ; `<slug>` : minuscules, chiffres et tirets.
-  Le `id` du manifeste reprend le slug.
+- `<id>` : nom du dossier, sans date, identique au `id` du manifeste. Pour une campagne issue d'une
+  feature, `<feature>-<NN>` (ex. `export-csv-02`) ; sinon un slug libre (minuscules, chiffres, tirets).
+  Les dates de planification et de passage se notent dans le corps de `00-plan.md`, pas dans le nom.
+- `deck run <id>` et `deck check <id>` résolvent `<racine git>/.deck/<id>/` ; `deck check --format <id>`
+  ne contrôle que le format (ADR 0029).
 - Ne pas copier ce `README.md` : il serait ignoré (voir plus bas) mais n'a rien à faire dans une campagne.
 - Remplacer dans `00-plan.md` : `id`, `repo` (valeur d'exemple, à remplacer), `base`, `setup`, puis le
   corps. Supprimer les commentaires `#` devenus inutiles (ils sont permis, pas obligatoires).
