@@ -6,8 +6,9 @@ description: "À utiliser quand Adrien demande de planifier une feature deck («
 # Planifier une feature en campagnes deck
 
 Tu planifies, tu ne codes pas : tu écris des briefs que d'autres sessions exécuteront (`deck-step`). Ne lance
-jamais `deck run`, `git push`, `gh`. Seuls reçoivent des écritures : `<projet>/.deck/` et le fichier de la
-feature (section « Découpage en campagnes »), que tu committes seul.
+jamais `deck run`, `git push`, `gh`. Seuls reçoivent des écritures : `<projet>/.deck/`, le fichier de la
+feature (section « Découpage en campagnes ») et, avec l'accord d'Adrien, le `.gitignore` du projet (ajout de
+`.deck/`) ; tu ne committes que ces deux fichiers, par pathspec.
 
 Le jugement de la campagne de la veille et la réécriture de la suivante sont le rôle de `deck-challenge` (à
 venir) : `deck-plan` n'écrit ni `revue.md`, ni relecture de livraison.
@@ -17,7 +18,8 @@ Références, à lire avant d'écrire (chemins relatifs au skill) :
 - `references/campagne.md` : règles communes (nommage, frontmatter, commits, tag, budget, contrôle) ;
 - `references/modele-campagne/` : modèle commenté (`README.md`, `00-plan.md`, `01-etape-type.md`,
   `02-livraison.md`). Copie issue de deck `docs/specs/modele-campagne/` au 2026-11-23 ; à resynchroniser si le
-  modèle change.
+  modèle change. Les liens relatifs (`../../adr/…`) et chemins (`cp docs/specs/modele-campagne/…`) du `README.md`
+  de la copie ne valent que dans le dépôt deck : ne les suis pas depuis un autre projet.
 
 Entrée : le chemin d'un fichier `roadmap/<version>/<feature>.md` (demande-le s'il manque). Le projet est le
 dépôt git qui le contient ; appelle-le `<projet>`. `<feature>` = nom du fichier sans `.md`.
@@ -26,12 +28,16 @@ dépôt git qui le contient ; appelle-le `<projet>`. `<feature>` = nom du fichie
 
 - Fichier de feature conforme à `references/feature.md`, avec des critères d'acceptation cochables. Sinon
   arrête-toi et dis ce qui manque.
-- Checkout principal propre et sur la base (`git status --short`, `git branch --show-current`). Sinon signale-le.
+- Checkout principal sur la branche de base **avant d'écrire quoi que ce soit** (`git branch --show-current`),
+  sans fichier modifié ni indexé (`git status --short` vide, hors `.deck/` ignoré). Sinon arrête-toi et dis ce
+  qui ne va pas : tu ne changes pas de branche et tu ne nettoies pas à la place d'Adrien.
 - Purge : liste `<projet>/.deck/*/` (`deck status --json`, par `id`). Propose de supprimer les campagnes de plus
   de 14 jours **terminées ou abandonnées**, jamais sans accord explicite, jamais une campagne en cours
   (`running`, `waiting`, `ready`, `stale`…) ni la dernière livrée. Rien à purger : une ligne et continue.
-- Une seule campagne non terminée par dépôt : s'il en existe une, dis-le et demande si tu planifies quand même
-  (les nouvelles ne seront lancées qu'après).
+- Une seule campagne active par dépôt : s'il en existe une non terminée (`running`, `waiting`, `ready`,
+  `stale`…), arrête-toi, dis laquelle et n'écris rien. Raison : committer sur la base la ferait diverger de
+  `deck/<id>` (livraison impossible) et `deck check` refuse un dépôt occupé. Reprends quand elle est livrée ou
+  abandonnée.
 
 ## Phase 1 : lecture du projet
 
@@ -56,7 +62,9 @@ Demande aussi l'**agent** : défaut `claude` tant que J7 (OpenCode) n'est pas li
 
 Vérifie que `.deck/` est ignoré : `git -C <projet> check-ignore -v .deck/<id>`. S'il ne l'est PAS, ne modifie pas
 le projet sans accord : signale-le et propose d'ajouter `.deck/` au `.gitignore` du projet ou à l'ignore global.
-Continue seulement avec son accord (sinon la livraison locale peut refuser un checkout non propre).
+Continue seulement avec son accord (sinon la livraison locale peut refuser un checkout non propre). S'il
+accepte l'ajout au `.gitignore` du projet, ce fichier entre dans le commit de la phase 4 ; s'il choisit l'ignore
+global, rien n'est à committer pour cela.
 
 Écris les N campagnes d'avance, d'après le modèle, en respectant `campagne.md` (dossier sans date, `id`, branche
 par défaut). Dans chacune :
@@ -88,10 +96,14 @@ Aucun autre `.md` commençant par un chiffre.
 
 1. Remplis la section « Découpage en campagnes » de la feature : une ligne par campagne (`id`, objectif, statut
    `planifiée`, tag visé). Ne touche ni aux critères, ni au journal.
-2. Montre le diff et demande l'accord d'Adrien, puis committe sur la base, ce seul fichier :
-   `git -C <projet> add <fichier de la feature>` puis
-   `git -C <projet> commit -m "docs(roadmap): <feature>, découpage en campagnes"` (en français, sans
-   `Co-Authored-By` ni attribution). Le checkout doit rester propre : la livraison locale le refuse sale.
+2. Montre le diff et demande l'accord d'Adrien, puis committe sur la base (vérifie d'abord que tu y es encore),
+   uniquement les fichiers du skill, par pathspec, sans passer par l'index :
+   `git -C <projet> commit -m "docs(roadmap): <feature>, découpage en campagnes" -- <fichier de la feature> [.gitignore]`
+   (`.gitignore` seulement s'il a été modifié ; si un fichier est non suivi, `git add -N <fichier>` d'abord ;
+   message en français, sans `Co-Authored-By` ni attribution).
+3. Vérifie : `git -C <projet> show --name-only --format= HEAD` ne liste que ces fichiers, et
+   `git -C <projet> status --short` est vide. Sinon arrête-toi et signale-le, sans réécrire l'historique.
+   Le checkout doit rester propre : la livraison locale le refuse sale.
 
 ## Phase 5 : validation
 

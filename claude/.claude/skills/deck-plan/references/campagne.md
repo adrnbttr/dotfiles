@@ -71,4 +71,5 @@ fichiers se suivent. Ce qui dépasse 8 h glisse à la campagne suivante (le tabl
 
 `git push`, `gh`, PR, toucher au checkout principal ou à `base` hors livraison par deck, commande sur la
 production, des données réelles ou un service externe, `git reset --hard` ou `--force`, ajout de fichiers non
-suivis non ignorés. Le seul fichier hors code qu'elle modifie est celui de la feature (cases, tableau, journal).
+suivis non ignorés. Hors code, elle ne modifie que le fichier de la feature (cases, tableau, journal) et les fichiers de la
+livraison du modèle (`02-livraison.md`, points 3 à 5 : fichier de version, `CHANGELOG`, `docs/roadmap.md`).
