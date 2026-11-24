@@ -52,7 +52,9 @@ campagnes de 6 à 8 h, chacune : `id` (`<feature>-<NN>`), objectif en une ligne,
 d'acceptation de la feature qu'elle satisfait, tag visé (politique de `campagne.md`). Chaque campagne a 5 à 10
 étapes de 30 à 90 min plus la livraison, dernière. Chaque étape a un résultat observable et une commande de test ;
 deux étapes qui touchent les mêmes fichiers se suivent. Tous les critères de la feature doivent être couverts.
-Demande aussi l'**agent** : propose `opencode` par défaut (Adrien peut choisir `claude`). Avec `opencode`,
+Demande aussi l'**agent** : propose `opencode` par défaut (Adrien peut choisir `claude`).
+Si l'`AGENTS.md` du projet dit que le code est produit par OpenCode : `agent: opencode` **obligatoire**, sans poser
+la question, jamais `claude`. Avec `opencode`,
 précise `model` : sans `model` dans le frontmatter d'une étape, le modèle est lu dans la config OpenCode
 (`agents.build.model`, `jq` requis) ; avec `model` (ex. `provider/modèle`), il est imposé et passé tel quel. Ne
 mets `model` que si Adrien veut un modèle précis pour la campagne ou une étape ; sinon laisse-le absent.
