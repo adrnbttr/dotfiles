@@ -22,7 +22,11 @@ Références (chemins relatifs au skill, partagées avec `deck-plan`, à lire av
 
 ## Phase 0 : trouver la campagne de la veille
 
-1. `deck status --json` (lecture directe de la base, sans démon). Schéma `v: 1`. Champs lus :
+1. `deck status --json` (lecture directe de la base). Schéma `v: 1`.
+   Si la commande échoue avec « la base est en version N, ce binaire attend la version M : le démon doit la
+   migrer » : ne lance pas de démon toi-même sans le dire. Explique à Adrien que `deck check <id>` (ou tout
+   démarrage du démon) migre la base, et demande-lui avant de le faire. Une fois sa réponse reçue, il le fait
+   ou te laisse le faire ; arrête ensuite le démon que tu as lancé (`deck daemon stop`). Champs lus :
    - campagne : `id`, `state` (`setup`, `running`, `paused`, `ready`, `completed`, `aborted`), `pause`,
      `dir` (dossier `.deck/<id>/`, absolu), `repo`, `branch`, `created_at`, `delivery`
      (`{ mode, delivered_sha, refusal }`, `refusal` = motif de refus de livraison si `ready`), `steps` ;
@@ -70,7 +74,8 @@ La livraison locale a avancé la base d'un commit unique et posé un tag `v<semv
    `docs/roadmap.md` oubliés ou en désaccord avec le tag.
 3. Feature mise à jour par la livraison : critères cochés **à raison** (chaque case cochée est vérifiable),
    ligne du tableau passée à `livrée` avec le tag réel, ligne de journal ajoutée. Une case cochée à tort se
-   décoche dans ta réécriture (c'est une correction).
+   décoche dans ta réécriture (c'est une correction) : seule exception permise sur les critères, notée dans
+   `revue.md` et visible dans le diff montré à Adrien. Tu ne coches jamais rien toi-même.
 4. **Tests**, depuis le checkout principal sur la base (lecture seule : ne rien installer ni modifier ;
    si une commande écrit des artefacts ignorés par git, ça va, sinon arrête-toi) : lance la commande de test
    complète de la livraison, plus celle des étapes dont le résumé te paraît faible. Note le code de retour et
@@ -110,7 +115,7 @@ passée, ni sur d'autres que la suivante (et, pour le report, celle d'après ; v
    livrée ; vérifie que tous les critères sont cochés et dis-le (aucune campagne à écrire). Critère encore non
    coché sans campagne pour le couvrir : propose une campagne.
 6. **Tableau de la feature** : mets à jour les lignes des campagnes réécrites (objectif, tag visé). Ne touche
-   ni aux critères, ni au journal, ni à la ligne de la campagne jugée (c'est la livraison qui les a écrits ; si
+   ni aux critères (sauf décocher une case cochée à tort, phase 2.3), ni au journal, ni à la ligne de la campagne jugée (c'est la livraison qui les a écrits ; si
    elle les a mal écrits, dis-le dans la revue plutôt que de les corriger en silence).
 
 **Montre à Adrien** le diagnostic (bloquants, corrections), la nouvelle liste d'étapes avec durées et ce qui a
