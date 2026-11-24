@@ -1,14 +1,14 @@
 ---
 name: deck-plan
-description: "À utiliser quand Adrien demande de planifier une feature deck (« deck-plan roadmap/v1/<feature>.md », « prépare la nuit », « planifie la feature »). Prend un fichier de feature, lit le projet, propose un découpage en N campagnes de 6 à 8 h, le fait valider, écrit les N dossiers `<projet>/.deck/<feature>-<NN>/` (00-plan.md, étapes, livraison), remplit la section « Découpage en campagnes » de la feature, la committe sur la base, valide toutes les campagnes par `deck check --format <id>` et la première par `deck check <id>`, et donne la commande `deck run <id>` sans la lancer. Ne code jamais."
+description: "À utiliser quand Adrien demande de planifier une feature deck (« deck-plan roadmap/v1/<feature>.md », « prépare la nuit », « planifie la feature »). Prend un fichier de feature, lit le projet, propose un découpage en N campagnes de 6 à 8 h, le fait valider, écrit les N dossiers `<projet>/.deck/<feature>-<NN>/` (00-plan.md, étapes, livraison), sans toucher au fichier de feature ni committer (tout reste dans `.deck/`, non versionné), valide toutes les campagnes par `deck check --format <id>` et la première par `deck check <id>`, et donne la commande `deck run <id>` sans la lancer. Ne code jamais."
 ---
 
 # Planifier une feature en campagnes deck
 
 Tu planifies, tu ne codes pas : tu écris des briefs que d'autres sessions exécuteront (`deck-step`). Ne lance
-jamais `deck run`, `git push`, `gh`. Seuls reçoivent des écritures : `<projet>/.deck/`, le fichier de la
-feature (section « Découpage en campagnes ») et, avec l'accord d'Adrien, le `.gitignore` du projet (ajout de
-`.deck/`) ; tu ne committes que ces deux fichiers, par pathspec.
+jamais `deck run`, `git push`, `gh`. Seul `<projet>/.deck/` (non versionné) reçoit
+des écritures. **Tu ne modifies jamais le fichier de feature et tu ne fais aucun commit** : la feature ne change
+que par Adrien (cadrage) ou par l'étape de livraison d'une campagne (critères, ligne du tableau, journal).
 
 Le jugement de la campagne de la veille et la réécriture de la suivante sont le rôle de `deck-challenge` (à
 venir) : `deck-plan` n'écrit ni `revue.md`, ni relecture de livraison.
@@ -35,8 +35,8 @@ dépôt git qui le contient ; appelle-le `<projet>`. `<feature>` = nom du fichie
   de 14 jours **terminées ou abandonnées**, jamais sans accord explicite, jamais une campagne en cours
   (`running`, `waiting`, `ready`, `stale`…) ni la dernière livrée. Rien à purger : une ligne et continue.
 - Une seule campagne active par dépôt : s'il en existe une non terminée (`running`, `waiting`, `ready`,
-  `stale`…), arrête-toi, dis laquelle et n'écris rien. Raison : committer sur la base la ferait diverger de
-  `deck/<id>` (livraison impossible) et `deck check` refuse un dépôt occupé. Reprends quand elle est livrée ou
+  `stale`…), arrête-toi, dis laquelle et n'écris rien. Raison : `deck check` refuse un dépôt occupé, et une
+  base modifiée pendant une campagne empêche sa livraison. Reprends quand elle est livrée ou
   abandonnée.
 
 ## Phase 1 : lecture du projet
@@ -61,11 +61,9 @@ mets `model` que si Adrien veut un modèle précis pour la campagne ou une étap
 
 ## Phase 3 : écriture des N dossiers `<projet>/.deck/<feature>-<NN>/`
 
-Vérifie que `.deck/` est ignoré : `git -C <projet> check-ignore -v .deck/<id>`. S'il ne l'est PAS, ne modifie pas
-le projet sans accord : signale-le et propose d'ajouter `.deck/` au `.gitignore` du projet ou à l'ignore global.
-Continue seulement avec son accord (sinon la livraison locale peut refuser un checkout non propre). S'il
-accepte l'ajout au `.gitignore` du projet, ce fichier entre dans le commit de la phase 4 ; s'il choisit l'ignore
-global, rien n'est à committer pour cela.
+Vérifie que `.deck/` est ignoré : `git -C <projet> check-ignore -v .deck/<id>`. S'il ne l'est PAS, arrête-toi sans
+rien écrire : demande à Adrien d'ajouter `.deck/` à l'ignore global (`~/.config/git/ignore`) ou au `.gitignore` du
+projet, par **son propre commit** (tu ne committes pas). Reprends quand `check-ignore` répond.
 
 Écris les N campagnes d'avance, d'après le modèle, en respectant `campagne.md` (dossier sans date, `id`, branche
 par défaut). Dans chacune :
@@ -93,18 +91,14 @@ jour de la feature (critères, tableau, journal) décrite dans `campagne.md`.
 
 Aucun autre `.md` commençant par un chiffre.
 
-## Phase 4 : la feature, puis le commit
+## Phase 4 : aucun commit, checkout propre
 
-1. Remplis la section « Découpage en campagnes » de la feature : une ligne par campagne (`id`, objectif, statut
-   `planifiée`, tag visé). Ne touche ni aux critères, ni au journal.
-2. Montre le diff et demande l'accord d'Adrien, puis committe sur la base (vérifie d'abord que tu y es encore),
-   uniquement les fichiers du skill, par pathspec, sans passer par l'index :
-   `git -C <projet> commit -m "docs(roadmap): <feature>, découpage en campagnes" -- <fichier de la feature> [.gitignore]`
-   (`.gitignore` seulement s'il a été modifié ; si un fichier est non suivi, `git add -N <fichier>` d'abord ;
-   message en français, sans `Co-Authored-By` ni attribution).
-3. Vérifie : `git -C <projet> show --name-only --format= HEAD` ne liste que ces fichiers, et
-   `git -C <projet> status --short` est vide. Sinon arrête-toi et signale-le, sans réécrire l'historique.
-   Le checkout doit rester propre : la livraison locale le refuse sale.
+1. Le découpage vit **uniquement dans `.deck/`** : chaque `00-plan.md` porte son `id`, son objectif, son tag visé et la
+   ligne « Feature : `roadmap/<version>/<feature>.md` ». Le fichier de feature n'est pas modifié.
+2. Dans l'étape de livraison de chaque campagne, le point « Fichier de feature » demande d'**ajouter** la ligne de la
+   campagne au tableau « Découpage » si elle est absente (`id | objectif | livrée | vX.Y.Z`), sinon de la mettre à jour.
+3. Vérifie : `git -C <projet> status --short` est vide (hors `.deck/` ignoré) et `git -C <projet> log -1` n'a pas
+   bougé depuis la phase 0. Sinon arrête-toi et signale-le, sans réécrire l'historique.
 
 ## Phase 5 : validation
 
@@ -120,8 +114,8 @@ Corrige jusqu'au vert : les erreurs sont toutes listées, les « avertissement :
 PATH : deck » (ou `opencode`, `jq`) : l'outil n'est pas dans le PATH du démon ; dis-le à Adrien, ne modifie pas les
 fichiers.
 
-Termine par un récapitulatif court : feature, liste des `id` avec objectif, durée et tag, agent (et `model` éventuel), hash du commit de
-la feature, ce qui n'a pas été vérifié, et la commande du soir, **sans la lancer** :
+Termine par un récapitulatif court : feature, liste des `id` avec objectif, durée et tag, agent (et `model` éventuel), confirmation qu'aucun
+commit n'a été fait, ce qui n'a pas été vérifié, et la commande du soir, **sans la lancer** :
 
 ```
 cd <projet> && deck run <feature>-01

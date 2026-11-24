@@ -82,8 +82,8 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
 6. **Fichier de feature**, si `00-plan.md` en désigne un (ligne « Feature : `roadmap/<version>/<feature>.md` »
    dans le corps ; sinon, passer au point suivant) : dans ce fichier,
    - cocher dans « Critères d'acceptation » ceux que la campagne atteint, sans en cocher d'autres ;
-   - dans « Découpage », passer la ligne de la campagne à `livrée` et y inscrire le tag réel
-     `vX.Y.Z` choisi au point 2 ;
+   - dans « Découpage », **ajouter** la ligne de la campagne si elle est absente
+     (`id | objectif | livrée | vX.Y.Z`), sinon la passer à `livrée` ; tag réel `vX.Y.Z` choisi au point 2 ;
    - ajouter au « Journal » une ligne `id | date du jour | vX.Y.Z | fait | reste` : `fait` résume ce
      que la campagne a livré, `reste` ce qui manque encore à la feature (ou `rien`).
 

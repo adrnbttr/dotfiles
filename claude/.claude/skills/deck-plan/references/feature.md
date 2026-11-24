@@ -2,8 +2,8 @@
 
 Un projet range ses features dans `roadmap/<version>/<feature>.md` (ex. `roadmap/v1/export-csv.md`), versionné
 dans le dépôt, **une feature par fichier**. `<feature>` : minuscules, chiffres, tirets. C'est l'entrée de
-`deck-plan` : il découpe la feature en N campagnes d'une nuit, remplit la section « Découpage » et committe ce
-fichier sur la base (voir `campagne.md`). Ensuite seulement, `deck-challenge` et la livraison le font vivre.
+`deck-plan` : il découpe la feature en N campagnes d'une nuit, écrites dans `.deck/` (non versionné), **sans modifier ce
+fichier ni committer**. Ensuite, la livraison de chaque campagne (et `deck-challenge`) le font vivre.
 
 Recopier le modèle ci-dessous ; supprimer les commentaires `<!-- -->` une fois remplis. Le fichier est lu par
 des sessions sans la conversation du jour : rien ne doit supposer un contexte oral.
@@ -66,8 +66,7 @@ Statut : planifiée, livrée, à refaire. Tag : version visée (`v0.N.0`), mise 
   le tout dans le commit unique de la campagne.
 - **Dernière campagne avec corrections** : si la relecture de la dernière campagne trouve des corrections,
   `deck-challenge` ajoute une campagne de correction au tableau (tag en patch).
-- **Commit de planification** : écrire le découpage salit le checkout principal, or la livraison locale le
-  refuse sale. `deck-plan` committe donc ce fichier sur la base (`docs(roadmap): <feature>, découpage en
-  campagnes`), avec l'accord d'Adrien, avant tout `deck run`.
+- **Pas de commit de planification** : `deck-plan` n'écrit que dans `.deck/` ; le tableau « Découpage » se remplit
+  à la livraison de chaque campagne (ligne ajoutée si absente), dans le commit unique de la campagne.
 - **Lien roadmap globale** : à la fin de la v1 (dernière feature livrée), la politique de tag fait passer à
   `v1.0.0` (voir `campagne.md`).

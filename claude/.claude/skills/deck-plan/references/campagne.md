@@ -42,8 +42,8 @@ décision de la feature compte, la recopier dans l'étape (ou `00-plan.md`), pas
 - **Dernière étape = livraison** (plus grand `NN`, copie de `02-livraison.md` renumérotée). Elle ajoute, avant le
   regroupement : cocher dans le fichier de feature (`roadmap/<version>/<feature>.md`) les critères satisfaits,
   mettre à jour la ligne du tableau (statut, tag) et ajouter la ligne de journal (id, date, tag, fait, reste).
-  Puis un **commit unique** au-dessus de `base` et un tag annoté `vX.Y.Z`. Le fichier de feature est déjà sur
-  `base` (committé à la planification), donc présent dans le worktree.
+  Puis un **commit unique** au-dessus de `base` et un tag annoté `vX.Y.Z`. Le fichier de feature est sur `base`
+  (versionné avec la roadmap, jamais modifié par `deck-plan`) ; la livraison y **ajoute** la ligne de la campagne.
 - **Tag obligatoire à chaque campagne** : version mineure par campagne (`0.N.0`) ; patch (`0.N.P`) pour une
   campagne de pure correction ; `v1.0.0` à la fin de la roadmap v1, puis `1.N.0` pendant la v2. Écrire la
   version visée en clair dans la livraison (le modèle laisse l'agent la déduire : ici la politique la fixe).
