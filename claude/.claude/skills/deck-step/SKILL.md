@@ -23,10 +23,10 @@ Tu exécutes UNE étape d'une campagne orchestrée par deck. Arguments : `$ARGUM
 
 1. **Lire** le manifeste puis le fichier d'étape. L'étape est le plan validé : ne demande aucune validation, ne contrôle pas le modèle. Réalise exactement ce qu'elle demande.
 2. **Exécuter** selon la doctrine habituelle :
-   - délègue le code et les tests aux sous-agents `worker` ;
-   - exploration : `scout` ;
+   - délègue le code et les tests aux sous-agents `worker` (sous OpenCode : `implementer`, ou `chore` si mécanique) ;
+   - exploration : `scout` (sous OpenCode : `explore`) ;
    - lance toi-même les tests finaux ;
-   - fais relire par `reviewer` avant de conclure, et corrige ses défauts.
+   - fais relire par `reviewer` (sous OpenCode : `challenger`) avant de conclure, et corrige ses défauts.
 3. **Commiter** sur la branche courante (étape ordinaire ; pour l'étape de livraison, voir plus bas).
    - Commit de sauvegarde `wip(étape NN): <titre de l'étape>` (`NN` sur deux chiffres), message en français,
      sans `Co-Authored-By` ni attribution (outil, agent, modèle).
