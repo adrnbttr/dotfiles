@@ -24,8 +24,9 @@ feature → campagnes.
 - **Valeurs texte entre guillemets doubles** (`title`, tout ce qui peut contenir `:` ou ` #`) :
   `title: "Export CSV : commande"`. Sans guillemets, `:` est refusé et ` #` tronque sans bruit. Pas de `\`
   dans ces valeurs.
-- `agent` : celui qui **exécute**, indépendant de celui qui planifie ou challenge. Défaut `claude` tant que
-  l'adaptateur OpenCode (J7) n'est pas livré (`deck check` refuse `opencode`), puis `opencode`.
+- `agent` : celui qui **exécute**, indépendant de celui qui planifie ou challenge. Défaut proposé : `opencode`
+  (Adrien peut choisir `claude`). `model` (frontmatter d'étape) est facultatif avec `opencode` : absent, le
+  modèle vient de la config OpenCode (`jq` requis) ; présent, il est imposé.
 
 ## Briefs d'étape autonomes
 
@@ -59,13 +60,12 @@ fichiers se suivent. Ce qui dépasse 8 h glisse à la campagne suivante (le tabl
 
 ## Contrôle
 
-- `deck check <dossier>` : code 0 attendu, toutes les erreurs sont listées ; les « avertissement : » (ex.
-  `.deck/` non ignoré) se traitent, pas se taisent.
-- **À venir (pas encore codé)** : `deck check <id>` et `deck check --format` (contrôle du contenu seul,
-  sans l'état du dépôt : utile aux campagnes futures, car une seule campagne non terminée par dépôt). En
-  attendant, contrôler la seule première campagne, `deck check <dossier>`, et relire les suivantes à la main
-  contre le modèle. De même `deck run <id>` n'existe pas encore : `deck run <dossier>`.
-- Donner la commande `deck run`, ne jamais la lancer depuis le skill.
+- `deck check --format <id>` : format du manifeste et des étapes seulement, utilisable pour une campagne
+  future quand la précédente occupe le dépôt ; code 0 attendu pour **chaque** campagne écrite.
+- `deck check <id>` : contrôle complet, code 0 attendu, à faire sur la première campagne ; toutes les erreurs
+  sont listées ; les « avertissement : » (ex. `.deck/` non ignoré) se traitent, pas se taisent. `<id>` se
+  résout depuis la racine git du cwd en `.deck/<id>/` (un dossier reste accepté).
+- Donner la commande `deck run <id>`, ne jamais la lancer depuis le skill.
 
 ## Ce qu'une campagne ne fait jamais
 

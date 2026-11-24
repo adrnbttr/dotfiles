@@ -1,6 +1,6 @@
 ---
 name: deck-plan
-description: "À utiliser quand Adrien demande de planifier une feature deck (« deck-plan roadmap/v1/<feature>.md », « prépare la nuit », « planifie la feature »). Prend un fichier de feature, lit le projet, propose un découpage en N campagnes de 6 à 8 h, le fait valider, écrit les N dossiers `<projet>/.deck/<feature>-<NN>/` (00-plan.md, étapes, livraison), remplit la section « Découpage en campagnes » de la feature, la committe sur la base, valide la première avec `deck check` et donne la commande `deck run` sans la lancer. Ne code jamais."
+description: "À utiliser quand Adrien demande de planifier une feature deck (« deck-plan roadmap/v1/<feature>.md », « prépare la nuit », « planifie la feature »). Prend un fichier de feature, lit le projet, propose un découpage en N campagnes de 6 à 8 h, le fait valider, écrit les N dossiers `<projet>/.deck/<feature>-<NN>/` (00-plan.md, étapes, livraison), remplit la section « Découpage en campagnes » de la feature, la committe sur la base, valide toutes les campagnes par `deck check --format <id>` et la première par `deck check <id>`, et donne la commande `deck run <id>` sans la lancer. Ne code jamais."
 ---
 
 # Planifier une feature en campagnes deck
@@ -52,9 +52,10 @@ campagnes de 6 à 8 h, chacune : `id` (`<feature>-<NN>`), objectif en une ligne,
 d'acceptation de la feature qu'elle satisfait, tag visé (politique de `campagne.md`). Chaque campagne a 5 à 10
 étapes de 30 à 90 min plus la livraison, dernière. Chaque étape a un résultat observable et une commande de test ;
 deux étapes qui touchent les mêmes fichiers se suivent. Tous les critères de la feature doivent être couverts.
-Demande aussi l'**agent** : défaut `claude` tant que J7 (OpenCode) n'est pas livré, car `deck check` refuse
-`agent: opencode` ; n'essaie `opencode` que si Adrien le demande, et si `deck check` le refuse repasse à
-`claude` en le disant.
+Demande aussi l'**agent** : propose `opencode` par défaut (Adrien peut choisir `claude`). Avec `opencode`,
+précise `model` : sans `model` dans le frontmatter d'une étape, le modèle est lu dans la config OpenCode
+(`agents.build.model`, `jq` requis) ; avec `model` (ex. `provider/modèle`), il est imposé et passé tel quel. Ne
+mets `model` que si Adrien veut un modèle précis pour la campagne ou une étape ; sinon laisse-le absent.
 
 **Pose la question explicite et attends l'accord d'Adrien** sur estimation et découpage. Aucune écriture avant.
 
@@ -107,14 +108,21 @@ Aucun autre `.md` commençant par un chiffre.
 
 ## Phase 5 : validation
 
-`deck check <projet>/.deck/<feature>-01` : code 0 attendu ; sinon corrige jusqu'au vert, les erreurs sont toutes
-listées, les « avertissement : » se traitent. Tant que `deck check <id>` / `--format` n'existent pas, seule la
-première campagne passe `deck check` ; relis les suivantes à la main contre le modèle. « outil absent du PATH :
-deck » : `deck` n'est pas dans le PATH du démon ; dis-le à Adrien, ne modifie pas les fichiers.
+Les commandes prennent l'`id` : `deck` résout `<racine git du cwd>/.deck/<id>/`, lance-les donc depuis le
+projet.
 
-Termine par un récapitulatif court : feature, liste des `id` avec objectif, durée et tag, agent, hash du commit de
+1. **Toutes** les campagnes écrites : `deck check --format <feature>-<NN>` (format du manifeste et des étapes
+   seulement, valable même quand une autre campagne occupe le dépôt) : code 0 attendu pour chacune.
+2. La **première** : `deck check <feature>-01` complet (outils, `opencode`, skill, dépôt, base…), code 0 attendu.
+   Les campagnes suivantes ne passent le contrôle complet que le soir de leur lancement.
+
+Corrige jusqu'au vert : les erreurs sont toutes listées, les « avertissement : » se traitent. « outil absent du
+PATH : deck » (ou `opencode`, `jq`) : l'outil n'est pas dans le PATH du démon ; dis-le à Adrien, ne modifie pas les
+fichiers.
+
+Termine par un récapitulatif court : feature, liste des `id` avec objectif, durée et tag, agent (et `model` éventuel), hash du commit de
 la feature, ce qui n'a pas été vérifié, et la commande du soir, **sans la lancer** :
 
 ```
-deck run <chemin absolu de <projet>/.deck/<feature>-01>
+cd <projet> && deck run <feature>-01
 ```
