@@ -5,9 +5,6 @@ section « Conséquences »). Il sert de point de départ à Adrien et au skill 
 campagne de la boucle jour/nuit : planifiée le jour, exécutée la nuit avec `agent: opencode` et
 `delivery: local`, livrée sans push (ADR [0023](../../adr/0023-livraison-locale.md)).
 
-> **Attention** : tant que le jalon J7 (adaptateur OpenCode) n'est pas fusionné, `deck run` échoue
-> avec `agent: opencode`. Utiliser `agent: claude` en attendant.
-
 ## Contenu
 
 | Fichier | Rôle |
@@ -44,7 +41,7 @@ cp docs/specs/modele-campagne/0*.md <projet>/.deck/<id>/
   La livraison est la dernière étape par position (ADR 0023 D3) : quand on ajoute des étapes,
   renuméroter l'étape de livraison (par ex. `07-livraison.md`) pour qu'elle garde le plus grand `NN`,
   et faire suivre ses références à « l'étape 02 » dans le plan et le texte.
-- Lancer `deck check <dossier>` avant `deck run` : il valide le frontmatter, les noms et les corps.
+- Lancer `deck check <id>` avant `deck run` : il valide le frontmatter, les noms et les corps.
 
 ## Règles de nommage des étapes
 

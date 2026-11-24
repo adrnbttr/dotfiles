@@ -1,7 +1,4 @@
 ---
-# ATTENTION : tant que le jalon J7 (adaptateur OpenCode) n'est pas fusionné, `deck run` échoue avec
-# `agent: opencode`. En attendant, mettre `agent: claude` ci-dessous.
-#
 # Manifeste de campagne deck (ADR 0004, 0011, 0023). Les commentaires `#` sont acceptés par le
 # lecteur YAML (serde-saphyr) : ils peuvent rester dans le fichier réel. Un `#` de commentaire doit
 # être précédé d'une espace. Tout champ inconnu est refusé (faute de frappe = erreur de `deck check`).
@@ -32,7 +29,7 @@ base: main
 # remote: origin
 
 # OBLIGATOIRE. Agent d'exécution : `claude` ou `opencode`. Une étape peut le surcharger.
-# Boucle jour/nuit : `opencode` (cible). Tant que J7 n'est pas fusionné : `claude`.
+# Boucle jour/nuit : `opencode` (cible).
 agent: opencode
 
 # OBLIGATOIRE. Scénario : `dev` ou `factory`. Enregistré, sans effet pour l'instant.
