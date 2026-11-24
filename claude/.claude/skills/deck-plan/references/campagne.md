@@ -55,7 +55,7 @@ décision de la feature compte, la recopier dans l'étape (ou `00-plan.md`), pas
 6 à 8 h par campagne : 5 à 10 étapes de 30 à 90 min, livraison comprise (comptée ~30 min). Estimer par étape :
 nombre de fichiers touchés, présence de tests à écrire, durée de la commande de test, risque d'itération ; en
 cas de doute, prendre la borne haute. Une étape trop grosse se coupe ; deux étapes qui touchent les mêmes
-fichiers se suivent. Ce qui dépasse 8 h glisse à la campagne suivante (le tableau de la feature en garde trace).
+fichiers se suivent. Ce qui dépasse 8 h glisse à la campagne suivante (le `00-plan.md` de chaque campagne en garde trace).
 `max_duration` borne une tentative d'étape, pas la nuit : le régler au-dessus de la plus longue étape.
 
 ## Contrôle

@@ -1,6 +1,6 @@
 ---
 name: deck-challenge
-description: "À utiliser le matin, quand Adrien demande de juger la nuit deck (« deck-challenge », « challenge la campagne d'hier », « relis la nuit », « prépare la suivante »). Trouve la dernière campagne passée (`deck status --json`) ; si elle n'est pas terminée, propose de la reprendre ou de l'abandonner, rien d'autre ; sinon relit le commit livré sur la base (tag), lance les tests, écrit `revue.md` dans le dossier de la campagne, réécrit la campagne suivante de la feature (étape 01 de corrections, suite recalibrée pour une nuit de 6 à 8 h, surplus reporté), crée une campagne de correction si c'était la dernière, valide avec `deck check --format` et committe la feature avec l'accord d'Adrien. Lecture seule sur le code."
+description: "À utiliser quand Adrien demande de juger la nuit deck (« deck-challenge », « challenge la campagne d'hier », « relis la nuit », « prépare la suivante »). Trouve la dernière campagne passée (`deck status --json`) ; si elle n'est pas terminée, propose de la reprendre ou de l'abandonner, rien d'autre ; sinon relit le commit livré sur la base (tag), lance les tests, écrit `revue.md` dans le dossier de la campagne, réécrit la campagne suivante de la feature (étape 01 de corrections, suite recalibrée pour une nuit de 6 à 8 h, surplus reporté), crée une campagne de correction si c'était la dernière, valide avec `deck check --format`. N'écrit que dans `.deck/` (non versionné) : ni fichier de feature, ni commit. Lecture seule sur le code."
 ---
 
 # Challenger la campagne de la veille
@@ -8,10 +8,14 @@ description: "À utiliser le matin, quand Adrien demande de juger la nuit deck (
 Tu juges et tu replanifies, tu ne codes pas. Tu es indépendant de l'agent qui a exécuté la nuit (`agent:` du
 manifeste de la campagne) : ne lui fais pas confiance sur parole, relis le code et rejoue les tests.
 
-**Lecture seule sur le code du projet.** Les seules écritures permises : `<projet>/.deck/` (le `revue.md` de la
-campagne jugée, les dossiers des campagnes suivantes) et le fichier de feature `roadmap/<version>/<feature>.md`.
-Tu ne corriges aucun défaut dans le code, tu ne touches ni au checkout principal ni aux branches, et tu ne lances
-jamais `deck run`, `git push`, `gh`. Le commit de la feature n'est fait qu'après l'accord explicite d'Adrien.
+**Lecture seule sur le projet.** Seul `<projet>/.deck/` (non versionné) reçoit des écritures : le `revue.md` de
+la campagne jugée et les dossiers des campagnes suivantes. **Tu ne modifies jamais le fichier de feature et tu ne
+fais aucun commit** (même règle que `deck-plan`) : la feature ne change que par Adrien ou par l'étape de livraison
+d'une campagne. Tu ne corriges aucun défaut dans le code, tu ne touches ni au checkout principal ni aux branches,
+et tu ne lances jamais `deck run`, `git push`, `gh`.
+
+**Horaires** : si l'`AGENTS.md` du projet restreint les heures d'écriture ou de planification, respecte-les ;
+hors de ces heures, arrête-toi avant d'écrire et dis-le.
 
 Références (chemins relatifs au skill, partagées avec `deck-plan`, à lire avant d'écrire) :
 - `../deck-plan/references/feature.md` : modèle de la feature (critères, tableau « Découpage », journal) ;
@@ -73,9 +77,9 @@ La livraison locale a avancé la base d'un commit unique et posé un tag `v<semv
    périmètre ; tests absents ou factices ; régression visible ; fichiers de version, `CHANGELOG`,
    `docs/roadmap.md` oubliés ou en désaccord avec le tag.
 3. Feature mise à jour par la livraison : critères cochés **à raison** (chaque case cochée est vérifiable),
-   ligne du tableau passée à `livrée` avec le tag réel, ligne de journal ajoutée. Une case cochée à tort se
-   décoche dans ta réécriture (c'est une correction) : seule exception permise sur les critères, notée dans
-   `revue.md` et visible dans le diff montré à Adrien. Tu ne coches jamais rien toi-même.
+   ligne de la campagne présente au tableau en `livrée` avec le tag réel, ligne de journal ajoutée. Une case
+   cochée à tort, une ligne fausse ou absente : c'est une **correction**, notée dans `revue.md` et confiée à la
+   livraison de la campagne suivante (phase 4.3). Tu ne modifies pas la feature toi-même.
 4. **Tests**, depuis le checkout principal sur la base (lecture seule : ne rien installer ni modifier ;
    si une commande écrit des artefacts ignorés par git, ça va, sinon arrête-toi) : lance la commande de test
    complète de la livraison, plus celle des étapes dont le résumé te paraît faible. Note le code de retour et
@@ -90,8 +94,9 @@ tu écris dans ce dossier. Fais-le avant la réécriture, car les étapes de cor
 
 ## Phase 4 : réécrire la campagne suivante
 
-Lis le tableau « Découpage en campagnes » de la feature : la suivante est la première ligne `planifiée` après
-la campagne jugée. Lis ses fichiers `<projet>/.deck/<feature>-<NN+1>/`. N'écris sur aucune campagne déjà
+La campagne suivante est le dossier `<projet>/.deck/<feature>-<NN+1>/` écrit par `deck-plan` (son `00-plan.md`
+porte la ligne « Feature : `roadmap/<version>/<feature>.md` ») ; le tableau de la feature ne liste que les campagnes
+livrées. Lis ses fichiers. N'écris sur aucune campagne déjà
 passée, ni sur d'autres que la suivante (et, pour le report, celle d'après ; voir ci-dessous).
 
 1. **Étape 01 = corrections** (`01-corrections.md`) : une étape par correction ou un seul brief si elles
@@ -102,42 +107,37 @@ passée, ni sur d'autres que la suivante (et, pour le report, celle d'après ; v
    réel (chemins, noms, décisions de la nuit). Réestime chaque étape (`campagne.md`, « Budget de nuit ») et fais
    tenir l'ensemble en **6 à 8 h** livraison comprise (5 à 10 étapes de 30 à 90 min). Ce qui dépasse **glisse
    vers la campagne d'après** : ajoute-le en tête de ses étapes (renumérote, même règle de budget, répète
-   jusqu'à la dernière). S'il n'y a pas d'après, ajoute une campagne `<feature>-<NN+2>` (dossier complet, ligne
-   au tableau). Une campagne qui se vide est supprimée du tableau et du disque, avec l'accord d'Adrien.
+   jusqu'à la dernière). S'il n'y a pas d'après, ajoute une campagne `<feature>-<NN+2>` (dossier complet dans
+   `.deck/`). Une campagne qui se vide est supprimée du disque, avec l'accord d'Adrien.
 3. **Livraison** : régénère l'étape de livraison (plus grand `NN`) pour que numéros, version visée, fichier de
    version et mise à jour de la feature restent exacts. Version visée : mineure ; si la campagne ne contient
-   que des corrections, patch.
+   que des corrections, patch. Elle porte aussi les corrections de la feature relevées en phase 2.3 (case à
+   décocher, ligne du tableau à corriger ou ajouter), chacune avec le chemin de `revue.md`.
 4. **`00-plan.md`** : objectif, liste des étapes et critères visés à jour ; date de replanification ajoutée dans
    le corps ; frontmatter inchangé (champs du modèle seulement, valeurs texte entre guillemets doubles).
-5. **Dernière campagne passée avec des corrections** (aucune campagne `planifiée` après elle) : crée une
-   campagne de correction `<feature>-<NN+1>` (étapes de correction, livraison, version en **patch**), ajoute sa
-   ligne au tableau (`planifiée`, tag patch). Aucune correction et aucune campagne suivante : la feature est
+5. **Dernière campagne passée avec des corrections** (aucun dossier `.deck/<feature>-<NN+1>/`) : crée une
+   campagne de correction `<feature>-<NN+1>` (étapes de correction, livraison, version en **patch**) ; sa
+   livraison ajoutera sa ligne au tableau. Aucune correction et aucune campagne suivante : la feature est
    livrée ; vérifie que tous les critères sont cochés et dis-le (aucune campagne à écrire). Critère encore non
    coché sans campagne pour le couvrir : propose une campagne.
-6. **Tableau de la feature** : mets à jour les lignes des campagnes réécrites (objectif, tag visé). Ne touche
-   ni aux critères (sauf décocher une case cochée à tort, phase 2.3), ni au journal, ni à la ligne de la campagne jugée (c'est la livraison qui les a écrits ; si
-   elle les a mal écrits, dis-le dans la revue plutôt que de les corriger en silence).
+6. **Fichier de feature** : tu n'y touches pas. Objectif et tag visé des campagnes réécrites vivent dans leur
+   `00-plan.md` ; critères, tableau et journal sont écrits par les livraisons.
 
 **Montre à Adrien** le diagnostic (bloquants, corrections), la nouvelle liste d'étapes avec durées et ce qui a
 glissé, puis **demande l'accord** avant d'écrire les dossiers.
 
-## Phase 5 : validation et commit
+## Phase 5 : validation, aucun commit
 
-1. Pour chaque campagne écrite ou réécrite : `deck check --format <projet>/.deck/<id>` (ou `deck check
-   --format <id>` depuis la racine du projet). Code 0 attendu ; sinon corrige jusqu'au vert, les erreurs sont
-   toutes listées. `--format` ne contrôle que le manifeste et les étapes : le `deck check` complet se fait le
-   soir, juste avant `deck run`. « outil absent du PATH : deck » ou démon d'une version antérieure qui ignore
-   `--format` : dis-le à Adrien, ne modifie pas les fichiers pour autant.
-2. Montre le diff de la feature (`git -C <projet> diff -- <feature>`) et **demande l'accord d'Adrien**. Alors,
-   sur la base (vérifie que tu y es), par pathspec, sans passer par l'index :
-   `git -C <projet> commit -m "docs(roadmap): <feature>, campagne <id> relue, suite recalibrée" -- <fichier de la feature>`
-   (message en français, sans `Co-Authored-By` ni attribution). Pas d'accord : laisse le fichier modifié et
-   dis-le (la livraison locale refuse un checkout sale ; Adrien doit le savoir avant `deck run`).
-3. Vérifie : `git -C <projet> show --name-only --format= HEAD` ne liste que la feature, `git status --short`
-   vide. Sinon arrête-toi et signale-le, sans réécrire l'historique.
+1. Pour chaque campagne écrite ou réécrite : `deck check --format <id>` depuis la racine du projet. Code 0
+   attendu ; sinon corrige jusqu'au vert, les erreurs sont toutes listées. `--format` ne contrôle que le
+   manifeste et les étapes : le `deck check` complet se fait le soir, juste avant `deck run`. « outil absent du
+   PATH : deck » ou démon d'une version antérieure qui ignore `--format` : dis-le à Adrien, ne modifie pas les
+   fichiers pour autant.
+2. Vérifie : `git -C <projet> status --short` est vide (hors `.deck/` ignoré) et `git -C <projet> log -1` n'a pas
+   bougé depuis la phase 0. Sinon arrête-toi et signale-le, sans réécrire l'historique.
 
 Termine par un récapitulatif court : campagne jugée (`id`, tag, sha), verdict (bloquants, corrections), tests
-lancés et résultat, campagnes réécrites ou créées (durée estimée, ce qui a glissé), hash du commit de la feature,
+lancés et résultat, campagnes réécrites ou créées (durée estimée, ce qui a glissé), confirmation qu'aucun commit n'a été fait,
 ce qui n'a pas été vérifié, et la commande du soir, **sans la lancer** :
 
 ```
