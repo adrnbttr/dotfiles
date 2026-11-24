@@ -78,8 +78,9 @@ La livraison locale a avancé la base d'un commit unique et posé un tag `v<semv
    `docs/roadmap.md` oubliés ou en désaccord avec le tag.
 3. Feature mise à jour par la livraison : critères cochés **à raison** (chaque case cochée est vérifiable),
    ligne de la campagne présente au tableau en `livrée` avec le tag réel, ligne de journal ajoutée. Une case
-   cochée à tort, une ligne fausse ou absente : c'est une **correction**, notée dans `revue.md` et confiée à la
-   livraison de la campagne suivante (phase 4.3). Tu ne modifies pas la feature toi-même.
+   cochée à tort, une ligne fausse ou absente : c'est un **constat de `revue.md`** et une **correction dans l'étape 01**
+   de la campagne suivante, dont la livraison corrige la feature (décoche la case, corrige la ligne). Tu ne
+   modifies pas la feature toi-même.
 4. **Tests**, depuis le checkout principal sur la base (lecture seule : ne rien installer ni modifier ;
    si une commande écrit des artefacts ignorés par git, ça va, sinon arrête-toi) : lance la commande de test
    complète de la livraison, plus celle des étapes dont le résumé te paraît faible. Note le code de retour et
@@ -114,7 +115,12 @@ passée, ni sur d'autres que la suivante (et, pour le report, celle d'après ; v
    que des corrections, patch. Elle porte aussi les corrections de la feature relevées en phase 2.3 (case à
    décocher, ligne du tableau à corriger ou ajouter), chacune avec le chemin de `revue.md`.
 4. **`00-plan.md`** : objectif, liste des étapes et critères visés à jour ; date de replanification ajoutée dans
-   le corps ; frontmatter inchangé (champs du modèle seulement, valeurs texte entre guillemets doubles).
+   le corps ; frontmatter inchangé (champs du modèle seulement, valeurs texte entre guillemets doubles). Chaque
+   `00-plan.md` des campagnes réécrites ou créées porte son `id`, son objectif, son tag visé et la ligne
+   « Feature : `roadmap/<version>/<feature>.md` ». Leur ligne du tableau « Découpage » n'est **pas** écrite par le
+   challenge : la livraison de chaque campagne l'ajoute si elle est absente.
+   **Agent** : si l'`AGENTS.md` du projet dit que le code est produit par OpenCode, `agent: opencode` est
+   **obligatoire** dans les campagnes réécrites ou créées (jamais `claude`) ; sinon garde l'agent de la campagne.
 5. **Dernière campagne passée avec des corrections** (aucun dossier `.deck/<feature>-<NN+1>/`) : crée une
    campagne de correction `<feature>-<NN+1>` (étapes de correction, livraison, version en **patch**) ; sa
    livraison ajoutera sa ligne au tableau. Aucune correction et aucune campagne suivante : la feature est
