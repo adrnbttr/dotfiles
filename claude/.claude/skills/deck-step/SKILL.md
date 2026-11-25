@@ -43,7 +43,9 @@ Tu exécutes UNE étape d'une campagne orchestrée par deck. Arguments : `$ARGUM
      le signaler dans le summary de `deck done`.
    - Rien à committer (étape sans modification) : ne pas créer de commit vide et le dire dans le summary.
      `deck done --status ok` exige au moins un commit non vide depuis la base de la PREMIÈRE tentative de
-     l'étape (refus code 1 sinon ; ADR 0034, garde-fou `check_done_ok` de `crates/deck-domain/src/guard.rs`,
+     l'étape (si l'historique a été réécrit depuis : la plus ancienne tentative dont la base est encore
+     ancêtre de HEAD, à défaut la courante, ADR 0035 ; refus code 1 sinon ;
+     ADR 0034, garde-fou `check_done_ok` de `crates/deck-domain/src/guard.rs`,
      dépôt deck). Après `resume` ou `retry`, le décompte part toujours de cette base : les commits des
      tentatives précédentes comptent, sauf ceux qu'un `retry --reset` a retirés de la branche (il revient à
      la base de la tentative abandonnée). Deux autres conditions : aucun fichier suivi modifié, index vide.

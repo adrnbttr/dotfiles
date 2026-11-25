@@ -51,7 +51,9 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
    ```
 
    puis le contrôle final (point 10) et `deck done` (point 11). Pourquoi : le garde-fou de `done ok` compte
-   les commits non vides depuis la base de la **première** tentative de l'étape (ADR 0034), pas depuis
+   les commits non vides depuis la base de la **première** tentative de l'étape (ADR 0034 ; ADR 0035 : si
+   l'historique a été réécrit depuis, la plus ancienne tentative dont la base est encore ancêtre de HEAD, à
+   défaut la tentative courante), pas depuis
    celle de la tentative courante : après `deck retry`, un commit fait par une tentative précédente reste
    crédité, et `done ok` n'est pas refusé faute de nouveau commit. Refaire le regroupement n'est donc plus
    une condition du garde-fou ; c'est la consigne de conduite pour livrer un commit unique, neuf et
