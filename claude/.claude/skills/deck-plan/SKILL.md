@@ -1,6 +1,6 @@
 ---
 name: deck-plan
-description: "À utiliser quand Adrien demande de planifier une feature deck (« deck-plan roadmap/v1/<feature>.md », « prépare la nuit », « planifie la feature »). Prend un fichier de feature, lit le projet, propose un découpage en N campagnes de 6 à 8 h, le fait valider, écrit les N dossiers `<projet>/.deck/<feature>-<NN>/` (00-plan.md, étapes, livraison), sans toucher au fichier de feature ni committer (tout reste dans `.deck/`, non versionné), valide toutes les campagnes par `deck check --format <id>` et la première par `deck check <id>`, et donne la commande `deck run <id>` sans la lancer. Ne code jamais."
+description: "À utiliser quand Adrien demande de planifier une feature deck (« deck-plan roadmap/v1/<feature>.md », « prépare la nuit », « planifie la feature »). Prend un fichier de feature, lit le projet, propose un découpage en N campagnes de 6 à 8 h, le fait valider, écrit les N dossiers `<projet>/.deck/<feature>-<NN>/` (00-plan.md, étapes, livraison), sans toucher au fichier de feature ni committer (tout reste dans `.deck/`, non versionné), valide toutes les campagnes par `deck check --format <id>` et la première par `deck check <id>`, et donne la commande `cd <projet> && deck run <id>` sans la lancer. Ne code jamais."
 ---
 
 # Planifier une feature en campagnes deck
@@ -10,15 +10,17 @@ jamais `deck run`, `git push`, `gh`. Seul `<projet>/.deck/` (non versionné) re�
 des écritures. **Tu ne modifies jamais le fichier de feature et tu ne fais aucun commit** : la feature ne change
 que par Adrien (cadrage) ou par l'étape de livraison d'une campagne (critères, ligne du tableau, journal).
 
-Le jugement de la campagne de la veille et la réécriture de la suivante sont le rôle de `deck-challenge` (à
-venir) : `deck-plan` n'écrit ni `revue.md`, ni relecture de livraison.
+Le jugement de la campagne de la veille et la réécriture de la suite sont le rôle de `deck-challenge` :
+`deck-plan` n'écrit ni `revue.md`, ni relecture de livraison.
 
 Références, à lire avant d'écrire (chemins relatifs au skill) :
 - `references/feature.md` : modèle du fichier de feature et règles d'usage ;
-- `references/campagne.md` : règles communes (nommage, frontmatter, commits, tag, budget, contrôle) ;
+- `references/campagne.md` : règles communes (nommage, frontmatter, guillemets YAML, agent, `model`, commits,
+  niveau de version, budget, contrôle) ;
+- `references/controles.md` : contrôles communs avec `deck-challenge` (checkout propre, aucun commit, outils
+  contrôlés par `deck check`) ;
 - `references/modele-campagne/` : modèle commenté (`README.md`, `00-plan.md`, `01-etape-type.md`,
-  `02-livraison.md`). Copie issue de deck `docs/specs/modele-campagne/` au 2026-11-23 ; à resynchroniser si le
-  modèle change. Les liens relatifs (`../../adr/…`) et chemins (`cp docs/specs/modele-campagne/…`) du `README.md`
+  `02-livraison.md`). Copie de deck `docs/specs/modele-campagne/`, à garder identique. Les liens relatifs (`../../adr/…`) et chemins (`cp docs/specs/modele-campagne/…`) du `README.md`
   de la copie ne valent que dans le dépôt deck : ne les suis pas depuis un autre projet.
 
 Entrée : le chemin d'un fichier `roadmap/<version>/<feature>.md` (demande-le s'il manque). Le projet est le
@@ -28,14 +30,14 @@ dépôt git qui le contient ; appelle-le `<projet>`. `<feature>` = nom du fichie
 
 - Fichier de feature conforme à `references/feature.md`, avec des critères d'acceptation cochables. Sinon
   arrête-toi et dis ce qui manque.
-- Checkout principal sur la branche de base **avant d'écrire quoi que ce soit** (`git branch --show-current`),
-  sans fichier modifié ni indexé (`git status --short` vide, hors `.deck/` ignoré). Sinon arrête-toi et dis ce
-  qui ne va pas : tu ne changes pas de branche et tu ne nettoies pas à la place d'Adrien.
+- **Avant d'écrire quoi que ce soit** : « Checkout propre » de `references/controles.md`.
+- États de campagne (`state` de `deck status --json`) : `setup`, `running`, `paused`, `ready`, `completed`,
+  `aborted`. Terminée = `completed` ou `aborted`.
 - Purge : liste `<projet>/.deck/*/` (`deck status --json`, par `id`). Propose de supprimer les campagnes de plus
-  de 14 jours **terminées ou abandonnées**, jamais sans accord explicite, jamais une campagne en cours
-  (`running`, `waiting`, `ready`, `stale`…) ni la dernière livrée. Rien à purger : une ligne et continue.
-- Une seule campagne active par dépôt : s'il en existe une non terminée (`running`, `waiting`, `ready`,
-  `stale`…), arrête-toi, dis laquelle et n'écris rien. Raison : `deck check` refuse un dépôt occupé, et une
+  de 14 jours dont le `state` est `completed` ou `aborted`, jamais sans accord explicite, jamais une campagne dans un autre
+  état, ni la dernière livrée. Rien à purger : une ligne et continue.
+- Une seule campagne active par dépôt : s'il existe pour ce `repo` une campagne dont le `state` n'est pas
+  `completed`/`aborted`, arrête-toi, dis laquelle et n'écris rien. Raison : `deck check` refuse un dépôt occupé, et une
   base modifiée pendant une campagne empêche sa livraison. Reprends quand elle est livrée ou
   abandonnée.
 
@@ -49,15 +51,13 @@ version actuelle, commande de tests complète exacte, `setup` utile (dépendance
 
 Estime le travail de la feature (voir « Budget de nuit » dans `campagne.md`) et propose dans la conversation N
 campagnes de 6 à 8 h, chacune : `id` (`<feature>-<NN>`), objectif en une ligne, étapes (titres, durée), critères
-d'acceptation de la feature qu'elle satisfait, tag visé (politique de `campagne.md`). Chaque campagne a 5 à 10
+d'acceptation de la feature qu'elle satisfait, niveau de version (mineure, correctif ou `1.0.0` : politique de
+`campagne.md` ; jamais de numéro, calculé à la livraison). Chaque campagne a 5 à 10
 étapes de 30 à 90 min plus la livraison, dernière. Chaque étape a un résultat observable et une commande de test ;
 deux étapes qui touchent les mêmes fichiers se suivent. Tous les critères de la feature doivent être couverts.
-Demande aussi l'**agent** : propose `opencode` par défaut (Adrien peut choisir `claude`).
-Si l'`AGENTS.md` du projet dit que le code est produit par OpenCode : `agent: opencode` **obligatoire**, sans poser
-la question, jamais `claude`. Avec `opencode`,
-précise `model` : sans `model` dans le frontmatter d'une étape, le modèle est lu dans la config OpenCode
-(`agents.build.model`, `jq` requis) ; avec `model` (ex. `provider/modèle`), il est imposé et passé tel quel. Ne
-mets `model` que si Adrien veut un modèle précis pour la campagne ou une étape ; sinon laisse-le absent.
+Demande aussi l'**agent** et l'éventuel `model` en appliquant `campagne.md`, « Frontmatter » (défaut proposé,
+cas où l'agent est imposé sans poser la question, place de `model` : frontmatter de chaque étape, jamais le
+manifeste).
 
 **Pose la question explicite et attends l'accord d'Adrien** sur estimation et découpage. Aucune écriture avant.
 
@@ -68,15 +68,11 @@ rien écrire : demande à Adrien d'ajouter `.deck/` à l'ignore global (`~/.conf
 projet, par **son propre commit** (tu ne committes pas). Reprends quand `check-ignore` répond.
 
 Écris les N campagnes d'avance, d'après le modèle, en respectant `campagne.md` (dossier sans date, `id`, branche
-par défaut). Dans chacune :
-
-**Valeurs texte du frontmatter YAML** (`title`, toute valeur pouvant contenir `:` ou ` #`) : toujours entre
-guillemets doubles, ex. `title: "Export CSV : commande"`. Sans guillemets, `:` est refusé et ` #` tronque sans
-bruit. Pas de `\` dedans.
+par défaut ; frontmatter : champs, guillemets doubles, agent, `model`, selon « Frontmatter »). Dans chacune :
 
 **`00-plan.md`** : frontmatter sans champ inventé : `deck: 1`, `id`, `repo` (chemin absolu du projet), `base`,
 `agent`, `scenario: dev`, `stale_after: 30m` (entier + `s|m|h`, un seul groupe), `max_duration` (au-dessus de
-la plus longue étape), `delivery: local`, pas de section `pr`, `setup:` seulement si nécessaire (idempotent ;
+la plus longue étape), `delivery: local`, pas de section `pr`, pas de `model`, `setup:` seulement si nécessaire (idempotent ;
 fichier copié = ignoré par le projet). Corps : objectif (2 à 5 phrases, sans la conversation du jour), lien vers la
 feature et critères visés, contraintes communes du modèle, définition de « fini », liste des étapes, date de
 planification.
@@ -88,19 +84,19 @@ Décisions de la feature recopiées, pas renvoyées. Frontmatter d'étape facult
 `stale_after`, `max_duration`. Corps non vide.
 
 **Livraison** : copie de `02-livraison.md` sous le plus grand `NN`, références « étape 02 » renumérotées,
-`<base>`, fichier de version, commande de tests complète, version visée en clair, `<id>` remplis, plus la mise à
+`<base>`, fichier de version, commande de tests complète, **niveau** de version au point 2 (mineure, correctif
+ou `1.0.0` ; pas de numéro : la livraison le calcule), `<id>` remplis, plus la mise à
 jour de la feature (critères, tableau, journal) décrite dans `campagne.md`.
 
 Aucun autre `.md` commençant par un chiffre.
 
 ## Phase 4 : aucun commit, checkout propre
 
-1. Le découpage vit **uniquement dans `.deck/`** : chaque `00-plan.md` porte son `id`, son objectif, son tag visé et la
-   ligne « Feature : `roadmap/<version>/<feature>.md` ». Le fichier de feature n'est pas modifié.
+1. Le découpage vit **uniquement dans `.deck/`** : chaque `00-plan.md` porte son `id`, son objectif et la
+   ligne « Feature : `roadmap/<version>/<feature>.md` » ; le niveau de version est au point 2 de sa livraison. Le fichier de feature n'est pas modifié.
 2. Dans l'étape de livraison de chaque campagne, le point « Fichier de feature » demande d'**ajouter** la ligne de la
    campagne au tableau « Découpage » si elle est absente (`id | objectif | livrée | vX.Y.Z`), sinon de la mettre à jour.
-3. Vérifie : `git -C <projet> status --short` est vide (hors `.deck/` ignoré) et `git -C <projet> log -1` n'a pas
-   bougé depuis la phase 0. Sinon arrête-toi et signale-le, sans réécrire l'historique.
+3. « Vérification finale : aucun commit » de `references/controles.md`.
 
 ## Phase 5 : validation
 
@@ -109,14 +105,14 @@ projet.
 
 1. **Toutes** les campagnes écrites : `deck check --format <feature>-<NN>` (format du manifeste et des étapes
    seulement, valable même quand une autre campagne occupe le dépôt) : code 0 attendu pour chacune.
-2. La **première** : `deck check <feature>-01` complet (outils, `opencode`, skill, dépôt, base…), code 0 attendu.
+2. La **première** : `deck check <feature>-01` complet (outils, skill, version d'OpenCode en avertissement, dépôt,
+   base…), code 0 attendu.
    Les campagnes suivantes ne passent le contrôle complet que le soir de leur lancement.
 
-Corrige jusqu'au vert : les erreurs sont toutes listées, les « avertissement : » se traitent. « outil absent du
-PATH : deck » (ou `opencode`, `jq`) : l'outil n'est pas dans le PATH du démon ; dis-le à Adrien, ne modifie pas les
-fichiers.
+Corrige jusqu'au vert : les erreurs sont toutes listées, les « avertissement : » se traitent. Outils contrôlés
+et « outil absent du PATH » : `references/controles.md`.
 
-Termine par un récapitulatif court : feature, liste des `id` avec objectif, durée et tag, agent (et `model` éventuel), confirmation qu'aucun
+Termine par un récapitulatif court : feature, liste des `id` avec objectif, durée et niveau de version, agent (et `model` éventuel), confirmation qu'aucun
 commit n'a été fait, ce qui n'a pas été vérifié, et la commande du soir, **sans la lancer** :
 
 ```

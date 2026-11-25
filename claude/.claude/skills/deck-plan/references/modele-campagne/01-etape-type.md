@@ -4,12 +4,13 @@
 
 # OPTIONNEL. Titre lisible, chaîne non vide. Absent : le slug du fichier sert de repère.
 # Le même texte sert dans le message du commit de sauvegarde.
-title: Étape type (à remplacer)
+title: "Étape type (à remplacer)"
 
 # OPTIONNEL. `claude` ou `opencode`. Défaut : l'agent du manifeste.
 # agent: opencode
 
-# OPTIONNEL. Modèle, chaîne non vide, sans autre contrôle. Défaut : celui de l'agent.
+# OPTIONNEL. Modèle, chaîne non vide, sans autre contrôle. Défaut : celui de l'agent. Il se met ici,
+# étape par étape : le manifeste n'a pas de champ `model`.
 # model: mon-fournisseur/mon-modele
 
 # OPTIONNEL. Surcharge de `stale_after` (entier + s|m|h, un seul groupe). Défaut : manifeste.
@@ -102,7 +103,9 @@ deck done --status ok --summary "<ce qui a été fait, en une ou deux phrases>"
 ```
 
 Impossible de finir (test qui échoue après essais raisonnables, information manquante, brief
-contradictoire) : ne pas inventer, ne pas contourner ; commiter si utile pour garder la trace, puis
+contradictoire, décision à prendre) : ne pas inventer, ne pas contourner, et ne pas poser de question
+(personne ne répond pendant la nuit : l'étape resterait en `waiting`). Commiter si utile pour garder la
+trace, puis
 
 ```
 deck done --status failed --summary "<motif précis : quoi, où, ce qui a été essayé>"

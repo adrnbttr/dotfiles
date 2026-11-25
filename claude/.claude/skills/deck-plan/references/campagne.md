@@ -1,6 +1,6 @@
 # Règles communes d'écriture d'une campagne deck
 
-Valables pour `deck-plan` (écriture) et `deck-challenge` (réécriture de la suivante). Le modèle officiel reste
+Valables pour `deck-plan` (écriture) et `deck-challenge` (réécriture de la suite). Le modèle officiel reste
 copié dans `references/modele-campagne/` (`README.md`, `00-plan.md`, `01-etape-type.md`, `02-livraison.md`) :
 le copier, ne rien inventer. Ce fichier ne dit que ce qui s'y ajoute pour le flux
 feature → campagnes.
@@ -9,24 +9,30 @@ feature → campagnes.
 
 - Une campagne = un `id` = `<feature>-<NN>` (ex. `export-csv-02`) : minuscules, chiffres, tirets
   (`^[a-z0-9]+(-[a-z0-9]+)*$`), 64 caractères au plus.
-- Dossier `<projet>/.deck/<id>/`, **sans date** (le modèle suggère `<date>-<slug>` : écart voulu, l'`id` reste
-  valide). Branche `deck/<id>` (défaut, ne pas écrire `branch`). `.deck/` est ignoré par git et ne contient
-  que des campagnes (pas de notes ; `revue.md` n'est écrit que par `deck-challenge`, jamais par `deck-plan`).
+- Dossier `<projet>/.deck/<id>/`, **sans date**. Branche `deck/<id>` (défaut, ne pas écrire `branch`). `.deck/`
+  est ignoré par git et ne contient que des campagnes (pas de notes ; `revue.md` n'est écrit que par
+  `deck-challenge`, jamais par `deck-plan`).
 - Les dates de planification et de passage sont notées dans le **corps** de `00-plan.md` (le frontmatter refuse
   tout champ inconnu : pas de champ `date`).
 - Étapes : `NN-slug.md`, `NN` de `01` à `99`, ordre = `NN`. Aucun autre `.md` commençant par un chiffre.
 
-## Frontmatter de `00-plan.md`
+## Frontmatter
 
-- Champs du modèle seulement : `deck: 1`, `id`, `repo` (chemin absolu), `base` (branche locale, le checkout
-  principal doit être dessus), `agent`, `scenario: dev`, `stale_after`, `max_duration`, `delivery: local`,
-  `setup` si utile. Pas de section `pr` avec `delivery: local`.
-- **Valeurs texte entre guillemets doubles** (`title`, tout ce qui peut contenir `:` ou ` #`) :
+- `00-plan.md` : champs du modèle seulement : `deck: 1`, `id`, `repo` (chemin absolu), `base` (branche locale,
+  le checkout principal doit être dessus), `agent`, `scenario: dev`, `stale_after`, `max_duration`,
+  `delivery: local`, `setup` si utile. Pas de section `pr` avec `delivery: local`. Pas de `model` : le
+  manifeste n'a pas ce champ (refusé par `deck check --format`).
+- Étape (`NN-slug.md`), facultatif : `title`, `agent`, `model`, `stale_after`, `max_duration`.
+- **Valeurs texte entre guillemets doubles** (`title` des étapes, toute valeur qui peut contenir `:` ou ` #`) :
   `title: "Export CSV : commande"`. Sans guillemets, `:` est refusé et ` #` tronque sans bruit. Pas de `\`
   dans ces valeurs.
 - `agent` : celui qui **exécute**, indépendant de celui qui planifie ou challenge. Défaut proposé : `opencode`
-  (Adrien peut choisir `claude`). `model` (frontmatter d'étape) est facultatif avec `opencode` : absent, le
-  modèle vient de la config OpenCode (`jq` requis) ; présent, il est imposé.
+  (Adrien peut choisir `claude`). **Si l'`AGENTS.md` du projet dit que le code est produit par OpenCode,
+  `agent: opencode` est obligatoire** (jamais `claude`, ni au manifeste ni en surcharge d'étape, sans poser la
+  question) ; cela vaut pour toute campagne écrite, réécrite ou créée.
+- `model` : facultatif avec `opencode`, et se met dans le frontmatter de **chaque étape** concernée (jamais dans
+  le manifeste). Absent : le modèle vient de la config OpenCode (`agents.build.model`, `jq` requis) ; présent
+  (ex. `provider/modèle`), il est imposé et passé tel quel. Ne le mettre que si Adrien veut un modèle précis.
 
 ## Briefs d'étape autonomes
 
@@ -34,6 +40,8 @@ L'agent d'une étape ne voit ni la conversation, ni la feature, ni les autres é
 son fichier et le dépôt. Chaque étape donne donc : objectif observable, contexte à lire (chemins précis), fichiers
 à créer ou modifier, contraintes, hors périmètre, **commande de test exacte** (code 0), critère de fin. Si une
 décision de la feature compte, la recopier dans l'étape (ou `00-plan.md`), pas un renvoi vers « ce qu'on a dit ».
+Personne ne répond pendant la nuit : un brief ne laisse aucune décision ouverte, et un blocage fait conclure
+l'étape par `deck done --status failed` avec le motif.
 
 ## Commits et livraison
 
@@ -41,12 +49,18 @@ décision de la feature compte, la recopier dans l'étape (ou `00-plan.md`), pas
   nommés (jamais `-A`, `.`, `-a`), puis `deck done --status ok|failed`.
 - **Dernière étape = livraison** (plus grand `NN`, copie de `02-livraison.md` renumérotée). Elle ajoute, avant le
   regroupement : cocher dans le fichier de feature (`roadmap/<version>/<feature>.md`) les critères satisfaits,
-  mettre à jour la ligne du tableau (statut, tag) et ajouter la ligne de journal (id, date, tag, fait, reste).
-  Puis un **commit unique** au-dessus de `base` et un tag annoté `vX.Y.Z`. Le fichier de feature est sur `base`
-  (versionné avec la roadmap, jamais modifié par `deck-plan`) ; la livraison y **ajoute** la ligne de la campagne.
-- **Tag obligatoire à chaque campagne** : version mineure par campagne (`0.N.0`) ; patch (`0.N.P`) pour une
-  campagne de pure correction ; `v1.0.0` à la fin de la roadmap v1, puis `1.N.0` pendant la v2. Écrire la
-  version visée en clair dans la livraison (le modèle laisse l'agent la déduire : ici la politique la fixe).
+  **ajouter** la ligne de la campagne au tableau « Découpage » si elle est absente (sinon la mettre à jour) et
+  ajouter la ligne de journal (id, date, tag, fait, reste). Puis un **commit unique** au-dessus de `base` et un
+  tag annoté `vX.Y.Z`. Le fichier de feature est sur `base` (versionné avec la roadmap, jamais modifié par
+  `deck-plan` ni par `deck-challenge`).
+- **Tag obligatoire à chaque campagne.** Le plan ne fixe que le **niveau** de version, écrit en clair au point 2
+  de l'étape de livraison :
+  - **mineure** : cas général, une campagne qui apporte du nouveau (`0.N.0`, puis `1.N.0` après la v1) ;
+  - **correctif** : campagne de pure correction, sans nouveauté (`0.N.P`) ;
+  - **`1.0.0`** : dernière campagne de la roadmap v1.
+  En cas de doute entre mineure et correctif, mineure. La version exacte `X.Y.Z` n'est **jamais** écrite par le
+  plan ni par le challenge : l'étape de livraison la calcule au moment de livrer, à partir du dernier tag et du
+  fichier de version de `base` (une autre campagne a pu livrer entre-temps).
 - La fusion de `base` (avance rapide), le retrait du worktree et de la branche sont faits par deck, pas par
   les étapes.
 
@@ -64,12 +78,15 @@ fichiers se suivent. Ce qui dépasse 8 h glisse à la campagne suivante (le `00-
   future quand la précédente occupe le dépôt ; code 0 attendu pour **chaque** campagne écrite.
 - `deck check <id>` : contrôle complet, code 0 attendu, à faire sur la première campagne ; toutes les erreurs
   sont listées ; les « avertissement : » (ex. `.deck/` non ignoré) se traitent, pas se taisent. `<id>` se
-  résout depuis la racine git du cwd en `.deck/<id>/` (un dossier reste accepté).
-- Donner la commande `deck run <id>`, ne jamais la lancer depuis le skill.
+  résout depuis la racine git du cwd en `.deck/<id>/` (un dossier reste accepté). Outils contrôlés et
+  « outil absent du PATH » : `controles.md`.
+- Donner la commande `cd <projet> && deck run <id>`, ne jamais la lancer depuis le skill.
 
 ## Ce qu'une campagne ne fait jamais
 
 `git push`, `gh`, PR, toucher au checkout principal ou à `base` hors livraison par deck, commande sur la
 production, des données réelles ou un service externe, `git reset --hard` ou `--force`, ajout de fichiers non
-suivis non ignorés. Hors code, elle ne modifie que le fichier de la feature (cases, tableau, journal) et les fichiers de la
-livraison du modèle (`02-livraison.md`, points 3 à 5 : fichier de version, `CHANGELOG`, `docs/roadmap.md`).
+suivis non ignorés. Hors code, elle ne modifie que le fichier de la feature (cases, tableau, journal), le
+`.gitignore` du projet (fichier non suivi légitime, raison dans le message de commit : `01-etape-type.md`,
+« Commit de sauvegarde », et point 1 de `02-livraison.md`) et les fichiers de la livraison du modèle
+(`02-livraison.md`, points 3 à 5 : fichier de version, `CHANGELOG`, `docs/roadmap.md`).

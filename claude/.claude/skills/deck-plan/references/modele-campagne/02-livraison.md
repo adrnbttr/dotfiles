@@ -1,5 +1,5 @@
 ---
-title: Préparer la livraison locale
+title: "Préparer la livraison locale"
 ---
 
 # Étape 02 : préparer la livraison
@@ -57,16 +57,22 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
    tag de la tentative précédente est resté (contenu par la sauvegarde `deck/backup/<id>/…` de
    l'ancienne tête) : il est « à nous » (point 9), on le supprime et on le repose au point 9.
 
-2. **Choisir le numéro de version `X.Y.Z`** en appliquant la politique de version (règle de
-   `references/campagne.md` du skill `deck-plan`), à partir de la version actuelle du fichier de
-   version. En bref :
-   - une campagne livre une version **mineure** : `0.N.0` (`0.N+1.0` depuis la précédente) ;
-   - une campagne de **pure correction** (aucune nouveauté, aucune rupture) livre un **correctif**
-     `0.N.P+1` ;
-   - la dernière campagne de la roadmap v1 livre `v1.0.0` ; ensuite, `1.N.0` par campagne ;
-   - **majeur** (`X+1.0.0`) seulement pour une rupture de compatibilité une fois `X` ≥ 1 ; tant que
-     `X` vaut 0, une rupture compte comme mineur ;
-   - en cas de doute entre deux niveaux, prendre le plus haut.
+2. **Calculer le numéro de version `X.Y.Z`**, maintenant et pas avant : une autre campagne a pu
+   livrer depuis la planification. Le plan ne fixe que le **niveau** :
+
+   Niveau : `<mineure | correctif | 1.0.0 : à préciser par le plan>`
+
+   - **Version actuelle** : la plus haute des deux valeurs suivantes, lues sur `<base>` (pas dans
+     cette branche, dont le fichier de version a pu être modifié par une tentative précédente) :
+     le dernier tag de `<base>`
+     (`git tag --merged <base> --list 'v*' --sort=-v:refname | head -n 1`) et la version du fichier
+     de version de `<base>` (`git show <base>:<fichier de version>`). Ni l'une ni l'autre : `0.0.0`.
+   - **mineure** : `X.Y+1.0` depuis la version actuelle `X.Y.Z` (ex. `0.4.2` → `0.5.0`) ;
+   - **correctif** : `X.Y.Z+1` (ex. `0.5.0` → `0.5.1`) ;
+   - **`1.0.0`** : `1.0.0`. Si la version actuelle est déjà `1.0.0` ou plus, ne rien inventer :
+     `deck done --status failed --summary "Niveau 1.0.0 demandé, version actuelle <version>"`.
+   - Version actuelle illisible (tag ou fichier hors du format `X.Y.Z`) : même conduite, avec le
+     motif.
 
 3. **Mettre à jour la version** dans le fichier de version du projet (`<Cargo.toml / package.json /
    pyproject.toml / VERSION… : à préciser par le plan>`). S'il y a un fichier de verrouillage qui
@@ -87,7 +93,7 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
    - ajouter au « Journal » une ligne `id | date du jour | vX.Y.Z | fait | reste` : `fait` résume ce
      que la campagne a livré, `reste` ce qui manque encore à la feature (ou `rien`).
 
-   Respecter le format du fichier (`references/feature.md`) ; ne pas toucher aux autres lignes.
+   Respecter le format déjà présent dans le fichier ; ne pas toucher aux autres lignes.
 
 7. **Tests complets** : la suite entière, pas seulement celle d'une étape :
 

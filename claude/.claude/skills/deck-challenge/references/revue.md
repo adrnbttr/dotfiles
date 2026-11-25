@@ -8,7 +8,7 @@ pas par un chiffre : deck ne le lit pas comme une étape. Court, factuel, chaque
 # Revue de <id>
 
 - Jugée le : <date> par <agent qui challenge> (campagne exécutée par <agent du manifeste>)
-- Commit : <sha court> sur <base>, tag <vX.Y.Z> (conforme à la politique : oui/non, pourquoi)
+- Commit : <sha court> sur <base>, tag <vX.Y.Z> (cohérent avec le niveau de la livraison : oui/non, pourquoi)
 - Verdict : <livrée conforme | livrée avec corrections | livrée avec bloquants | abandonnée>
 
 ## Tests rejoués
@@ -46,5 +46,5 @@ Non lancé : <ce qui n'a pas pu l'être, et pourquoi>
 
 - Campagne réécrite : <id suivant> : <étapes ajoutées, étapes reportées, durée estimée>.
 - Glissé vers <id d'après> : <étapes>.
-- Campagne créée : <id> (correction, tag patch) ou « aucune ».
+- Campagne créée : <id> (correction, niveau correctif) ou « aucune ».
 ```

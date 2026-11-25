@@ -16,14 +16,22 @@ Tu exécutes UNE étape d'une campagne orchestrée par deck. Arguments : `$ARGUM
 
 - Les variables `DECK_*` sont déjà dans l'environnement. Ne les invente jamais, ne les modifie jamais.
 - Reste dans ce worktree. N'en sors pas, ne touche aucun autre dépôt ni checkout.
-- La boucle `--autonome` de `/lead` (hook `Stop` qui relance) n'est PAS utilisée. Elle empêcherait de t'arrêter pour poser une question.
-- Ne termine jamais l'étape sans avoir lancé `deck done` (ok ou failed). Une question à Adrien n'est pas une fin d'étape : tu t'arrêtes pour attendre la réponse (deck voit `waiting`), puis tu reprends l'étape jusqu'à `deck done`.
+- La boucle `--autonome` de `/lead` (hook `Stop` qui relance) n'est PAS utilisée : deck enchaîne les étapes.
+- **L'étape EST le plan validé.** Ne s'appliquent PAS dans une étape deck : le protocole « plan par lots » et
+  `/planlot`, la soumission préalable d'un plan au `challenger`, les fichiers `.opencode/plans/` de l'`AGENTS.md`
+  global d'OpenCode, ni toute autre demande de validation de plan. N'écris aucun fichier de plan hors des
+  fichiers que l'étape demande.
+- Personne ne répond pendant l'étape : ne pose **aucune** question (elle laisserait l'étape en `waiting` toute la
+  nuit). Tout blocage se conclut par `deck done --status failed` (voir 6).
+- Ne termine jamais l'étape sans avoir lancé `deck done` (ok ou failed).
 
 ## Séquence
 
 1. **Lire** le manifeste puis le fichier d'étape. L'étape est le plan validé : ne demande aucune validation, ne contrôle pas le modèle. Réalise exactement ce qu'elle demande.
 2. **Exécuter** selon la doctrine habituelle :
    - délègue le code et les tests aux sous-agents `worker` (sous OpenCode : `implementer`, ou `chore` si mécanique) ;
+   - dis dans chaque brief de sous-agent qu'il ne pose jamais de question : face à un blocage, il rend la main
+     avec le blocage décrit, et c'est toi qui tranches dans le cadre de l'étape ou qui conclus `failed` ;
    - exploration : `scout` (sous OpenCode : `explore`) ;
    - lance toi-même les tests finaux ;
    - fais relire par `reviewer` (sous OpenCode : `challenger`) avant de conclure, et corrige ses défauts.
@@ -35,8 +43,9 @@ Tu exécutes UNE étape d'une campagne orchestrée par deck. Arguments : `$ARGUM
      le signaler dans le summary de `deck done`.
    - Rien à committer (étape sans modification) : ne pas créer de commit vide et le dire dans le summary.
      `deck done --status ok` exige au moins un commit non vide depuis le début de la tentative (refus code 1
-     sinon, `guard.rs:59-75`) : si aucun commit n'existe, conclure `failed` avec ce motif, sauf si un commit
-     de la tentative précédente (reprise) couvre déjà l'étape.
+     sinon ; garde-fou `check_done_ok` de `crates/deck-domain/src/guard.rs`, dépôt deck) : si aucun commit
+     n'existe, conclure `failed` avec ce motif, sauf si un commit de la tentative précédente (reprise) couvre
+     déjà l'étape.
    - Jamais de `git push`, jamais de PR.
 4. **Terminer** par la commande :
    `deck done --status ok --summary "<fait / non vérifié / restes>"`
@@ -44,15 +53,18 @@ Tu exécutes UNE étape d'une campagne orchestrée par deck. Arguments : `$ARGUM
    - `0` : accepté. Tu as fini.
    - `1` : refus (garde-fou git, contexte absent). Lis le motif sur stderr, corrige (arbre sale, commit manquant…), puis relance `deck done`.
    - `2` : démon injoignable ou muet. La commande a pu être appliquée : relance-la une fois, lis stderr.
-   - Si le motif n'est pas corrigeable : pose la question à Adrien et attends sa réponse (voir 6), puis reprends.
-6. **Blocage ou décision à prendre** : pose la question et arrête-toi pour attendre la réponse. deck voit alors l'état `waiting`. Ne lance pas `deck done` pour cette pause : ce n'est pas une fin d'étape. Une fois la réponse reçue, reprends l'étape et termine par `deck done` (4 ou 7).
-7. **Étape impossible** : `deck done --status failed --summary "<motif>"`. Traite son code de sortie comme en 5.
+   - Si le motif d'un refus de `done ok` n'est pas corrigeable : conclus `failed` (voir 6).
+6. **Blocage, information manquante, brief contradictoire, décision à prendre ou étape impossible** : ne pose
+   pas de question et n'attends pas. Commite si utile pour garder la trace, puis
+   `deck done --status failed --summary "<motif précis : quoi, où, ce qui a été essayé, ce qu'il faut décider>"`.
+   Traite son code de sortie comme en 5.
 
 ## Étape de livraison (la dernière)
 
 - Reconnaissance : deck ne la distingue pas (pas de champ `role`, ADR 0023 D3). C'est l'étape dont le `NN` est le
   plus grand parmi les `NN-*.md` du dossier du manifeste (règle de `deck-plan`, `references/campagne.md`).
-- Pour elle, **son fichier fait foi, à la lettre** (copie de `02-livraison.md` du modèle) : version, CHANGELOG,
+- Pour elle, **son fichier fait foi, à la lettre** (copie de `02-livraison.md` du modèle) : version (le plan n'en
+  donne que le niveau ; le numéro se calcule au moment de livrer, point 2 du fichier), CHANGELOG,
   roadmap, fichier de feature (critères cochés, ligne du tableau, ligne de journal), tests complets, regroupement
   en **un seul commit** au-dessus de `base` (`git reset --soft $(git merge-base <base> HEAD)` puis `git commit`),
   tag annoté `vX.Y.Z`, contrôle, puis `deck done`. Le commit `wip(étape NN)` générique de 3 est remplacé par la

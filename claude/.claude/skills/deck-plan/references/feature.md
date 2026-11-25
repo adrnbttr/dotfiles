@@ -3,7 +3,7 @@
 Un projet range ses features dans `roadmap/<version>/<feature>.md` (ex. `roadmap/v1/export-csv.md`), versionné
 dans le dépôt, **une feature par fichier**. `<feature>` : minuscules, chiffres, tirets. C'est l'entrée de
 `deck-plan` : il découpe la feature en N campagnes d'une nuit, écrites dans `.deck/` (non versionné), **sans modifier ce
-fichier ni committer**. Ensuite, la livraison de chaque campagne (et `deck-challenge`) le font vivre.
+fichier ni committer**. Ensuite, seule la livraison de chaque campagne le fait vivre (et Adrien, pour le cadrage).
 
 Recopier le modèle ci-dessous ; supprimer les commentaires `<!-- -->` une fois remplis. Le fichier est lu par
 des sessions sans la conversation du jour : rien ne doit supposer un contexte oral.
@@ -30,14 +30,12 @@ qui les satisfait, jamais avant. -->
 
 ## Découpage en campagnes
 
-<!-- Rempli par `deck-plan`, une ligne par campagne, toutes écrites d'avance. `id` = `<feature>-<NN>`.
-Statut : planifiée, livrée, à refaire. Tag : version visée (`v0.N.0`), mise à jour à la livraison.
-`deck-challenge` réécrit la ligne de la campagne suivante (corrections d'abord, surplus reporté). -->
+<!-- Vide à la création : en-tête seul. Une ligne par campagne livrée, ajoutée par l'étape de livraison
+de cette campagne dans son commit unique. `id` = `<feature>-<NN>`. Statut : livrée. Tag : tag réel posé
+par la livraison. Les campagnes à venir vivent dans `.deck/<feature>-<NN>/00-plan.md`, pas ici. -->
 
 | id | Objectif | Statut | Tag |
 |---|---|---|---|
-| `<feature>-01` | <objectif en une ligne> | planifiée | v0.N.0 |
-| `<feature>-02` | <objectif en une ligne> | planifiée | v0.N+1.0 |
 
 ## Hors périmètre
 
@@ -61,13 +59,14 @@ Statut : planifiée, livrée, à refaire. Tag : version visée (`v0.N.0`), mise 
 - **Découpage** : N campagnes de 6 à 8 h chacune (budget et estimation : `campagne.md`). L'`id` de chaque
   campagne est `<feature>-<NN>` (`NN` sur deux chiffres, ordre d'exécution). Avant livraison, l'ordre et les tags visés
   vivent dans `.deck/<feature>-<NN>/00-plan.md` ; le tableau ne liste que les campagnes livrées.
-- **Livraison** : la dernière étape de chaque campagne coche les critères désormais satisfaits, passe le
-  statut de la ligne à « livrée », fixe le tag réel et ajoute une ligne au journal (id, date, tag, fait, reste),
-  le tout dans le commit unique de la campagne.
+- **Livraison** : la dernière étape de chaque campagne coche les critères désormais satisfaits, ajoute la
+  ligne de la campagne au tableau (`id | objectif | livrée | vX.Y.Z`, tag réel) si elle est absente, sinon la
+  met à jour, et ajoute une ligne au journal (id, date, tag, fait, reste), le tout dans le commit unique de la
+  campagne.
 - **Dernière campagne avec corrections** : si la relecture de la dernière campagne trouve des corrections,
-  `deck-challenge` crée une campagne de correction dans `.deck/` (tag en patch) ; sa ligne entre au tableau à sa
+  `deck-challenge` crée une campagne de correction dans `.deck/` (niveau correctif) ; sa ligne entre au tableau à sa
   livraison.
 - **Pas de commit de planification** : `deck-plan` n'écrit que dans `.deck/` ; le tableau « Découpage » se remplit
   à la livraison de chaque campagne (ligne ajoutée si absente), dans le commit unique de la campagne.
-- **Lien roadmap globale** : à la fin de la v1 (dernière feature livrée), la politique de tag fait passer à
-  `v1.0.0` (voir `campagne.md`).
+- **Lien roadmap globale** : la dernière campagne de la roadmap v1 a le niveau `1.0.0` (politique de version :
+  `campagne.md`).

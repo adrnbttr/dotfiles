@@ -18,7 +18,8 @@ campagne de la boucle jour/nuit : planifiée le jour, exécutée la nuit avec `a
 - **Soir** : Adrien lance `deck run <id>` sur la campagne planifiée le jour.
 - **Nuit** : les étapes s'exécutent dans l'ordre, puis l'étape de livraison : commit unique et tag
   annoté `vX.Y.Z`, puis deck avance `main` en avance rapide (livraison locale, rien n'est poussé).
-  L'étape de livraison met aussi à jour le fichier de feature (critères cochés, statut, tag, journal).
+  L'étape de livraison calcule la version (le plan n'en fixe que le niveau) et met aussi à jour le
+  fichier de feature (critères cochés, ligne de la campagne ajoutée au tableau, journal).
 - **Matin** : `deck-challenge` juge la campagne livrée et réécrit la campagne suivante.
 - **Journée** : Adrien relit le résultat, corrige ou relance, puis planifie la suite.
 
