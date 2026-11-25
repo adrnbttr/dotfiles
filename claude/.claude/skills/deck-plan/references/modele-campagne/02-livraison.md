@@ -50,12 +50,14 @@ Dans l'ordre. Si une vérification échoue, voir « Si les tests échouent ».
    git tag -a vX.Y.Z -m "vX.Y.Z : <objectif de la campagne en une ligne>"
    ```
 
-   puis le contrôle final (point 10) et `deck done` (point 11). Pourquoi : après `deck retry`, le
-   garde-fou de `done ok` exige au moins un commit non vide depuis le début de la tentative
-   (`start_ref..HEAD`) ; avec `--keep`, la nouvelle `start_ref` est le `HEAD` actuel, donc « ne rien
-   refaire » ferait refuser `done ok`. Avec `--reset`, `HEAD` revient avant le regroupement et le
-   tag de la tentative précédente est resté (contenu par la sauvegarde `deck/backup/<id>/…` de
-   l'ancienne tête) : il est « à nous » (point 9), on le supprime et on le repose au point 9.
+   puis le contrôle final (point 10) et `deck done` (point 11). Pourquoi : le garde-fou de `done ok` compte
+   les commits non vides depuis la base de la **première** tentative de l'étape (ADR 0034), pas depuis
+   celle de la tentative courante : après `deck retry`, un commit fait par une tentative précédente reste
+   crédité, et `done ok` n'est pas refusé faute de nouveau commit. Refaire le regroupement n'est donc plus
+   une condition du garde-fou ; c'est la consigne de conduite pour livrer un commit unique, neuf et
+   tagué, plutôt que de s'appuyer sur l'état laissé par la tentative précédente. Avec `--reset`, `HEAD`
+   revient avant le regroupement et le tag de la tentative précédente est resté (contenu par la sauvegarde
+   `deck/backup/<id>/…` de l'ancienne tête) : il est « à nous » (point 9), on le supprime et on le repose au point 9.
 
 2. **Calculer le numéro de version `X.Y.Z`**, maintenant et pas avant : une autre campagne a pu
    livrer depuis la planification. Le plan ne fixe que le **niveau** :
