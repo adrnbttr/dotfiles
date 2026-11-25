@@ -48,7 +48,10 @@ Tu exécutes UNE étape d'une campagne orchestrée par deck. Arguments : `$ARGUM
      ADR 0034, garde-fou `check_done_ok` de `crates/deck-domain/src/guard.rs`,
      dépôt deck). Après `resume` ou `retry`, le décompte part toujours de cette base : les commits des
      tentatives précédentes comptent, sauf ceux qu'un `retry --reset` a retirés de la branche (il revient à
-     la base de la tentative abandonnée). Deux autres conditions : aucun fichier suivi modifié, index vide.
+     la base de la tentative abandonnée), et sauf réécriture de l'historique (rebase, amend, reset) entre
+     deux tentatives : le décompte repart alors de la base de la tentative courante. Ne pas fusionner ni
+     cherry-picker dans la branche de campagne entre deux tentatives (ADR 0036).
+     Deux autres conditions : aucun fichier suivi modifié, index vide.
      Conduite à la reprise (tentative 2+) : si le travail de l'étape est déjà commité par une tentative
      précédente et que le worktree est propre, appeler `deck done` sans nouveau commit ; ne jamais fabriquer
      de commit vide ou factice. Le dire dans le summary.
