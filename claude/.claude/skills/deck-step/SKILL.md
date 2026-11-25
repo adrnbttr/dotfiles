@@ -42,14 +42,14 @@ Tu exécutes UNE étape d'une campagne orchestrée par deck. Arguments : `$ARGUM
      `git commit -a` : seulement les fichiers de l'étape. Un fichier non suivi inattendu : ne pas l'ajouter,
      le signaler dans le summary de `deck done`.
    - Rien à committer (étape sans modification) : ne pas créer de commit vide et le dire dans le summary.
-     `deck done --status ok` exige au moins un commit non vide depuis le début de la tentative en cours (refus
-     code 1 sinon ; garde-fou `check_done_ok` de `crates/deck-domain/src/guard.rs`, dépôt deck). La base du
-     comptage est le HEAD relevé au lancement de la tentative : `resume` et `retry` ouvrent chacun une nouvelle
-     tentative dont la base est le HEAD de ce moment (`retry --reset` revient à la base de la tentative
-     abandonnée). Les commits antérieurs à cette base, y compris ceux de la tentative précédente, ne comptent
-     donc plus. Conduite : si aucun commit non vide n'existe depuis le début de la tentative, ne pas inventer
-     de commit ; conclure `failed` avec un motif explicite (par ex. « reprise/retry : travail déjà commité
-     avant cette tentative, rien à changer »), pour que le lead tranche.
+     `deck done --status ok` exige au moins un commit non vide depuis la base de la PREMIÈRE tentative de
+     l'étape (refus code 1 sinon ; ADR 0034, garde-fou `check_done_ok` de `crates/deck-domain/src/guard.rs`,
+     dépôt deck). Après `resume` ou `retry`, le décompte part toujours de cette base : les commits des
+     tentatives précédentes comptent, sauf ceux qu'un `retry --reset` a retirés de la branche (il revient à
+     la base de la tentative abandonnée). Deux autres conditions : aucun fichier suivi modifié, index vide.
+     Conduite à la reprise (tentative 2+) : si le travail de l'étape est déjà commité par une tentative
+     précédente et que le worktree est propre, appeler `deck done` sans nouveau commit ; ne jamais fabriquer
+     de commit vide ou factice. Le dire dans le summary.
    - Jamais de `git push`, jamais de PR.
 4. **Terminer** par la commande :
    `deck done --status ok --summary "<fait / non vérifié / restes>"`
