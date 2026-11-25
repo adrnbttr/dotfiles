@@ -167,8 +167,8 @@ create_case() {
 export FAKE_RUN_LOG="$RUNLOG"
 create_case "17 --create --model : run exact puis TUI en reprise" \
   "$(fields opencode --standalone --auto -s ses_c "--prompt=a b")" \
-  "run argv: [run] [--standalone] [-s] [ses_c] [--agent] [build] [--model] [p/m#v] [réponds ok]" \
-  DECK_RUN_ID=r1 DECK_STEP=s2 timeout 20 "$SCRIPT" --agent opencode --create ses_c --model 'p/m#v' --prompt "a b" \
+  "run argv: [run] [--standalone] [-s] [ses_c] [--agent] [build] [--model] [p/m#v] [--title] [T explicite] [réponds ok]" \
+  DECK_RUN_ID=r1 DECK_STEP=s2 timeout 20 "$SCRIPT" --agent opencode --create ses_c --model 'p/m#v' --title 'T explicite' --prompt "a b" \
   --env OPENCODE_CONFIG_CONTENT='{"k":1}'
 if [ "$(grep '^run deck:' "$RUNLOG" | sed 's/ *$//')" != "run deck:" ]; then ko "17b DECK_* absentes de run" "$(grep '^run deck:' "$RUNLOG")"
 elif [ "$(tr -d '[:space:]' <"$FAKE_OUT.deck")" != "DECK_RUN_IDDECK_STEP" ]; then ko "17b DECK_* présentes pour la TUI" "[$(cat "$FAKE_OUT.deck")]"
@@ -179,13 +179,13 @@ else ok "17b DECK_* absentes de run, présentes pour la TUI, --env vu, stdin fer
 
 create_case "18 --create sans --model : modèle de la dernière couche (variante incluse)" \
   "$(fields opencode --standalone --auto -s ses_c --prompt=p)" \
-  "run argv: [run] [--standalone] [-s] [ses_c] [--agent] [build] [--model] [zai/glm-5.3#high] [réponds ok]" \
+  "run argv: [run] [--standalone] [-s] [ses_c] [--agent] [build] [--model] [zai/glm-5.3#high] [--title] [ses_c] [réponds ok]" \
   FAKE_DEBUG_FILE="$T/debug-ok.json" timeout 20 "$SCRIPT" --agent opencode --create ses_c --prompt p
 grep -qx 'debug argv: debug config --standalone' "$RUNLOG" || ko "18b argv de debug config" "$(grep '^debug' "$RUNLOG")"
 
 create_case "19 --create sans --model : seule la première couche définit build.model" \
   "$(fields opencode --standalone --auto -s ses_c --prompt=p)" \
-  "run argv: [run] [--standalone] [-s] [ses_c] [--agent] [build] [--model] [opencode/deepseek-v4.1-flash] [réponds ok]" \
+  "run argv: [run] [--standalone] [-s] [ses_c] [--agent] [build] [--model] [opencode/deepseek-v4.1-flash] [--title] [ses_c] [réponds ok]" \
   FAKE_DEBUG_FILE="$T/debug-first-only.json" timeout 20 "$SCRIPT" --agent opencode --create ses_c --prompt p
 
 # resolve_fail <nom> <env...> : code 2, message, ni run ni TUI
@@ -261,6 +261,8 @@ err_case "24f --create + --new" --agent opencode --create s --new --prompt p
 err_case "24g --model sans --create" --agent opencode --model p/m
 err_case "24h --create sans id" --agent opencode --create
 err_case "24i --create id commençant par -" --agent opencode --create -x --prompt p
+err_case "24k --title sans --create" --agent opencode --title T
+err_case "24l --title sans valeur" --agent opencode --create s --prompt p --title
 err_case "24j --model sans valeur" --agent opencode --create s --prompt p --model
 
 # 9g : TMPDIR relatif refusé (code 2)
