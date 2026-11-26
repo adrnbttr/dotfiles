@@ -1,17 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "opencode/claude-sonnet-5-5#high",
-  "small_model": "opencode/deepseek-v4.1-flash",
+  "model": "zai-coding-plan/glm-5.4#high",
+  "small_model": "zai-coding-plan/glm-5.3-flash",
   "default_agent": "plan",
-  "providers": {
-    "opencode": {
-      "models": {
-        "claude-sonnet-5-5": {
-          "settings": { "reasoningEffort": "high" }
-        }
-      }
-    }
-  },
   "media": {
     "image": {
       "auto_resize": true,

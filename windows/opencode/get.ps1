@@ -11,4 +11,4 @@ foreach ($a in @('implementer', 'chore')) {
 }
 
 Write-Host "Config OpenCode Desktop installee dans $dest"
-Write-Host "Connecte le fournisseur OpenCode (Settings > Providers), puis redemarre l'app."
+Write-Host "Connecte le fournisseur Z.ai Coding Plan (Settings > Providers, cle Z.ai), puis redemarre l'app."
