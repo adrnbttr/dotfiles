@@ -33,15 +33,40 @@ feature → campagnes.
 - `model` : facultatif avec `opencode`, et se met dans le frontmatter de **chaque étape** concernée (jamais dans
   le manifeste). Absent : le modèle vient de la config OpenCode (`agents.build.model`, `jq` requis) ; présent
   (ex. `provider/modèle`), il est imposé et passé tel quel. Ne le mettre que si Adrien veut un modèle précis.
+  Attention : deck force `default_agent: "build"` dans la config injectée. Le `default_agent` de la config
+  d'Adrien (ex. `plan`) et les autres agents primaires ne jouent donc **pas** la nuit : `build` orchestre l'étape
+  (son modèle est `agents.build.model` sans `model`) et délègue à des sous-agents (`implementer`, `chore`,
+  `explore`, `challenger`) qui gardent leur propre modèle de la config OpenCode. Le dire à Adrien quand il croit
+  qu'un autre agent orchestre.
 
 ## Briefs d'étape autonomes
 
-L'agent d'une étape ne voit ni la conversation, ni la feature, ni les autres étapes : seulement `00-plan.md`,
-son fichier et le dépôt. Chaque étape donne donc : objectif observable, contexte à lire (chemins précis), fichiers
-à créer ou modifier, contraintes, hors périmètre, **commande de test exacte** (code 0), critère de fin. Si une
-décision de la feature compte, la recopier dans l'étape (ou `00-plan.md`), pas un renvoi vers « ce qu'on a dit ».
+L'agent d'une étape ne voit ni la conversation ni les autres étapes : seulement `00-plan.md`, son fichier, le
+dépôt (fichier de feature compris, il est versionné) et, en lecture seule, les fichiers que son brief cite par
+chemin absolu (ex. `revue.md`, hors du worktree). Chaque étape donne donc : objectif observable, contexte à lire
+(chemins précis), fichiers à créer ou modifier, contraintes, hors périmètre, **commande de test exacte** (code 0),
+critère de fin. Si une décision de la feature compte, la recopier dans l'étape (ou `00-plan.md`), pas un renvoi
+vers « ce qu'on a dit ».
 Personne ne répond pendant la nuit : un brief ne laisse aucune décision ouverte, et un blocage fait conclure
 l'étape par `deck done --status failed` avec le motif.
+
+- **Conventions du projet** : quand plusieurs étapes partagent des décisions (arborescence, noms de modules et de
+  classes, connexions, style, commandes), les écrire une fois dans une section « Conventions du projet » du
+  `00-plan.md` (chaque étape le lit) plutôt que dans chaque brief ; l'étape ne recopie que ce qui lui est propre.
+- **Campagnes précédentes** : avec plusieurs campagnes, chaque `00-plan.md` liste ce que les campagnes
+  précédentes ont livré (modules, fixtures), pour que l'agent s'appuie dessus au lieu de le réécrire.
+
+Pièges vus à l'usage :
+- La commande de test d'une étape tourne **avant** son commit de sauvegarde : pas de `test -z "$(git status
+  --short)"` dedans (il échouerait sur le travail non commité). Il est recommandé en critère de fin, **après** le
+  commit : `deck done` ne refuse que les fichiers suivis modifiés et un index non vide, il ignore les fichiers non
+  suivis ; ce contrôle attrape un fichier oublié, qui sinon ne bloquerait qu'à la livraison. Même chose pour la
+  livraison : au point 7, les fichiers des points 3 à 6 sont encore modifiés.
+- Le worktree disparaît à la livraison : tout état durable hors du worktree (base de données, conteneur, cache)
+  ne doit pas pointer vers des fichiers du worktree, sinon la campagne suivante trouve des références mortes.
+  Les ressources partagées (base, ports, noms de conteneurs) se nomment pour coexister entre worktrees.
+- Une étape n'utilise que ce qu'une étape précédente (ou une campagne livrée) a créé : vérifier l'ordre des
+  dépendances entre briefs, signatures comprises.
 
 ## Commits et livraison
 
@@ -80,6 +105,20 @@ fichiers se suivent. Ce qui dépasse 8 h glisse à la campagne suivante (le `00-
   sont listées ; les « avertissement : » (ex. `.deck/` non ignoré) se traitent, pas se taisent. `<id>` se
   résout depuis la racine git du cwd en `.deck/<id>/` (un dossier reste accepté). Outils contrôlés et
   « outil absent du PATH » : `controles.md`.
+- **Relecture adverse des briefs**, toujours (sauf si aucune campagne n'a été écrite ou réécrite), après ces
+  contrôles : un sous-agent `challenger` (Opus). Il reçoit, et rien d'autre : les chemins de la feature, le
+  fichier d'instructions du projet (`AGENTS.md`, sinon `CLAUDE.md`), les dossiers `.deck/<id>/` concernés et la
+  règle « chaque étape voit `00-plan.md`, son fichier, le dépôt et, en lecture seule, les fichiers que son brief
+  cite par chemin absolu ; personne ne répond la nuit ». Depuis `deck-challenge`, il reçoit en plus le `revue.md`
+  de la campagne jugée et le tag ou sha livré. Jamais ton raisonnement ni tes conclusions. Il cherche les
+  critères non couverts, les contradictions entre plan et étapes, les décisions ouvertes, les instructions
+  techniquement fausses, les étapes trop grosses. Corrige ce qui est fondé, puis relance : `deck-plan`, `--format`
+  sur toutes les campagnes et le contrôle complet sur la première ; `deck-challenge`, `--format` seulement (le
+  contrôle complet se fait le soir).
+- **Décision modifiée après l'accord** : si une correction issue de la relecture touche le découpage ou une
+  décision déjà validée par Adrien, la signaler dans le récapitulatif final (décision, ancienne valeur, nouvelle
+  valeur, raison). Si elle change le découpage (nombre ou périmètre des campagnes), redemander l'accord avant de
+  terminer.
 - Donner la commande `cd <projet> && deck run <id>`, ne jamais la lancer depuis le skill.
 
 ## Ce qu'une campagne ne fait jamais

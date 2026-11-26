@@ -59,7 +59,12 @@ Demande aussi l'**agent** et l'éventuel `model` en appliquant `campagne.md`, «
 cas où l'agent est imposé sans poser la question, place de `model` : frontmatter de chaque étape, jamais le
 manifeste).
 
-**Pose la question explicite et attends l'accord d'Adrien** sur estimation et découpage. Aucune écriture avant.
+Liste aussi les **décisions techniques que la feature ne tranche pas** et que les briefs vont fixer (noms,
+signatures, formats, règles de calcul, rôle des variables d'environnement…) : personne ne répond la nuit, un brief
+ne laisse rien d'ouvert, et ces choix font partie de l'accord.
+
+**Pose la question explicite et attends l'accord d'Adrien** sur estimation, découpage et décisions. Aucune écriture
+avant.
 
 ## Phase 3 : écriture des N dossiers `<projet>/.deck/<feature>-<NN>/`
 
@@ -83,6 +88,9 @@ exacte**, critère de fin, commit `wip(étape NN): <titre>` avec `git add` de fi
 Décisions de la feature recopiées, pas renvoyées. Frontmatter d'étape facultatif : `title`, `agent`, `model`,
 `stale_after`, `max_duration`. Corps non vide.
 
+Section « Conventions du projet » du `00-plan.md`, liste de ce que les campagnes précédentes ont livré, décisions
+fermées et pièges à éviter : `references/campagne.md`, « Briefs d'étape autonomes ».
+
 **Livraison** : copie de `02-livraison.md` sous le plus grand `NN`, références « étape 02 » renumérotées,
 `<base>`, fichier de version, commande de tests complète, **niveau** de version au point 2 (mineure, correctif
 ou `1.0.0` ; pas de numéro : la livraison le calcule), `<id>` remplis, plus la mise à
@@ -96,7 +104,7 @@ Aucun autre `.md` commençant par un chiffre.
    ligne « Feature : `roadmap/<version>/<feature>.md` » ; le niveau de version est au point 2 de sa livraison. Le fichier de feature n'est pas modifié.
 2. Dans l'étape de livraison de chaque campagne, le point « Fichier de feature » demande d'**ajouter** la ligne de la
    campagne au tableau « Découpage » si elle est absente (`id | objectif | livrée | vX.Y.Z`), sinon de la mettre à jour.
-3. « Vérification finale : aucun commit » de `references/controles.md`.
+3. « Vérification finale : aucun commit » : à la fin de la phase 5, après la relecture adverse.
 
 ## Phase 5 : validation
 
@@ -112,7 +120,13 @@ projet.
 Corrige jusqu'au vert : les erreurs sont toutes listées, les « avertissement : » se traitent. Outils contrôlés
 et « outil absent du PATH » : `references/controles.md`.
 
-Termine par un récapitulatif court : feature, liste des `id` avec objectif, durée et niveau de version, agent (et `model` éventuel), confirmation qu'aucun
+3. **Relecture adverse des briefs**, toujours, avant le récapitulatif : `references/campagne.md`, « Contrôle »
+   (sous-agent `challenger`, correction, puis contrôles 1 et 2 relancés). Elle porte sur toutes les campagnes
+   écrites.
+4. « Vérification finale : aucun commit » de `references/controles.md`.
+
+Termine par un récapitulatif court : feature, liste des `id` avec objectif, durée et niveau de version, agent
+(et `model` éventuel), décisions modifiées depuis l'accord (`campagne.md`, « Contrôle »), confirmation qu'aucun
 commit n'a été fait, ce qui n'a pas été vérifié, et la commande du soir, **sans la lancer** :
 
 ```

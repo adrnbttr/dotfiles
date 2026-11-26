@@ -20,7 +20,8 @@ hors de ces heures, arrête-toi avant d'écrire et dis-le.
 Références (chemins relatifs au skill, partagées avec `deck-plan`, à lire avant d'écrire) :
 - `../deck-plan/references/feature.md` : modèle de la feature (critères, tableau « Découpage », journal) ;
 - `../deck-plan/references/campagne.md` : règles d'écriture d'une campagne (nommage, frontmatter, guillemets
-  YAML, agent, `model`, briefs autonomes, `wip`, livraison, niveau de version, budget de nuit, contrôle) ;
+  YAML, agent, `model`, briefs autonomes et leurs pièges, `wip`, livraison, niveau de version, budget de nuit,
+  contrôle et relecture adverse) ;
 - `../deck-plan/references/controles.md` : contrôles communs (checkout propre, aucun commit, outils contrôlés
   par `deck check`) ;
 - `../deck-plan/references/modele-campagne/` : modèle commenté (`00-plan.md`, `01-etape-type.md`, `02-livraison.md`) ;
@@ -139,6 +140,9 @@ feature jusqu'à la dernière, plus une campagne créée au besoin ; sur aucune 
    campagnes réécrites ou créées porte son `id`, son objectif et la ligne
    « Feature : `roadmap/<version>/<feature>.md` ». Leur ligne du tableau « Découpage » n'est **pas** écrite par le
    challenge : la livraison de chaque campagne l'ajoute si elle est absente.
+   Briefs des campagnes réécrites ou créées : `../deck-plan/references/campagne.md`, « Briefs d'étape autonomes » ;
+   aligne sur le commit livré réel, dans le `00-plan.md` des campagnes suivantes, la liste « ce que les campagnes
+   précédentes ont livré » et les « Conventions du projet ».
    **Agent** : règle de `campagne.md`, « Frontmatter » (cas où l'agent est imposé) ; sinon garde l'agent de la
    campagne.
 5. **Dernière campagne passée avec des corrections** (aucun dossier `.deck/<feature>-<NN+1>/`) : crée une
@@ -159,11 +163,16 @@ glissé, puis **demande l'accord** avant d'écrire les dossiers.
    attendu ; sinon corrige jusqu'au vert, les erreurs sont toutes listées. `--format` ne contrôle que le
    manifeste et les étapes : le `deck check` complet se fait le soir, juste avant `deck run`. « outil absent du
    PATH » ou démon d'une version antérieure qui ignore `--format` : `../deck-plan/references/controles.md`.
-2. « Vérification finale : aucun commit » de `../deck-plan/references/controles.md`.
+2. **Relecture adverse**, toujours, sauf si aucune campagne n'a été écrite ou réécrite, des campagnes réécrites
+   ou créées : `../deck-plan/references/campagne.md`, « Contrôle » (sous-agent `challenger`, correction, puis
+   `deck check --format` relancé).
+3. « Vérification finale : aucun commit » de `../deck-plan/references/controles.md`.
 
 Termine par un récapitulatif court : campagne jugée (`id`, tag, sha), verdict (bloquants, corrections), tests
-lancés et résultat, campagnes réécrites ou créées (durée estimée, ce qui a glissé), confirmation qu'aucun commit n'a été fait,
-ce qui n'a pas été vérifié, et la commande du soir, **sans la lancer** :
+lancés et résultat, campagnes réécrites ou créées (durée estimée, ce qui a glissé), décisions techniques que ni
+la feature ni la nuit ne tranchaient et que tes réécritures ont fixées (à valider par Adrien), décisions modifiées
+depuis l'accord (`campagne.md`, « Contrôle »), confirmation qu'aucun commit n'a été fait, ce qui n'a pas été
+vérifié, et la commande du soir, **sans la lancer** :
 
 ```
 cd <projet> && deck check <id suivant>

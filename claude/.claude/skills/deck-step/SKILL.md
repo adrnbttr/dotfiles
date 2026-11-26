@@ -15,7 +15,8 @@ Tu exécutes UNE étape d'une campagne orchestrée par deck. Arguments : `$ARGUM
 ## Cadre
 
 - Les variables `DECK_*` sont déjà dans l'environnement. Ne les invente jamais, ne les modifie jamais.
-- Reste dans ce worktree. N'en sors pas, ne touche aucun autre dépôt ni checkout.
+- Reste dans ce worktree. N'en sors pas, ne touche aucun autre dépôt ni checkout. Seule exception, en lecture
+  seule : les fichiers que l'étape cite par chemin absolu (ex. `revue.md` de la campagne précédente).
 - La boucle `--autonome` de `/lead` (hook `Stop` qui relance) n'est PAS utilisée : deck enchaîne les étapes.
 - **L'étape EST le plan validé.** Ne s'appliquent PAS dans une étape deck : le protocole « plan par lots » et
   `/planlot`, la soumission préalable d'un plan au `challenger`, les fichiers `.opencode/plans/` de l'`AGENTS.md`
