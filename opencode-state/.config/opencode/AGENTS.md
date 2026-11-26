@@ -26,10 +26,10 @@ sous-agent via l'outil `subagent`. Tu ne fais pas leur travail à leur place.
 
 ## Économie (coût par heure)
 
-Répartition des modèles : `plan` et `visual` tournent sur le forfait Z.ai Coding Plan Lite
-(quota limité : ne lance pas `visual` pour rien). `implementer`, `build`, `chore`, `explore`
-et `general` tournent sur DeepSeek V4.1 Flash via Zen (0,3 $ / 1,2 $ par M tokens).
-`challenger` tourne sur DeepSeek V4 Pro (1,74 $ / 3,48 $ par M tokens) : à réserver au non trivial.
+Répartition des modèles : tout tourne sur le forfait Z.ai Coding Plan Lite, dont le quota par
+fenêtre de 5 h est partagé entre tous les agents. `plan` et `challenger` sont sur GLM-5.4 (high) ;
+`implementer`, `build`, `chore`, `explore`, `general` et `visual` sur GLM-5.3 Flash.
+`challenger` et `visual` consomment le plus : à réserver au non trivial.
 
 1. **Ne délègue pas** pour : répondre à une question, expliquer du code, corriger une faute
    de frappe, une modification d'une ligne. Fais-le toi-même.

@@ -501,16 +501,19 @@ tourne ; un buffer modifié non sauvegardé n'est jamais écrasé : Neovim avert
 
 *** opencode : tout ce qu'il faut savoir
 
-*Modèle par tâche* (prix $/M tokens entrée-sortie sur OpenCode Zen) :
+*Modèle par tâche* :
 
 | Rôle                          | Modèle                        | Prix      | Pourquoi |
 --------------------------------+-------------------------------+-----------+----------
-| Principal / plan (archi, orchestre) | =zai-coding-plan/glm-5.3#high= | forfait | forfait Z.ai Coding Plan Lite |
-| Build / Implementer / Chore   | =opencode/deepseek-v4.1-flash= | 0.3 / 1.2 | bon marché, suffit pour exécuter |
-| Explore / General             | =opencode/deepseek-v4.1-flash= | 0.3 / 1.2 | épinglé (sinon hérite du modèle principal) |
-| Challenger (2nd avis)         | =opencode/deepseek-v4-pro#high= | 1.74 / 3.48 | famille différente ; sert aussi au debug complexe |
+| Principal / plan (archi, orchestre) | =zai-coding-plan/glm-5.4#high= | forfait | forfait Z.ai Coding Plan Lite |
+| Build / Implementer / Chore   | =zai-coding-plan/glm-5.3-flash= | forfait | rapide, suffit pour exécuter |
+| Explore / General             | =zai-coding-plan/glm-5.3-flash= | forfait | épinglé (sinon hérite du modèle principal) |
+| Challenger (2nd avis)         | =zai-coding-plan/glm-5.4#high= | forfait | second avis, contexte neuf ; sert aussi au debug complexe |
 | Visual (rendu)                | =zai-coding-plan/glm-5.3-flash= | forfait   | voit les images (Playwright MCP) |
-| Titres / résumés / compaction | =opencode/deepseek-v4.1-flash= | 0.3 / 1.2 | small_model + agents cachés compaction et summary |
+| Titres / résumés / compaction | =zai-coding-plan/glm-5.3-flash= | forfait | small_model + agents cachés compaction et summary |
+
+Tout passe par le forfait Z.ai Coding Plan ; si le quota de 5 h est atteint, on peut remettre
+=small_model=, =compaction= et =summary= sur OpenCode Zen.
 
 La clé Z.ai s'enregistre via =opencode auth login= (jamais dans le dépôt).
 
@@ -716,7 +719,7 @@ cc-dev            # Session Opus (developpement, architecture)
 
 | Feature | OpenCode | Claude Code |
 |---------|----------|-------------|
-| **Default Model** | GLM-5.3 high (principal, forfait Z.ai), DeepSeek V4.1 Flash (implementation) | Opus (cc-dev) / Sonnet (cc-factory) |
+| **Default Model** | GLM-5.4 high (principal, forfait Z.ai), GLM-5.3 Flash (implementation) | Opus (cc-dev) / Sonnet (cc-factory) |
 | **Auth** | OpenCode Zen (~/.zshrc.local) + Z.ai Coding Plan (=opencode auth login=) | Browser login (Claude Pro/Max) |
 | **Architecture** | Local server (long-running) | CLI tool (per-invocation) |
 | **Neovim Prefix** | =<leader>a= | =<leader>z= |

@@ -36,8 +36,8 @@ return {
       float_opts = {
         border = "curved",
         winblend = 3,
-        width = math.floor(vim.o.columns * 0.8),
-        height = math.floor(vim.o.lines * 0.8),
+        width = function() return math.floor(vim.o.columns * 0.6) end,
+        height = function() return math.floor(vim.o.lines * 0.35) end,
       },
       persist_size = true,
       persist_mode = true,
