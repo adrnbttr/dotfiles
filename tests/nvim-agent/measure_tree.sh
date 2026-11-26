@@ -11,6 +11,7 @@ SCRIPT="$ROOT/bin/.local/bin/nvim-agent"
 SOCK="deck-test-jdot-$$"
 tm() { tmux -L "$SOCK" "$@"; }
 # shellcheck disable=SC2317  # appelée indirectement par trap EXIT (faux positif)
+# shellcheck disable=SC2329 # appelée par trap EXIT
 cleanup() {
   tmux -L "$SOCK" kill-server 2>/dev/null
   rm -f "/tmp/tmux-$(id -u)/$SOCK"
